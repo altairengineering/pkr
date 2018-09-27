@@ -1,0 +1,11 @@
+*~
+env
+docker-context/*
+*.pyc
+config/*
+*.egg-info
+/kard/*
+.pytest*
+/*report*
+.tox
+.idea

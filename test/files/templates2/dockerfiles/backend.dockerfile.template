@@ -1,0 +1,8 @@
+FROM python:alpine3.7
+
+{{ add_file({
+        "common":{
+            "/usr/src/app": "app"
+        }
+    })
+ }}

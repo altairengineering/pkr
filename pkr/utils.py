@@ -1,0 +1,259 @@
+# -*- coding: utf-8 -*-
+# Copyright© 1986-2018 Altair Engineering Inc.
+
+# pylint: disable=C0111,E1101,R0912,R0913
+
+"""Utils functions for pkr"""
+
+import base64
+import collections
+import errno
+import json
+import os
+import random
+import re
+import shutil
+import time
+from fnmatch import fnmatch
+from glob import glob
+
+import jinja2
+from builtins import input
+from builtins import object
+from builtins import range
+from builtins import str
+from pathlib2 import Path
+
+PATH_ENV_VAR = 'PKR_PATH'
+KARD_FOLDER = 'kard'
+
+
+class PkrException(Exception):
+    """pkr Exception"""
+
+
+class KardInitializationException(PkrException):
+    """pkr Exception"""
+
+
+def is_pkr_path(path):
+    """Check environments files to deduce if path is a usable pkr path"""
+    return path.is_dir() and len(list(path.glob('env/*/env.yml'))) > 0
+
+def get_pkr_path():
+    """Return the path of the pkr folder
+
+    If the env. var 'PKR_PATH' is specified, it is returned, otherwise a
+    KeyError exception is raised.
+    """
+
+    full_path = Path(os.environ.get(PATH_ENV_VAR, os.getcwd())).absolute()
+    pkr_path = full_path
+    while pkr_path.parent != pkr_path:
+        if is_pkr_path(pkr_path):
+            return pkr_path
+        pkr_path = pkr_path.parent
+
+    if not is_pkr_path(pkr_path):
+        raise KardInitializationException(
+            '{} path {} is not a valid pkr path, no usable env found'.format(
+                'Given' if PATH_ENV_VAR in os.environ else 'Current',
+                full_path))
+
+    return pkr_path
+
+
+
+def get_kard_root_path():
+    """Return the root path of Kards"""
+    return get_pkr_path() / KARD_FOLDER
+
+
+def get_timestamp():
+    """Return a string timestamp"""
+    return time.strftime('%Y%m%d-%H%M%S')
+
+
+class HashableDict(dict):
+    """Extends dict with a __hash__ method to make it unique in a set"""
+
+    def __key(self):
+        return json.dumps(self)
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        return self.__key() == other.__key()  # pylint: disable=W0212
+
+
+def merge(source, destination):
+    """Deep merge 2 dicts
+
+    Warning: the source dict is merged INTO the destination one. Make a copy
+    before using it if you do not want to destroy the destination dict.
+    """
+    for key, value in list(source.items()):
+        if isinstance(value, collections.Mapping):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            merge(value, node)
+        elif isinstance(value, list):
+            if key in destination:
+                destination[key].extend(value)
+            else:
+                destination[key] = value
+        else:
+            destination[key] = value
+
+    return destination
+
+
+def generate_password(pw_len=15):
+    """Generate a password"""
+    alphabet = 'abcdefghijklmnopqrstuvwxyz'
+    upperalphabet = alphabet.upper()
+    pwlist = []
+
+    for _ in range(pw_len // 3):
+        pwlist.append(alphabet[random.randrange(len(alphabet))])
+        pwlist.append(upperalphabet[random.randrange(len(upperalphabet))])
+        pwlist.append(str(random.randrange(10)))
+    for _ in range(pw_len - len(pwlist)):
+        pwlist.append(alphabet[random.randrange(len(alphabet))])
+
+    random.shuffle(pwlist)
+    return ''.join(pwlist)
+
+
+def ensure_dir_absent(path):
+    """Ensure a folder and its content are deleted"""
+    try:
+        shutil.rmtree(str(path))
+    except OSError as err:
+        if err.errno == errno.ENOENT:
+            pass
+        else:
+            raise
+
+
+def ask_input(name):
+    return input('Missing meta({}):'.format(name))
+
+
+class TemplateEngine(object):
+
+    def __init__(self, tpl_context):
+        self.tpl_context = tpl_context.copy()
+        self.tpl_env = None
+
+    def process_template(self, template_file, target=None):
+        """Process a template and render it in the context
+
+        Args:
+          - template_file: the template to load
+          - target: if it is a file, the method will try to write the result
+            in it. Otherwise, it will try to open the path to write in a file.
+        """
+
+        pkr_path = get_pkr_path()
+
+        if self.tpl_env is None:
+            self.tpl_env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(str(pkr_path)))
+            self.tpl_env.filters['b64encode'] = base64.b64encode
+
+        rel_template_file = str(template_file.relative_to(pkr_path))
+
+        template = self.tpl_env.get_template(rel_template_file)
+        out = template.render(self.tpl_context)  # .encode('utf-8')
+        if target is None:
+            return out
+        if hasattr(target, 'write'):
+            target.write(out)
+        else:
+            target.write_text(out)
+
+    def copy(self, path, origin, local_dst, excluded_paths,
+             gen_template=False):
+        """Copy a tree recursively, while excluding specified files
+
+        Args:
+          - path: the file or folder to copy
+          - origin: the base folder of all paths
+          - local_dst: the destination folder / file
+          - excluded_paths: the list of unwanted excluded files
+        """
+        path_str = str(path)
+        if '*' in path_str:
+            file_list = [Path(p) for p in glob(path_str)]
+            if '*' in origin.name:
+                origin = origin.parent
+
+            for path_it in file_list:
+                rel_local_dst = path_it.relative_to(origin)
+                full_local_dst = local_dst / rel_local_dst
+
+                self.copy(path_it, path_it, full_local_dst,
+                          excluded_paths, gen_template)
+        elif path.is_file():
+            # Direct match for excluded paths
+            if path in excluded_paths:
+                return
+            if path != origin:
+                # path = /pkr/src/backend/api/__init__.py
+                abs_path = path.relative_to(origin)
+                # path = api/__init__.py
+                dst_path = local_dst / abs_path
+                # path = docker-context/backend/api/__init__.py
+            else:
+                # Here we avoid having a '.' as our abs_path
+                dst_path = local_dst
+            # We ensure that the containing folder exists
+
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            if gen_template and path.name.endswith('.template'):
+                # If the dst_local contains the filename with template
+                if not dst_path.is_dir():
+                    if dst_path.name.endswith('.template'):
+                        dst_path = self.remove_ext(dst_path)
+                else:  # We create the destination path
+                    dst_path = dst_path / self.remove_ext(path.name)
+                self.process_template(path, dst_path)
+            else:
+                shutil.copy(path_str, str(dst_path))
+        else:
+            for path_it in path.iterdir():
+                path_it = path / path_it
+                if not any([fnmatch(str(path_it), str(exc_path))
+                            for exc_path in excluded_paths]):
+                    self.copy(path_it, origin, local_dst,
+                              excluded_paths, gen_template)
+
+    @staticmethod
+    def remove_ext(path):
+        """Remove the portion of a string after the last dot."""
+        return path.parent / path.stem
+
+
+FLAGS = re.VERBOSE | re.MULTILINE | re.DOTALL
+WHITESPACE = re.compile(r'[ \t\n\r]*', FLAGS)
+
+
+class ConcatJSONDecoder(json.JSONDecoder):
+
+    def decode(self, s, _w=WHITESPACE.match):
+        s_len = len(s)
+
+        objs = []
+        end = 0
+        while end != s_len:
+            obj, end = self.raw_decode(s, idx=_w(s, end).end())
+            end = _w(s, end).end()
+            objs.append(obj)
+        return objs
+
+
+def is_running_in_docker():
+    """Return True if running in a docker container, False otherwise"""
+    return os.path.exists('/.dockerenv')
