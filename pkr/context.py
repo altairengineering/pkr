@@ -98,7 +98,7 @@ class Context(object):
         kard_path_var = '$KARD_PATH'
         src_path_var = '$SRC_PATH'
         if kard_path_var in path:
-            return path.replace(kard_path_var, self.kard.path)
+            return path.replace(kard_path_var, str(self.kard.path))
         if src_path_var in path:
             return path.replace(src_path_var, self.kard.meta['src_path'])
         return Path(get_pkr_path() / path)

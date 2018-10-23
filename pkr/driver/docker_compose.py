@@ -78,13 +78,13 @@ class ComposePkr(Pkr):
                 mount = next((c
                               for c in cont.attrs['Mounts']
                               if c['Destination'] == get_kard_root_path()))
-                self._base_path = mount['Source']
+                self._base_path = Path(mount['Source'])
             else:
-                self._base_path = Path(self.kard.path).parent.as_posix()
+                self._base_path = Path(self.kard.path).parent
         return self._base_path
 
     def expand_path(self, path, var='%KARD_PATH%'):
-        return path.replace(var, self.kard_folder_path)
+        return path.replace(var, str(self.kard_folder_path))
 
     def _call_compose(self, *args):
         compose_file_path = self.kard.path / self.COMPOSE_FILE
@@ -96,6 +96,7 @@ class ComposePkr(Pkr):
     def populate_kard(self):
         """Populate context for compose"""
         data = self.kard.meta.copy()
+
         data.update({
             'context_path': lambda p: str(
                 self.kard_folder_path / self.kard.name /
@@ -212,7 +213,7 @@ class ComposePkr(Pkr):
         # post_compose
         time.sleep(5)
 
-        # Call post run handlers on extentions
+        # Call post run handlers on extensions
         self.kard.extensions.post_up(eff_modules)
 
     def stop(self):

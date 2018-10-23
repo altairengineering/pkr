@@ -186,5 +186,6 @@ class Kard(object):
 
         # We add all remaining extra to the meta
         merge(extra, kard.meta)
+        kard.meta['features'] = list(set(kard.meta['features']))
 
         kard.save_meta()

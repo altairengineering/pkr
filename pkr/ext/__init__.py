@@ -57,7 +57,7 @@ class Extensions(object):
 
     def __init__(self, features):
         super(Extensions, self).__init__()
-        self.features = features
+        self.features = set(features)
         self._extensions = None
 
     @property

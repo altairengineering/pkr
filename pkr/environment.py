@@ -43,18 +43,24 @@ class Environment(object):
         """Load an environment with its dependencies recursively"""
         with path.open() as env_file:
             content = yaml.load(env_file)
-            if content is not None:
-                for imp_name in content.get(self.IMPORT_KEY, ()):
-                    imp_path = self.path / (imp_name + '.yml')
-                    imp_data = self._load_env_file(imp_path)
-                    imp_data.pop(self.IMPORT_KEY, None)
-                    content = merge(content, imp_data)
-                return content
+
+        if content is None:
             return {}
+
+        for imp_name in content.get(self.IMPORT_KEY, ()):
+            imp_path = self.path / (imp_name + '.yml')
+            imp_data = self._load_env_file(imp_path)
+            imp_data.pop(self.IMPORT_KEY, None)
+            content = merge(content, imp_data)
+        return content
 
     def get_meta(self, extra):
         """Ensure that all metadata are present"""
-        default = self.env.get('default_meta', {})
+        default = self.env.get('default_meta')
+
+        if not default:  # This prevent an empty value in the YAML
+            default = {}
+
         ret = default.copy()
         merge(extra, ret)
         for meta in self.env.get('required_meta', []):
@@ -102,7 +108,7 @@ class Environment(object):
         return self.env.get('context_template_dir', self.DEFAULT_TEMPLATE_DIR)
 
     def get_container(self, name=None):
-        """Return a compiled dictionnary representing a container, or a list of
+        """Return a compiled dictionary representing a container, or a list of
         all if name is not specified.
 
         Args:
@@ -156,3 +162,9 @@ class Environment(object):
 
     def __getitem__(self, item):
         return self.env.__getitem__(item)
+
+    def get(self, item, default):
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            return default
