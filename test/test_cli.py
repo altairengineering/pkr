@@ -112,13 +112,12 @@ class TestCLI(unittest.TestCase):
         cmd = '{} kard create test'.format(self.PKR)
 
         prc = self._run_cmd(cmd)
-
         self.assertEqual(1, prc.returncode)
 
         error_msg = b'Current path .* is not a valid pkr path, ' \
                     b'no usable env found\n'
         stdout = prc.stdout.read()
-        self.assertRegexpMatches(stdout, error_msg)
+        six.assertRegex(self, stdout, error_msg)
 
     def test_should_use_valid_pkr_path_from_env(self):
 
@@ -157,7 +156,7 @@ class TestCLI(unittest.TestCase):
         error_msg = b'Given path .* is not a valid pkr path, ' \
                     b'no usable env found\n'
         stdout = prc.stdout.read()
-        self.assertRegexpMatches(stdout, error_msg)
+        six.assertRegex(self, stdout, error_msg)
 
     def test_should_use_valid_pkr_path_from_current_path(self):
 
@@ -210,7 +209,7 @@ class TestCLI(unittest.TestCase):
         error_msg = b'Current path .* is not a valid pkr path, ' \
                     b'no usable env found\n'
         stdout = prc.stdout.read()
-        self.assertRegexpMatches(stdout, error_msg)
+        six.assertRegex(self, stdout, error_msg)
 
     def test_kard_list_should_display_warn_message(self):
 
