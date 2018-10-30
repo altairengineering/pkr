@@ -17,21 +17,17 @@ from pkr.version import __version__
 from .utils import get_test_files_path
 
 
-def _build_tmp_pkr_path(self_cls):
-    if not hasattr(self_cls, 'pkr_path'):
-        self_cls.pkr_path = Path(tempfile.mkdtemp())
+def _build_tmp_pkr_path():
+    """Create a tmp folder"""
+    return Path(tempfile.mkdtemp())
 
 
 def _create_kard_fs(self_cls):
     """Create a folder for kard"""
-    _build_tmp_pkr_path(self_cls)
-
     os.environ[PATH_ENV_VAR] = str(self_cls.pkr_path)
 
 
 def _populate_env(self_cls, env_name='env1'):
-    _build_tmp_pkr_path(self_cls)
-
     env_path = self_cls.pkr_path / 'env'
     test_env_path = get_test_files_path() / env_name
 
@@ -39,8 +35,6 @@ def _populate_env(self_cls, env_name='env1'):
 
 
 def _populate_templates(self_cls, template_name='templates1'):
-    _build_tmp_pkr_path(self_cls)
-
     tpl_path = self_cls.pkr_path / 'templates'
     test_tpl_path = get_test_files_path() / template_name
 
@@ -73,9 +67,15 @@ class TestCLI(unittest.TestCase):
         return prc
 
     def _create_kard_fs(self):
+        self.pkr_path = _build_tmp_pkr_path()
+        Kard.CURRENT_KARD = None  # Clear the Kard cache
         _create_kard_fs(self)
-        self.addCleanup(shutil.rmtree, str(self.pkr_path))
         self.addCleanup(os.environ.pop, PATH_ENV_VAR)
+
+    def tearDown(self):
+        if hasattr(self, 'pkr_path') and self.pkr_path.exists():
+            shutil.rmtree(str(self.pkr_path))
+            del self.pkr_path
 
     def test_help(self):
         cmd = '{} -h'.format(self.PKR)
@@ -126,6 +126,7 @@ class TestCLI(unittest.TestCase):
         if previous_path:
             self.addCleanup(os.environ.setdefault, PATH_ENV_VAR, previous_path)
 
+        self.pkr_path = _build_tmp_pkr_path()
         _populate_env(self)
 
         os.environ[PATH_ENV_VAR] = str(self.pkr_path)
@@ -143,7 +144,7 @@ class TestCLI(unittest.TestCase):
         if previous_path:
             self.addCleanup(os.environ.setdefault, PATH_ENV_VAR, previous_path)
 
-        _build_tmp_pkr_path(self)
+        self.pkr_path = _build_tmp_pkr_path()
 
         os.environ[PATH_ENV_VAR] = str(self.pkr_path)
 
@@ -165,6 +166,7 @@ class TestCLI(unittest.TestCase):
         if previous_path:
             self.addCleanup(os.environ.setdefault, PATH_ENV_VAR, previous_path)
 
+        self.pkr_path = _build_tmp_pkr_path()
         _populate_env(self)
 
         cmd = 'cd {} && {} kard list'.format(self.pkr_path, self.PKR)
@@ -180,7 +182,7 @@ class TestCLI(unittest.TestCase):
         if previous_path:
             self.addCleanup(os.environ.setdefault, PATH_ENV_VAR, previous_path)
 
-        _create_kard_fs(self)
+        self._create_kard_fs()
         _populate_env(self)
         _create_test_kard(self)
 
@@ -198,7 +200,7 @@ class TestCLI(unittest.TestCase):
         if previous_path:
             self.addCleanup(os.environ.setdefault, PATH_ENV_VAR, previous_path)
 
-        _build_tmp_pkr_path(self)
+        self.pkr_path = _build_tmp_pkr_path()
 
         cmd = 'cd {} && {} kard list'.format(self.pkr_path, self.PKR)
 
@@ -213,7 +215,7 @@ class TestCLI(unittest.TestCase):
 
     def test_kard_list_should_display_warn_message(self):
 
-        _create_kard_fs(self)
+        self._create_kard_fs()
         _populate_env(self)
 
         cmd = '{} kard list'.format(self.PKR)
@@ -228,7 +230,7 @@ class TestCLI(unittest.TestCase):
 
     def test_kard_list(self):
 
-        _create_kard_fs(self)
+        self._create_kard_fs()
         _populate_env(self)
         _create_test_kard(self)
 
@@ -245,7 +247,7 @@ class TestCLI(unittest.TestCase):
 
     def test_kard_create_with_extra(self):
 
-        _create_kard_fs(self)
+        self._create_kard_fs()
         _populate_env(self)
 
         cmd = '{} kard create test --extra tag=123'.format(self.PKR)
@@ -274,7 +276,7 @@ class TestCLI(unittest.TestCase):
 
     def test_kard_create_with_meta(self):
 
-        _create_kard_fs(self)
+        self._create_kard_fs()
         _populate_env(self)
 
         shutil.copy(str(get_test_files_path() / 'meta1.yml'),
@@ -307,7 +309,7 @@ class TestCLI(unittest.TestCase):
 
     def test_kard_make(self):
 
-        _create_kard_fs(self)
+        self._create_kard_fs()
         _populate_env(self)
         _populate_templates(self)
         _create_test_kard(self)
@@ -330,11 +332,13 @@ class TestKardMake(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.pkr_path = _build_tmp_pkr_path()
         _create_kard_fs(cls)
         _populate_env(cls)
         _populate_templates(cls)
         _create_test_kard(cls, extra={'foo': 'bar'})
 
+        Kard.CURRENT_KARD = None  # Clear the Kard cache
         cls.kard.make()
 
         cls.context_path = cls.pkr_path / 'kard' / 'current' / 'docker-context'
@@ -378,11 +382,13 @@ class TestKardMakeWithExtensionDev(TestKardMake):
 
     @classmethod
     def setUpClass(cls):
+        cls.pkr_path = _build_tmp_pkr_path()
         _create_kard_fs(cls)
         _populate_env(cls, 'env2')
         _populate_templates(cls, 'templates2')
         _create_test_kard(cls)
 
+        Kard.CURRENT_KARD = None  # Clear the Kard cache
         cls.kard.make()
 
         cls.context_path = cls.pkr_path / 'kard' / 'current' / 'docker-context'
@@ -402,11 +408,13 @@ class TestKardMakeWithExtensionProd(TestKardMake):
 
     @classmethod
     def setUpClass(cls):
+        cls.pkr_path = _build_tmp_pkr_path()
         _create_kard_fs(cls)
         _populate_env(cls, 'env2')
         _populate_templates(cls, 'templates2')
         _create_test_kard(cls, env_name='prod')
 
+        Kard.CURRENT_KARD = None  # Clear the Kard cache
         cls.kard.make()
 
         cls.context_path = cls.pkr_path / 'kard' / 'current' / 'docker-context'

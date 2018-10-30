@@ -24,8 +24,8 @@ from builtins import range
 from builtins import str
 from pathlib2 import Path
 
-PATH_ENV_VAR = 'PKR_PATH'
 KARD_FOLDER = 'kard'
+PATH_ENV_VAR = 'PKR_PATH'
 
 
 class PkrException(Exception):
@@ -38,7 +38,10 @@ class KardInitializationException(PkrException):
 
 def is_pkr_path(path):
     """Check environments files to deduce if path is a usable pkr path"""
-    return path.is_dir() and len(list(path.glob('env/*/env.yml'))) > 0
+    from pkr.environment import ENV_FOLDER
+    return path.is_dir() and \
+        len(list(path.glob('{}/*/env.yml'.format(ENV_FOLDER)))) > 0
+
 
 def get_pkr_path():
     """Return the path of the pkr folder
@@ -61,7 +64,6 @@ def get_pkr_path():
                 full_path))
 
     return pkr_path
-
 
 
 def get_kard_root_path():

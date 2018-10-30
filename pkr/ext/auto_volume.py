@@ -10,6 +10,8 @@ import os
 
 import jinja2
 
+from pkr.kard import Kard
+
 from . import ExtMixin, check_args
 
 
@@ -18,18 +20,13 @@ class AutoVolume(ExtMixin):
     adding files according to the meta `use_volume`.
     """
 
-    USE_VOLUME = 'use_volume'
-    expected_meta = (USE_VOLUME,)
-    default = {'use_volume': False}
-
-    @classmethod
-    def setup(cls, args, kard):
-        """Check if the meta `use_volume` is provided."""
-        check_args(args, kard, cls.expected_meta, cls.default)
-
-    @classmethod
-    def get_context_template_data(cls):
-        return {'add_file': add_file}
+    @staticmethod
+    def get_context_template_data():
+        kard = Kard.load_current()
+        return {
+            'add_file': add_file,
+            'use_volume': kard.env.get('use_volume', False)
+        }
 
 
 @jinja2.contextfunction

@@ -108,6 +108,11 @@ class ComposePkr(Pkr):
             'make_image_name': lambda n, t=None: self.make_image_name(n, t),
         })
 
+        # Get custom template data from extensions
+        for custom_data in self.kard.extensions.get_context_template_data():
+            if custom_data:
+                data.update(custom_data)
+
         def get_data_path(path):
             """Prefix the given path with the path to data volumes.
 

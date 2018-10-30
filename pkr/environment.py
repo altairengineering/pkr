@@ -8,7 +8,7 @@ from builtins import object
 
 from .utils import HashableDict, ask_input, get_pkr_path, merge
 
-DEFAULT_FOLDER = 'env'
+ENV_FOLDER = 'env'
 
 
 class Environment(object):
@@ -17,7 +17,7 @@ class Environment(object):
     IMPORT_KEY = 'import'
     DEFAULT_TEMPLATE_DIR = 'templates/dockerfiles'
 
-    def __init__(self, env_name, features, path=None):
+    def __init__(self, env_name, features=None, path=None):
         self.pkr_path = get_pkr_path()
         self.path = path or self.default_path
 
@@ -75,7 +75,7 @@ class Environment(object):
     @property
     def default_path(self):
         """Return the default path"""
-        return self.pkr_path / DEFAULT_FOLDER
+        return self.pkr_path / ENV_FOLDER
 
     def _containers(self, template=False):
         """Method for fetching the containers dict as the schema might
