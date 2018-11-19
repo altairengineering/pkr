@@ -2,7 +2,7 @@ backports.ssl-match-hostname==3.5.0.1
 cached-property==1.5.1
 certifi==2018.10.15
 chardet==3.0.4
-docker==3.3.0
+docker==3.5.0
 docker-compose==1.23.1
 docker-pycreds==0.3.0
 dockerpty==0.4.1

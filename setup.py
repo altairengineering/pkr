@@ -44,7 +44,7 @@ def setup_pkr():
         ],
         install_requires=[
             'docker-compose==1.23.1',
-            'docker==3.3.0',
+            'docker==3.5.0',
             'future==0.16.0',
             'GitPython==2.1.5',
             'ipaddress==1.0.16',
