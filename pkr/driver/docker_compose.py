@@ -124,7 +124,7 @@ class ComposePkr(Pkr):
             if data_path.is_absolute():
                 return str(data_path / path)
 
-            return str(self.kard_folder_path / self.kard.name / data_path,
+            return str(self.kard_folder_path / self.kard.name / data_path /
                        path)
 
         data['data_path'] = get_data_path
