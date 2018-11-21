@@ -96,8 +96,10 @@ class TestCLI(unittest.TestCase):
 
         if six.PY2:
             stdout = prc.stderr.read()
+            prc.stdout.close()
         else:
             stdout = prc.stdout.read()
+            prc.stderr.close()
 
         expected_output = 'pkr {}\n'.format(__version__).encode()
         self.assertEqual(expected_output, stdout)
