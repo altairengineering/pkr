@@ -153,7 +153,7 @@ class Pkr(object):
             if tag != 'latest':
                 image = ':'.join([image, tag])
 
-            write('Pushing {} to {}...'.format(image, rep_tag), end='')
+            write('Pushing {} to {}...'.format(image, rep_tag))
             sys.stdout.flush()
 
             self.docker.tag(
@@ -196,7 +196,7 @@ class Pkr(object):
             else:
                 image = image_name
 
-            write('Pulling {} from {}...'.format(image, rep_tag), end='')
+            write('Pulling {} from {}...'.format(image, rep_tag))
             sys.stdout.flush()
 
             try:
