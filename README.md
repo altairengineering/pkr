@@ -1,3 +1,7 @@
+# PKR
+
+[![Build Status](https://travis-ci.org/altairengineering/pkr.svg?branch=master)](https://travis-ci.org/altairengineering/pkr)
+
 # Introduction
 This repository provide a tool which allows generating docker images using templates.
 
