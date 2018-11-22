@@ -77,7 +77,7 @@ class ComposePkr(Pkr):
                 cont = cli.containers.get(container_id)
                 mount = next((c
                               for c in cont.attrs['Mounts']
-                              if c['Destination'] == get_kard_root_path()))
+                              if c['Destination'] == str(get_kard_root_path())))
                 self._base_path = Path(mount['Source'])
             else:
                 self._base_path = Path(self.kard.path).parent
