@@ -5,6 +5,7 @@
 
 from .base import DOCKER_SOCK, AbstractDriver, Pkr
 from ..utils import ask_input, get_pkr_path, TemplateEngine
+from passlib.apache import HtpasswdFile
 
 
 class Driver(AbstractDriver):
@@ -53,9 +54,15 @@ class KubernetesPkr(Pkr):
             return pattern.format(
                 self._get_registry(), image_name, self.kard.meta['tag'])
 
+        def format_htpasswd(username, password):
+            ht = HtpasswdFile()
+            ht.set_password(username, password)
+            return ht.to_string().rstrip()
+
         data.update({
             'kard_file_content': read_kard_file,
             'format_image': format_image,
+            'format_htpasswd': format_htpasswd,
         })
         tpl_engine = TemplateEngine(data)
 
