@@ -6,7 +6,7 @@
 import yaml
 from builtins import object
 
-from .utils import HashableDict, ask_input, get_pkr_path, merge
+from .utils import HashableDict, ensure_definition_matches, get_pkr_path, merge
 
 ENV_FOLDER = 'env'
 
@@ -63,11 +63,15 @@ class Environment(object):
 
         ret = default.copy()
         merge(extra, ret)
-        for meta in self.env.get('required_meta', []):
-            if meta in extra:
-                ret[meta] = extra.pop(meta)
-            else:
-                ret[meta] = ask_input(meta)
+
+        required_values = ensure_definition_matches(
+            definition=self.env.get('required_meta', []),
+            defaults={},
+            data=extra
+        ) or {}
+
+        merge(required_values, ret)
+
         # Feature
         ret['features'] = self.env.get('default_features', [])
         return ret

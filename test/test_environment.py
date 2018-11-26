@@ -2,6 +2,7 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 import unittest
+from mock import call, patch
 
 import os
 
@@ -49,3 +50,39 @@ class TestEnvironment(unittest.TestCase):
         }
 
         self.assertEqual(env.env, expected_env)
+
+    def test_load_required_meta_environment(self):
+        env = Environment('required_meta')
+
+        expected_env = {
+            'containers': {'backend': {'dockerfile': 'backend.dockerfile'}},
+            'default_features': ['auto-volume'],
+            'driver': {
+                'docker_compose': {
+                    'compose_file': 'templates/docker-compose.yml.template'}},
+            'import': ['common/env'],
+            'required_meta': [
+                'simple_meta', {'dict_meta': ['dict_meta_value']}]
+        }
+
+        self.assertEqual(env.env, expected_env)
+
+        metas = {
+            'simple_meta': 'simple_meta_value',
+            'dict_meta/dict_meta_value': 'dict_meta_value',
+        }
+
+        with patch('pkr.utils.ask_input', side_effect=metas.get) \
+                as std_mock:
+            values = env.get_meta({})
+
+            for func_call in [call(m) for m in metas.keys()]:
+                self.assertIn(func_call, std_mock.call_args_list)
+
+        expected_values = {
+            'features': ['auto-volume'],
+            'simple_meta': 'simple_meta_value',
+            'dict_meta': {'dict_meta_value': 'dict_meta_value'},
+        }
+
+        self.assertEqual(values, expected_values)

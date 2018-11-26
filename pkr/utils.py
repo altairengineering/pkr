@@ -259,3 +259,44 @@ class ConcatJSONDecoder(json.JSONDecoder):
 def is_running_in_docker():
     """Return True if running in a docker container, False otherwise"""
     return os.path.exists('/.dockerenv')
+
+
+def ensure_key_present(key, default, data, path=None):
+    """Ensure that a key is present, set the default is present, or ask
+    the user to input it."""
+
+    if key in data:
+        return data.pop(key)
+    if key in default:
+        return default.pop(key)
+
+    return ask_input((path or '') + key)
+
+
+def ensure_definition_matches(definition, defaults, data, path=None):
+    """Recursive function that ensures data is provided.
+
+    Ask for it if not.
+    """
+    path = path or ''
+    if isinstance(definition, dict):
+        values = {k: ensure_definition_matches(
+                definition=v,
+                defaults=defaults.get(k, []),
+                data=data.get(k, {}),
+                path=path + k + '/') for k, v in definition.items()}
+        return values
+
+    elif isinstance(definition, list):
+        values = {}
+        for element in definition:
+            values.update(ensure_definition_matches(
+                    definition=element,
+                    defaults=defaults,
+                    data=data,
+                    path=path))
+        return values
+
+    else:
+        value = ensure_key_present(definition, defaults, data, path)
+        return {definition: value}
