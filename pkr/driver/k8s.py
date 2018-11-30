@@ -66,7 +66,7 @@ class KubernetesPkr(Pkr):
         })
         tpl_engine = TemplateEngine(data)
 
-        k8s_files = self.kard.env.env['environment'].get('k8s_files')
+        k8s_files = self.kard.env.env.get('driver', {}).get('k8s', {}).get('k8s_files', [])
 
         if k8s_files is not None:
             for k8s_file in k8s_files:

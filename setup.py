@@ -50,6 +50,7 @@ def setup_pkr():
             'ipaddress==1.0.16',
             'jinja2',
             'netifaces==0.10.5',
+            'passlib>=1.7.1',
             'pathlib2==2.3.0',
             'stevedore==1.21.0'
         ],
