@@ -56,7 +56,7 @@ def _pull_images(args):
 
 def _purge(args):
     kard = Kard.load_current()
-    kard.docker_cli.purge(args.except_tag)
+    kard.docker_cli.purge(args.except_tag, args.tag, args.repository)
 
 
 def _list_kards(*_):
@@ -243,9 +243,17 @@ def configure_image_parser(parser):
         'purge',
         help='Delete all images for containers of the current kard')
     purge_parser.add_argument(
+        '--tag',
+        default=None,
+        help='Delete images with the given tag')
+    purge_parser.add_argument(
         '--except-tag',
         default=None,
         help='Do not delete images with the given tag')
+    purge_parser.add_argument(
+        '--repository',
+        default=None,
+        help='Delete image reference in a specified repository')
     purge_parser.set_defaults(func=_purge)
 
 
