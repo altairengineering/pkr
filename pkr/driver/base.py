@@ -3,13 +3,13 @@
 
 """Docker base object"""
 
+import re
 import sys
 import traceback
 from collections import namedtuple
 
 import docker
 from builtins import object
-from compose.cli.command import get_project_name
 
 from pkr.cli.log import write
 from pkr.utils import get_timestamp
@@ -100,12 +100,13 @@ class Pkr(object):
           * verbose: verbose logs
         """
         with LogOutput(logfile) as logfh:
-            ctx = self.kard.context
             if tag is None:
-                tag = ctx.kard.meta['tag']
+                tag = self.kard.meta['tag']
 
             if len(services) > 1:
                 logfh.write('Building PCLM docker images...\n')
+
+            ctx = self.kard.context
             for service in services:
                 image_name = self.make_image_name(service, tag)
                 logfh.write('Building {} image...\n'.format(image_name))
@@ -285,14 +286,36 @@ class Pkr(object):
                         raise Exception('Error during docker process: ' +
                                         last_log['errorDetail']['message'])
 
-    def purge(self, except_tag=None):
-        """Delete all images of this project."""
-        project = get_project_name(self.kard.path)
+    def purge(self, except_tag=None, tag=None, repository=None):
+        """Delete all images of this project.
+
+        Only tag or except_tag can be specified simultaneously.
+
+        Args:
+          * except_tag: delete all image but this tag
+          * tag: only delete this tag
+          * repository: delete image reference in a specified repository
+        """
+        services = list(self.kard.env.get_container().keys())
+        if except_tag is None:
+            tag = tag or self.kard.meta['tag']
+        else:
+            tag = '(?!{})$'.format(except_tag)
+
+        images_to_del = [self.make_image_name(s, '*') for s in services]
+
+        if repository:
+            tmp = []
+            for image in images_to_del:
+                tmp.append(image)
+                tmp.append('/'.join((repository, image)))
+            images_to_del = tmp
+
+        images_regex = '(' + ')|('.join(images_to_del) + ')'
+
         for img in self.docker.images():
             for repo_tag in img.get('RepoTags', []):
-                if repo_tag.startswith(project + '_') and \
-                        (except_tag is None or
-                         not repo_tag.endswith(':' + except_tag)):
+                if re.match(images_regex, repo_tag):
                     write('Deleting image ' + repo_tag)
                     try:
                         self.docker.remove_image(repo_tag)
