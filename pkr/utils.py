@@ -6,22 +6,22 @@
 """Utils functions for pkr"""
 
 import base64
+from builtins import input
+from builtins import object
+from builtins import range
+from builtins import str
 import collections
 import errno
+from fnmatch import fnmatch
+from glob import glob
 import json
 import os
 import random
 import re
 import shutil
 import time
-from fnmatch import fnmatch
-from glob import glob
 
 import jinja2
-from builtins import input
-from builtins import object
-from builtins import range
-from builtins import str
 from pathlib2 import Path
 
 KARD_FOLDER = 'kard'
@@ -40,7 +40,7 @@ def is_pkr_path(path):
     """Check environments files to deduce if path is a usable pkr path"""
     from pkr.environment import ENV_FOLDER
     return path.is_dir() and \
-        len(list(path.glob('{}/*/env.yml'.format(ENV_FOLDER)))) > 0
+           len(list(path.glob('{}/*/env.yml'.format(ENV_FOLDER)))) > 0
 
 
 def get_pkr_path():
@@ -281,20 +281,20 @@ def ensure_definition_matches(definition, defaults, data, path=None):
     path = path or ''
     if isinstance(definition, dict):
         values = {k: ensure_definition_matches(
-                definition=v,
-                defaults=defaults.get(k, []),
-                data=data.get(k, {}),
-                path=path + k + '/') for k, v in definition.items()}
+            definition=v,
+            defaults=defaults.get(k, []),
+            data=data.get(k, {}),
+            path=path + k + '/') for k, v in definition.items()}
         return values
 
     elif isinstance(definition, list):
         values = {}
         for element in definition:
             values.update(ensure_definition_matches(
-                    definition=element,
-                    defaults=defaults,
-                    data=data,
-                    path=path))
+                definition=element,
+                defaults=defaults,
+                data=data,
+                path=path))
         return values
 
     else:

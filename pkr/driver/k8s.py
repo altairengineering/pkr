@@ -3,9 +3,10 @@
 
 """Pkr functions for handling the life cycle with k8s"""
 
-from .base import DOCKER_SOCK, AbstractDriver, Pkr
-from ..utils import ask_input, get_pkr_path, TemplateEngine
 from passlib.apache import HtpasswdFile
+
+from .base import DOCKER_SOCK, AbstractDriver, Pkr
+from ..utils import TemplateEngine, get_pkr_path, ensure_definition_matches, merge
 
 
 class Driver(AbstractDriver):
@@ -18,15 +19,14 @@ class Driver(AbstractDriver):
     @staticmethod
     def get_meta(extras, kard):
         metas = ['tag']
-        if 'launcher' not in kard.meta['features']:
-            metas.append('registry')
-        ret = {}
-        for meta_it in metas:
-            if meta_it in extras:
-                ret[meta_it] = extras.pop(meta_it)
-            else:
-                ret[meta_it] = ask_input(meta_it)
-        return ret
+
+        default = kard.env.get('default_meta', {}).copy()
+        merge(extras, default)
+
+        return ensure_definition_matches(
+            definition=metas,
+            defaults=default,
+            data=kard.meta)
 
 
 class KubernetesPkr(Pkr):

@@ -11,8 +11,7 @@ import os
 import jinja2
 
 from pkr.kard import Kard
-
-from . import ExtMixin, check_args
+from . import ExtMixin
 
 
 class AutoVolume(ExtMixin):

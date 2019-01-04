@@ -3,23 +3,23 @@
 
 """pkr functions for managing containers lifecycle with compose"""
 
+from builtins import next
 import os
 import re
 import subprocess
 import time
 import traceback
 
-import docker
-import yaml
-from builtins import next
 from compose import config as docker_config
 from compose.cli.command import get_project_name
+import docker
 from pathlib2 import Path
+import yaml
 
 from .base import DOCKER_SOCK, AbstractDriver, Pkr
 from ..cli.log import write
-from ..utils import PkrException, TemplateEngine, ask_input, \
-    get_kard_root_path, get_pkr_path, is_running_in_docker, merge
+from ..utils import PkrException, TemplateEngine, get_kard_root_path, get_pkr_path, is_running_in_docker, merge, \
+    ensure_definition_matches
 
 
 class Driver(AbstractDriver):
@@ -38,18 +38,16 @@ class Driver(AbstractDriver):
           * extras(dict): extra values
           * kard: the current kard
         """
-        metas = ('tag', 'project_name')
-        ret = {}
-        defaults = {'project_name': get_project_name(str(kard.path))}
-        for meta in metas:
-            if meta in extras:
-                ret[meta] = extras.pop(meta)
-            elif meta not in kard.meta:
-                if meta in defaults:
-                    ret[meta] = defaults[meta]
-                else:
-                    ret[meta] = ask_input(meta)
-        return ret
+        metas = ['tag', 'project_name']
+
+        default = kard.env.get('default_meta', {}).copy()
+        default.setdefault('project_name', get_project_name(str(kard.path)))
+        merge(extras, default)
+
+        return ensure_definition_matches(
+            definition=metas,
+            defaults=default,
+            data=kard.meta)
 
 
 class ComposePkr(Pkr):
