@@ -66,7 +66,7 @@ class Environment(object):
 
         required_values = ensure_definition_matches(
             definition=self.env.get('required_meta', []),
-            defaults={},
+            defaults=ret,
             data=extra
         ) or {}
 
