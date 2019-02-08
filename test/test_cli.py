@@ -433,3 +433,40 @@ class TestKardMakeWithExtensionProd(TestKardMake):
 
         content = gen_file.open('r').read()
         self.assertEqual(expected_content, content)
+
+
+class TestImagePull(TestCLI):
+
+    def test_image_pull_properly_fail(self):
+        self._create_kard_fs()
+        _populate_env(self)
+        _populate_templates(self)
+        _create_test_kard(self)
+
+        # We want to test that the command `pkr image pull` get a same error 3
+        # times, because it should retry 3 times, and fail with code 1
+        cmd = '{} image pull'.format(self.PKR)
+
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        self.assertEqual(1, prc.returncode, stdout)
+
+        expected_cmd_output = b'Pulling backend:test from None...'
+        expected_error_regex = b'Error while pulling the image test:'
+        expected_final_print_prefix = b'ImagePullError'
+
+        error_outputs = stdout.split(b'\n')[:-1]
+        # 1 line for the command output
+        # 4 lines with the same error (3 tries, and the final print)
+        self.assertEqual(len(error_outputs), 5)
+        self.assertEqual(error_outputs[0], expected_cmd_output)
+
+        errors = error_outputs[1:]
+        # Check for 3 lines with the same message that indicate we have
+        # retried 3 times
+        six.assertRegex(self, errors[0], expected_error_regex)
+        six.assertRegex(self, errors[1], expected_error_regex)
+        six.assertRegex(self, errors[2], expected_error_regex)
+        # Check that the last line is the final error print with the proper
+        # error type
+        six.assertRegex(self, errors[-1], expected_final_print_prefix)

@@ -53,7 +53,8 @@ def setup_pkr():
             'passlib>=1.7.1',
             'pathlib2==2.3.0',
             'pyyaml>=4.2b1',
-            'stevedore==1.21.0'
+            'stevedore==1.21.0',
+            'tenacity==5.0.3'
         ],
         packages=find_packages(exclude=['test', 'docs']),
         python_requires='>=2.7, !=3.0., !=3.1., !=3.2., !=3.3., !=3.4.*, '
