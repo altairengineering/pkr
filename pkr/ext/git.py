@@ -5,12 +5,12 @@
 
 from __future__ import absolute_import
 
-import os
 from builtins import str
+import os
+
 from git import Repo
 
 from pkr.cli.log import write
-
 from . import ExtMixin
 
 

@@ -3,15 +3,14 @@
 
 """Module containing extensions for pkr"""
 import abc
-import signal
-
 from builtins import object
 from builtins import str
+import signal
+
 from future.utils import with_metaclass
 from stevedore.named import ExtensionManager, NamedExtensionManager
 
 from pkr.cli.log import write
-from pkr.utils import ask_input
 
 
 class ExtMixin(with_metaclass(abc.ABCMeta, object)):
@@ -24,8 +23,8 @@ class ExtMixin(with_metaclass(abc.ABCMeta, object)):
         This hook is called when a new kard is created. It might also be used
         for kard updating.
 
-        A practical implementation is provided in the function `check_args`
-        below.
+        A practical implementation is provided in the function
+        `ensure_definition_matches` in utils.
 
         Args:
           - args: the args passed in the env
@@ -130,22 +129,3 @@ def timeout(timeout_duration):  # pylint: disable=C0111
         return decorated_function
 
     return wrap
-
-
-def check_args(args, kard, expected_metas, defaults=None):
-    """Check if required metas are provided in the args.
-
-    If not, it tries to look for a default in the environment, and if absent,
-    prompt the user for it.
-    """
-
-    defaults = defaults or {}
-
-    for meta in expected_metas:
-        if meta in args:
-            kard.meta[meta] = args.pop(meta)
-        elif meta not in kard.meta:
-            if defaults and meta in defaults:  # Already defined in the env
-                kard.meta[meta] = defaults[meta]
-            else:  # Already defined in the env default
-                kard.meta[meta] = ask_input(meta)
