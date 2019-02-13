@@ -21,7 +21,7 @@ netifaces==0.10.5
 passlib==1.7.1
 pathlib2==2.3.0
 pbr==5.1.1
-PyYAML==3.13
+PyYAML==4.2b1
 requests==2.20.1
 scandir==1.9.0
 six==1.11.0
