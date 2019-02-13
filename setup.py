@@ -51,6 +51,7 @@ def setup_pkr():
             'jinja2',
             'netifaces==0.10.5',
             'pathlib2==2.3.0',
+            'pyyaml>=4.2b1',
             'stevedore==1.21.0'
         ],
         packages=find_packages(exclude=['test', 'docs']),
