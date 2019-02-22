@@ -17,6 +17,7 @@ ipaddress==1.0.16
 Jinja2==2.10
 jsonschema==2.6.0
 MarkupSafe==1.1.0
+monotonic==1.5
 netifaces==0.10.5
 passlib==1.7.1
 pathlib2==2.3.0
@@ -27,6 +28,7 @@ scandir==1.9.0
 six==1.11.0
 smmap2==2.0.5
 stevedore==1.21.0
+tenacity==5.0.3
 texttable==0.9.1
 urllib3==1.24.1
 websocket-client==0.54.0

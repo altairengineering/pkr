@@ -10,11 +10,16 @@ from collections import namedtuple
 
 import docker
 from builtins import object
+import tenacity
 
 from pkr.cli.log import write
-from pkr.utils import get_timestamp
+from pkr.utils import PkrException, get_timestamp
 
 DOCKER_SOCK = 'unix://var/run/docker.sock'
+
+
+class ImagePullError(PkrException):
+    """Raise when error occurs while pulling image"""
 
 
 class DockerRegistry(namedtuple('DockerRegistry',
@@ -190,32 +195,53 @@ class Pkr(object):
 
         for service in services:
             image_name = self.make_image_name(service)
-            rep_tag = '{}/{}'.format(registry.url, image_name)
+            image = image_name if tag == 'latest' \
+                else ':'.join((image_name, tag))
 
-            if tag != 'latest':
-                image = ':'.join((image_name, tag))
-            else:
-                image = image_name
-
-            write('Pulling {} from {}...'.format(image, rep_tag))
+            write('Pulling {} from {}...'.format(image, registry.url))
             sys.stdout.flush()
 
-            try:
-                self.docker.pull(
-                    repository=rep_tag,
-                    tag=tag)
-
-                # Strip the repository tag
-                self.docker.tag(
-                    image=':'.join((rep_tag, tag)),
-                    repository=image_name,
-                    tag=tag,
-                    force=True)
-
-            except docker.errors.APIError:
-                write('Error while pulling the image {}'.format(tag))
+            self._pull_image(image_name, registry.url, tag)
 
             write(' Done !' + '\n')
+
+        write('All images has been pulled successfully !' + '\n')
+
+    @tenacity.retry(
+        wait=tenacity.wait_fixed(1),
+        stop=tenacity.stop_after_attempt(3),
+        reraise=True,
+        retry=tenacity.retry_if_exception_type(ImagePullError),
+    )
+    def _pull_image(self, image_name, registry_url, tag):
+        """
+        Pull one image, retry few times to be robust to registry or network
+        related issues.
+        Usually, if an attempt fails, the next one will succeed.
+
+        Args:
+          * image_name: the name of the image to pull
+          * registry_url: the DockerRegistry instance url
+          * tag: the tag of the version to pull
+        """
+
+        rep_tag = '{}/{}'.format(registry_url, image_name)
+
+        try:
+            self.docker.pull(repository=rep_tag,
+                             tag=tag)
+
+            # Strip the repository tag
+            self.docker.tag(image=':'.join((rep_tag, tag)),
+                            repository=image_name,
+                            tag=tag,
+                            force=True)
+
+        except docker.errors.APIError as error:
+            error_msg = 'Error while pulling the image {}: {}'.format(
+                tag, error)
+            write(error_msg)
+            raise ImagePullError(error_msg)
 
     def start(self, services):
         """Starts services
