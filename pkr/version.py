@@ -1,4 +1,4 @@
 # -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2019 Altair Engineering Inc.
 
-__version__ = "1.0.9"
+__version__ = "1.0.10"
