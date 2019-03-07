@@ -42,7 +42,7 @@ class Environment(object):
     def _load_env_file(self, path):
         """Load an environment with its dependencies recursively"""
         with path.open() as env_file:
-            content = yaml.load(env_file)
+            content = yaml.safe_load(env_file)
 
         if content is None:
             return {}

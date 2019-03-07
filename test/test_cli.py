@@ -106,7 +106,6 @@ class TestCLI(unittest.TestCase):
             prc.stderr.close()
             self.assertEqual(expected_output, stdout)
 
-
     def test_kard_create_should_warn_no_pkr_path(self):
 
         # Ensure the environment variable is not set
@@ -277,7 +276,7 @@ class TestCLI(unittest.TestCase):
             'tag': '123',
         }
 
-        self.assertEqual(expected_meta, yaml.load(meta_file.open('r')))
+        self.assertEqual(expected_meta, yaml.safe_load(meta_file.open('r')))
 
     def test_kard_create_with_meta(self):
 
@@ -310,7 +309,7 @@ class TestCLI(unittest.TestCase):
             'tag': '123',
         }
 
-        self.assertEqual(expected_meta, yaml.load(meta_file.open('r')))
+        self.assertEqual(expected_meta, yaml.safe_load(meta_file.open('r')))
 
     def test_kard_make(self):
 
@@ -362,7 +361,7 @@ class TestKardMake(unittest.TestCase):
             'services': {}
         }
 
-        self.assertEqual(expected_docker_compose, yaml.load(dc_file.open('r')))
+        self.assertEqual(expected_docker_compose, yaml.safe_load(dc_file.open('r')))
 
     def test_dockerfile_present(self):
         gen_file = self.context_path / 'backend.dockerfile'

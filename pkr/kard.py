@@ -35,7 +35,7 @@ class Kard(object):
 
         if meta is None:
             with (path / self.META_FILE).open() as meta_file:
-                self.meta = yaml.load(meta_file)
+                self.meta = yaml.safe_load(meta_file)
         else:
             self.meta = meta
 
