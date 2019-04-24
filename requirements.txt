@@ -15,7 +15,7 @@ gitdb2==2.0.5
 GitPython==2.1.5
 idna==2.7
 ipaddress==1.0.16
-Jinja2==2.10
+Jinja2==2.10.1
 jsonschema==2.6.0
 MarkupSafe==1.1.1
 monotonic==1.5
@@ -31,5 +31,5 @@ smmap2==2.0.5
 stevedore==1.21.0
 tenacity==5.0.3
 texttable==0.9.1
-urllib3==1.24.1
+urllib3==1.24.2
 websocket-client==0.55.0
