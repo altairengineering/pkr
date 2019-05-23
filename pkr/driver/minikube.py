@@ -13,11 +13,26 @@ from urllib.parse import urlparse
 
 from docker.tls import TLSConfig
 from pathlib2 import Path
+from kubernetes.client.rest import ApiException
 
+from ..cli.log import write
 from ..utils import ask_input
 
 from .base import AbstractDriver
 from .k8s import KubernetesPkr
+
+
+def print_manual():
+    print('''
+To create or start a kubernetes stack:
+
+# sudo ip link set docker0 promisc on
+# export KUBECONFIG=$HOME/.kube/minikube.config
+# export MINIKUBE_HOME=$HOME
+# export CHANGE_MINIKUBE_NONE_USER=true
+# sudo -E minikube start --vm-driver=none --extra-config=kubelet.hairpin-mode=promiscuous-bridge
+# sudo -E minikube addons enable ingress
+''')
 
 
 class Driver(AbstractDriver):
@@ -33,15 +48,36 @@ class Driver(AbstractDriver):
         the 'docker-env' command.
         """
 
+        cmd = '/usr/local/bin/minikube config get vm-driver'
+        out = subprocess.Popen(
+            shlex.split(cmd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        out.wait()
+
+        # This means we are on "direct" mode, without VM.
+        if out.returncode == 64:
+            return MinikubePkr(kard)
+
         cmd = '''
-/bin/bash -c 'eval $(/usr/local/bin/minikube docker-env) && \
+/bin/bash -c 'eval $(minikube docker-env) && \
 echo "{\\"host\\": \\"$DOCKER_HOST\\", \\"cert\\":\\"$DOCKER_CERT_PATH\\"}"'
         '''
 
         out = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
+        out.wait()
         stdout = out.stdout.read()
 
+        if out.returncode != 0:
+            write('Error while getting the docker environment.')
+            write(stdout)
+
         target = json.loads(stdout)
+
+        if not target['host']:
+            return MinikubePkr(kard)
+
         cert_path = Path(target['cert'])
 
         tls_config = TLSConfig(
@@ -68,9 +104,15 @@ class MinikubePkr(KubernetesPkr):
 
     def __init__(self, kard, *args, **kwargs):
         super(MinikubePkr, self).__init__(kard, *args, **kwargs)
-        self.host = args[0]
+        self.mk_bin = 'minikube'
 
-    def get_registry(self, **kwargs):
-        if kwargs.get('url') is None:
-            kwargs['url'] = urlparse(self.host).hostname + ':5000'
-        return super(MinikubePkr, self).get_registry(**kwargs)
+    def get_status(self):
+        try:
+            self.client.read_node_status('minikube')
+        except ApiException:
+            print_manual()
+            return False
+
+    def run_minikube(self, cmd):
+        """Run kubectl tool with the provided command"""
+        return self.run_cmd('minikube {}'.format(cmd))

@@ -249,7 +249,7 @@ class ComposePkr(Pkr):
         return next(iter(networks.values()))['IPAddress']
 
     def cmd_ps(self):
-        """ List containes with ips"""
+        """ List containers with ips"""
         services = self._load_compose_config().services
         for service in [s['name'] for s in services]:
             try:

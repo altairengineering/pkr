@@ -47,14 +47,17 @@ def setup_pkr():
             'docker==3.7.0',
             'future==0.16.0',
             'GitPython==2.1.5',
-            'ipaddress==1.0.16',
+            'ipaddress==1.0.17',
             'jinja2',
+            'kubernetes>=9.0.0',
             'netifaces==0.10.5',
+            'paramiko == 2.4.2',
             'passlib>=1.7.1',
             'pathlib2==2.3.0',
             'pyyaml>=4.2b1,<5',
             'stevedore==1.21.0',
-            'tenacity==5.0.3'
+            'tenacity==5.0.3',
+            'urllib3<1.25'
         ],
         packages=find_packages(exclude=['test', 'docs']),
         python_requires='>=2.7, !=3.0., !=3.1., !=3.2., !=3.3., !=3.4.*, '
