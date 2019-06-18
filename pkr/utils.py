@@ -200,9 +200,8 @@ class TemplateEngine(object):
                           excluded_paths, gen_template)
         elif path.is_file():
             # Direct match for excluded paths
-            for glob_pattern in excluded_paths:
-                if path.match(glob_pattern):
-                    return
+            if path in excluded_paths:
+                return
             if path != origin:
                 # path = /pkr/src/backend/api/__init__.py
                 abs_path = path.relative_to(origin)
