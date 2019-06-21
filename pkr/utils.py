@@ -102,7 +102,7 @@ def merge(source, destination):
             merge(value, node)
         elif isinstance(value, list):
             if key in destination:
-                destination[key].extend(value)
+                destination[key] = list(set(destination[key] + value))
             else:
                 destination[key] = value
         else:
