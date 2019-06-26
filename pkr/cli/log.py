@@ -14,7 +14,7 @@ def set_debug(debug=False):
 def write(msg, add_return=True):
     """Print the `msg` to the stdout"""
     if add_return:
-        msg += '\n'
+        msg = str(msg) + '\n'
     sys.stdout.write(msg)
     sys.stdout.flush()
 
