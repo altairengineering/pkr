@@ -102,7 +102,11 @@ def merge(source, destination):
             merge(value, node)
         elif isinstance(value, list):
             if key in destination:
-                destination[key] = list(set(destination[key] + value))
+                try:
+                    destination[key] = list(set(destination[key] + value))
+                # Prevent errors when having unhashable dict types
+                except TypeError:
+                    destination[key].extend(value)
             else:
                 destination[key] = value
         else:
