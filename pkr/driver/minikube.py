@@ -7,9 +7,9 @@ from future import standard_library
 
 standard_library.install_aliases()
 import json
+import os
 import shlex
 import subprocess
-from urllib.parse import urlparse
 
 from docker.tls import TLSConfig
 from pathlib2 import Path
@@ -102,9 +102,16 @@ echo "{\\"host\\": \\"$DOCKER_HOST\\", \\"cert\\":\\"$DOCKER_CERT_PATH\\"}"'
 class MinikubePkr(KubernetesPkr):
     """pkr implementation for minikube"""
 
+    K8S_CONFIG = os.path.expandvars('$HOME/.kube/minikube.config')
+
     def __init__(self, kard, *args, **kwargs):
         super(MinikubePkr, self).__init__(kard, *args, **kwargs)
         self.mk_bin = 'minikube'
+
+        self.env.update({
+            'MINIKUBE_HOME': os.path.expandvars('$HOME'),
+            'CHANGE_MINIKUBE_NONE_USER': 'true',
+        })
 
     def get_status(self):
         try:

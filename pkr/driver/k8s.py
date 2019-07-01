@@ -40,23 +40,25 @@ class KubernetesPkr(Pkr):
     """K8s implementation"""
 
     K8S_FOLDER = 'k8s'
+    K8S_CONFIG = os.path.expandvars('$KUBECONFIG')
 
     def __init__(self, *args, **kwargs):
         super(KubernetesPkr, self).__init__(*args, **kwargs)
 
-        kubeconfig = os.path.expandvars('$HOME/.kube/minikube.config')
-        minikube_home = os.path.expandvars('$HOME')
-
-        self.config = config.load_kube_config(kubeconfig)
-        self.client = client.CoreV1Api()
+        self._client = None
         self.namespace = 'default'
 
         self.env = {
-            'KUBECONFIG': kubeconfig,
-            'MINIKUBE_HOME': minikube_home,
-            'CHANGE_MINIKUBE_NONE_USER': 'true',
+            'KUBECONFIG': self.K8S_CONFIG,
             'PATH': os.environ.get('PATH'),
         }
+
+    @property
+    def client(self):
+        if not self._client:
+            config.load_kube_config(self.K8S_CONFIG)
+            self._client = client.CoreV1Api()
+        return self._client
 
     def _get_registry(self):
         return self.kard.meta.get('registry')
@@ -76,11 +78,6 @@ class KubernetesPkr(Pkr):
                 return image
 
             return '{}/{}'.format(self._get_registry(), image)
-
-        def format_htpasswd(username, password):
-            ht = HtpasswdFile()
-            ht.set_password(username, password)
-            return ht.to_string().rstrip()
 
         def format_htpasswd(username, password):
             ht = HtpasswdFile()
@@ -118,9 +115,6 @@ class KubernetesPkr(Pkr):
     def run_kubectl(self, cmd):
         """Run kubectl tool with the provided command"""
         return self.run_cmd('kubectl {}'.format(cmd))
-
-    def can_connect(self):
-        return ''
 
     def start(self, services):
         """Starts services
