@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2019 Altair Engineering Inc.
 
 # pylint: disable=C0111,E1101,R0912,R0913
 
@@ -43,7 +43,7 @@ def is_pkr_path(path):
            len(list(path.glob('{}/*/env.yml'.format(ENV_FOLDER)))) > 0
 
 
-def get_pkr_path():
+def get_pkr_path(raise_if_not_found=True):
     """Return the path of the pkr folder
 
     If the env. var 'PKR_PATH' is specified, it is returned, otherwise a
@@ -57,7 +57,7 @@ def get_pkr_path():
             return pkr_path
         pkr_path = pkr_path.parent
 
-    if not is_pkr_path(pkr_path):
+    if raise_if_not_found and not is_pkr_path(pkr_path):
         raise KardInitializationException(
             '{} path {} is not a valid pkr path, no usable env found'.format(
                 'Given' if PATH_ENV_VAR in os.environ else 'Current',
@@ -304,3 +304,20 @@ def ensure_definition_matches(definition, defaults, data, path=None):
     else:
         value = ensure_key_present(definition, defaults, data, path)
         return {definition: value}
+
+
+def create_pkr_folder(pkr_path=None):
+    """Creates a folder structure for pkr.
+
+    This looks like:
+    PKR_PATH/
+    ├── env/
+    │   └── dev/
+    │       └── env.yaml
+    └── kard/
+    """
+    pkr_path = pkr_path or get_pkr_path(False)
+
+    (pkr_path / 'env' / 'dev').mkdir(parents=True)
+    (pkr_path / 'env' / 'dev' / 'env.yaml').touch()
+    (pkr_path / 'kard').mkdir(parents=True)

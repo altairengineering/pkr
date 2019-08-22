@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2019 Altair Engineering Inc.
 
 """pkr CLI parser"""
 from __future__ import absolute_import
 
 import argparse
 
+from pathlib2 import Path
 import stevedore
 import yaml
 
@@ -14,7 +15,7 @@ from .log import write
 from .shell import PkrShell
 from ..ext import Extensions
 from ..kard import Kard
-from ..utils import PkrException
+from ..utils import PkrException, create_pkr_folder
 from ..version import __version__
 
 
@@ -178,10 +179,20 @@ def get_parser():
         sub_p.add_parser('ext', help='Manage extensions images'))
 
     # Init
-    init_keystone_parser = sub_p.add_parser(
-        'init', help='Call the post_up hook')
-    init_keystone_parser.set_defaults(
-        func=lambda *_: Kard.load_current().extensions.post_up())
+    init_parser = sub_p.add_parser(
+        'init', help='Build a base tree structure for pkr.')
+    init_parser.add_argument(
+        'path',
+        help='The path in which to init the pkr environment.',
+        default=None)
+
+    def create_env(args):
+        pkr_path = Path(args.path)
+        create_pkr_folder(pkr_path)
+        write(
+            'File structure created in : {}'.format(str(pkr_path.absolute())))
+
+    init_parser.set_defaults(func=create_env)
 
     return pkr_parser
 
