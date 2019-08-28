@@ -43,7 +43,7 @@ def setup_pkr():
             'License :: OSI Approved :: Apache Software License',
         ],
         install_requires=[
-            'docker-compose==1.24.0-rc1',
+            'docker-compose==1.25.0-rc2',
             'docker==3.7.0',
             'future==0.16.0',
             'GitPython==2.1.5',
