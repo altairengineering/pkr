@@ -96,12 +96,9 @@ class KubernetesPkr(Pkr):
         if k8s_files is not None:
             for k8s_file in k8s_files:
                 path = get_pkr_path() / k8s_file
-                destFolder = self.K8S_FOLDER
-                if path.parent.parts[len(path.parent.parts) -1] != "k8s":
-                    destFolder = self.K8S_FOLDER + "/" + path.parent.parts[len(path.parent.parts) -1]
                 tpl_engine.copy(path=path,
                                 origin=path.parent,
-                                local_dst=self.kard.path / destFolder,
+                                local_dst=self.kard.path / self.K8S_FOLDER,
                                 excluded_paths=[],
                                 gen_template=True)
 
