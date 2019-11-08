@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/altairengineering/pkr.svg?branch=master)](https://travis-ci.org/altairengineering/pkr)
 
+[![Documentation Status](https://readthedocs.org/projects/pkr/badge/?version=latest)](https://pkr.readthedocs.io/en/latest)
+
 # Introduction
 This repository provide a tool which allows generating docker images using templates.
 

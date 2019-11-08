@@ -1,6 +1,7 @@
 *~
 env
 docker-context/*
+sample/*/kard
 *.pyc
 config/*
 *.egg-info
