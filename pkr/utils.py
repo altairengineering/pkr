@@ -319,5 +319,5 @@ def create_pkr_folder(pkr_path=None):
     pkr_path = pkr_path or get_pkr_path(False)
 
     (pkr_path / 'env' / 'dev').mkdir(parents=True)
-    (pkr_path / 'env' / 'dev' / 'env.yaml').touch()
+    (pkr_path / 'env' / 'dev' / 'env.yml').touch()
     (pkr_path / 'kard').mkdir(parents=True)
