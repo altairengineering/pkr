@@ -2,6 +2,7 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 """Docker base object"""
+from __future__ import print_function
 
 import re
 import sys
@@ -14,6 +15,7 @@ import tenacity
 
 from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
+
 
 DOCKER_SOCK = 'unix://var/run/docker.sock'
 
@@ -371,15 +373,15 @@ class LogOutput(object):
 
     def write(self, line):
         """Write a string to the configured output."""
-        self.handler.write(line.encode('utf-8'))
+        print(line, file=self.handler, end='')
         self.handler.flush()
 
     def writeln(self, line):
         """Write a string followed by a newline to the configured output."""
-        self.handler.write(line.encode('utf-8') + '\n')
+        print(line, file=self.handler)
         self.handler.flush()
 
     def write_console(self, line):
         """Write the string only when it's connected to a console."""
         if self.handler == sys.stdout:
-            self.handler.write(line.encode('utf-8'))
+            print(line, file=self.handler, end='')
