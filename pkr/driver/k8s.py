@@ -82,7 +82,7 @@ class KubernetesPkr(Pkr):
         def format_htpasswd(username, password):
             ht = HtpasswdFile()
             ht.set_password(username, password)
-            return ht.to_string().rstrip()
+            return str(ht.to_string().rstrip())
 
         data.update({
             'kard_file_content': read_kard_file,
