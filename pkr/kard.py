@@ -7,6 +7,7 @@ import os
 import shutil
 
 import yaml
+from pathlib2 import Path
 from builtins import object
 
 from .context import Context
@@ -42,6 +43,9 @@ class Kard(object):
         self.env = Environment(
             env_name=self.meta['env'],
             features=self.meta['features'])
+
+        if not Path(self.meta['src_path']).is_absolute():
+            self.meta['src_path'] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
 
         self.driver = load_driver(self.meta['driver']['name'])
 
