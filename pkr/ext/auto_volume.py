@@ -43,6 +43,6 @@ def add_file(context, paths):
     lines = []
     paths = dict(list(paths.get('common', {}).items()) +
                  list(paths.get('copied', {}).items()))
-    for remote, local in paths.items():
+    for remote, local in sorted(paths.items()):
         lines.append('ADD "{}" "{}"'.format(local, remote))
     return os.linesep.join(lines)
