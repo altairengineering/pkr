@@ -168,7 +168,7 @@ class TemplateEngine(object):
             self.tpl_env = jinja2.Environment(
                 loader=jinja2.FileSystemLoader(str(pkr_path)))
             def b64encode(string):
-                return str(base64.b64encode(string.encode("utf-8")))
+                return base64.b64encode(string.encode("utf-8")).decode("utf-8")
             self.tpl_env.filters['b64encode'] = b64encode
 
         rel_template_file = str(template_file.relative_to(pkr_path))
