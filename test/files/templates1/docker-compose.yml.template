@@ -1,1 +1,4 @@
 services: {}
+paths:
+- {{ context_path('test') }}
+- {{ src_path('test') }}

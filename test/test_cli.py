@@ -358,7 +358,11 @@ class TestKardMake(unittest.TestCase):
         self.assertTrue(dc_file.exists())
 
         expected_docker_compose = {
-            'services': {}
+            'services': {},
+            'paths': [
+                str(self.context_path.resolve() / 'test'),
+                str(self.pkr_path / 'kard' / 'test' / 'src' / 'test'),
+            ],
         }
 
         self.assertEqual(expected_docker_compose, yaml.safe_load(dc_file.open('r')))
@@ -380,6 +384,42 @@ class TestKardMake(unittest.TestCase):
 
         content = gen_file.open('r').read()
         self.assertEqual(expected_content, content)
+
+
+class TestKardMakeWithRelativeSrcPath(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pkr_path = _build_tmp_pkr_path()
+        _create_kard_fs(cls)
+        _populate_env(cls)
+        _populate_templates(cls)
+        _create_test_kard(cls, extra={'src_path': 'dummy/..'})
+
+        Kard.CURRENT_KARD = None  # Clear the Kard cache
+        cls.kard.make()
+
+        cls.context_path = cls.pkr_path / 'kard' / 'current' / 'docker-context'
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(str(cls.pkr_path))
+        os.environ.pop(PATH_ENV_VAR)
+
+    def test_docker_compose_present(self):
+        # Check if files are created
+        dc_file = self.pkr_path / 'kard' / 'current' / 'docker-compose.yml'
+        self.assertTrue(dc_file.exists())
+
+        expected_docker_compose = {
+            'services': {},
+            'paths': [
+                str(self.context_path.resolve() / 'test'),
+                str(self.pkr_path / 'test'),
+            ],
+        }
+
+        self.assertEqual(expected_docker_compose, yaml.safe_load(dc_file.open('r')))
 
 
 class TestKardMakeWithExtensionDev(TestKardMake):
