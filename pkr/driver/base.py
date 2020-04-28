@@ -8,14 +8,13 @@ import re
 import sys
 import traceback
 from collections import namedtuple
+from builtins import object
 
 import docker
-from builtins import object
 import tenacity
 
 from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
-
 
 DOCKER_SOCK = 'unix://var/run/docker.sock'
 
@@ -111,7 +110,7 @@ class Pkr(object):
                 tag = self.kard.meta['tag']
 
             if len(services) > 1:
-                logfh.write('Building PCLM docker images...\n')
+                logfh.write('Building docker images...\n')
 
             ctx = self.kard.context
             for service in services:
