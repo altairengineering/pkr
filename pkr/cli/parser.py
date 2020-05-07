@@ -39,7 +39,8 @@ def _push_images(args):
     registry = kard.docker_cli.get_registry(url=args.registry,
                                             username=args.username,
                                             password=args.password)
-    kard.docker_cli.push_images(services, registry, tag=args.tag)
+    kard.docker_cli.push_images(
+        services, registry, tag=args.tag, other_tags=args.other_tags)
 
 
 def _pull_images(args):
@@ -230,6 +231,9 @@ def configure_image_parser(parser):
     push_parser.add_argument('-t', '--tag',
                              default=None,
                              help='The tag for images')
+    push_parser.add_argument('-o', '--other-tags',
+                             default=[], nargs='+',
+                             help='Supplemental tags for images')
     push_parser.set_defaults(func=_push_images)
 
     # Pull parser
