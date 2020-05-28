@@ -6,6 +6,7 @@
 """Utils functions for pkr"""
 
 import base64
+import hashlib
 from builtins import input
 from builtins import object
 from builtins import range
@@ -170,6 +171,10 @@ class TemplateEngine(object):
             def b64encode(string):
                 return base64.b64encode(string.encode("utf-8")).decode("utf-8")
             self.tpl_env.filters['b64encode'] = b64encode
+            def sha256(string):
+                return hashlib.sha256(
+                    string.encode("utf-8")).hexdigest()
+            self.tpl_env.filters['sha256'] = sha256
 
         rel_template_file = str(template_file.relative_to(pkr_path))
 
