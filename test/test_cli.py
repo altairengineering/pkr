@@ -378,7 +378,8 @@ class TestKardMake(unittest.TestCase):
 
     def test_config_present(self):
         gen_file = self.context_path / 'backend' / 'backend.conf'
-        expected_content = '''foo=bar'''
+        expected_content = "foo=bar\ntag_b64=dGVzdA==\ntag_sha256=" \
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
 
         self.assertTrue(gen_file.exists())
 

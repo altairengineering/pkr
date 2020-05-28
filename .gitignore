@@ -9,3 +9,5 @@ config/*
 /*report*
 .tox
 .idea
+/dist
+/build
