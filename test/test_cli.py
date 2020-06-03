@@ -510,3 +510,28 @@ class TestImagePull(TestCLI):
         # Check that the last line is the final error print with the proper
         # error type
         six.assertRegex(self, errors[-1], expected_final_print_prefix)
+
+class TestImagePush(TestCLI):
+
+    def test_image_push(self):
+        self._create_kard_fs()
+        _populate_env(self)
+        _populate_templates(self)
+        _create_test_kard(self)
+
+        cmd = '{} image push -r testrepo.io -t foo -o bar'.format(self.PKR)
+
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        self.assertEqual(1, prc.returncode, stdout)
+
+        expected_cmd_output = b'Pushing backend:foo to testrepo.io/backend:foo'
+        expected_cmd_output_2 = b'ERROR: (ImageNotFound) 404 Client Error: ' + \
+            b'Not Found ("No such image: backend:foo")'
+
+        error_outputs = stdout.split(b'\n')[:-1]
+        # 1 line for the command output
+        # 4 lines with the same error (3 tries, and the final print)
+        self.assertEqual(len(error_outputs), 2)
+        self.assertEqual(error_outputs[0], expected_cmd_output)
+        self.assertEqual(error_outputs[1], expected_cmd_output_2)

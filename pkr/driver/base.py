@@ -142,7 +142,7 @@ class Pkr(object):
                           password=registry.password,
                           registry=registry.url)
 
-    def push_images(self, services, registry, tag=None):
+    def push_images(self, services, registry, tag=None, other_tags=None):
         """Push images to a remote registry
 
         Args:
@@ -153,6 +153,9 @@ class Pkr(object):
         if registry.username is not None:
             self._logon_remote_registry(registry)
 
+        tags = [tag]
+        tags.extend(other_tags)
+
         for service in services:
             image = self.make_image_name(service)
             rep_tag = '{}/{}'.format(registry.url, image)
@@ -160,27 +163,33 @@ class Pkr(object):
             if tag != 'latest':
                 image = ':'.join([image, tag])
 
-            write('Pushing {} to {}...'.format(image, rep_tag))
-            sys.stdout.flush()
+            for dest_tag in tags:
+                write('Pushing {} to {}:{}'.format(image, rep_tag, dest_tag))
+                sys.stdout.flush()
 
-            self.docker.tag(
-                image=image,
-                repository=rep_tag,
-                tag=tag,
-                force=True)
+                try:
+                    self.docker.tag(
+                        image=image,
+                        repository=rep_tag,
+                        tag=dest_tag,
+                        force=True)
 
-            ret = self.docker.push(
-                repository=rep_tag,
-                tag=tag,
-                decode=True,
-                stream=True)
+                    ret = self.docker.push(
+                        repository=rep_tag,
+                        tag=dest_tag,
+                        decode=True,
+                        stream=True)
 
-            error = ''
-            for stream in ret:
-                if 'error' in stream:
-                    error += '\n' + stream['errorDetail']['message']
+                    error = ''
+                    for stream in ret:
+                        if 'error' in stream:
+                            error += '\n' + stream['errorDetail']['message']
 
-            write(' Done !' if error == '' else error + '\n')
+                    write(' Done !')
+                except docker.errors.APIError as error:
+                    error_msg = '\nError while pushing the image {}: {}\n'.format(
+                    tag, error)
+                    raise error
 
     def pull_images(self, services, registry, tag=None):
         """Pull images from a remote registry
