@@ -11,6 +11,7 @@ from future.utils import with_metaclass
 from stevedore.named import ExtensionManager, NamedExtensionManager
 
 from pkr.cli.log import write
+from pkr.utils import PkrException
 
 
 class ExtMixin(with_metaclass(abc.ABCMeta, object)):
@@ -64,7 +65,11 @@ class Extensions(object):
         """Lazy loading of extensions"""
         if self._extensions is None:
             self._extensions = NamedExtensionManager(
-                namespace='extensions', names=self.features, name_order=True)
+                namespace='extensions',
+                names=self.features,
+                name_order=True,
+                propagate_map_exceptions=True
+            )
         return self._extensions
 
     def __getattr__(self, attribute):
@@ -89,8 +94,11 @@ class Extensions(object):
             write('Extension "{}" raise timeout error, step "{}"'.format(
                 extension.name, method_name))
             raise
+        except PkrException:
+            # If this is a PkrException, we simply propagate it, and delegate its handling to the caller
+            raise
         except Exception as exc:
-            write('Extension "{}" raise exception, step "{}": {}'.format(
+            write('Extension "{}" raise an unknown exception, step "{}": {}'.format(
                 extension.name, method_name, str(exc)))
             raise
 
