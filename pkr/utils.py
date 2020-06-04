@@ -152,40 +152,35 @@ class TemplateEngine(object):
 
     def __init__(self, tpl_context):
         self.tpl_context = tpl_context.copy()
-        self.tpl_env = None
 
-    def process_template(self, template_file, target=None):
+        self.pkr_path = get_pkr_path()
+        self.tpl_env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(self.pkr_path)))
+
+        def b64encode(string):
+            return base64.b64encode(string.encode("utf-8")).decode("utf-8")
+
+        self.tpl_env.filters['b64encode'] = b64encode
+
+        def sha256(string):
+            return hashlib.sha256(string.encode("utf-8")).hexdigest()
+
+        self.tpl_env.filters['sha256'] = sha256
+
+    def process_template(self, template_file):
         """Process a template and render it in the context
 
         Args:
           - template_file: the template to load
-          - target: if it is a file, the method will try to write the result
-            in it. Otherwise, it will try to open the path to write in a file.
+
+        Return the result of the processed template.
         """
 
-        pkr_path = get_pkr_path()
-
-        if self.tpl_env is None:
-            self.tpl_env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(str(pkr_path)))
-            def b64encode(string):
-                return base64.b64encode(string.encode("utf-8")).decode("utf-8")
-            self.tpl_env.filters['b64encode'] = b64encode
-            def sha256(string):
-                return hashlib.sha256(
-                    string.encode("utf-8")).hexdigest()
-            self.tpl_env.filters['sha256'] = sha256
-
-        rel_template_file = str(template_file.relative_to(pkr_path))
+        rel_template_file = str(template_file.relative_to(self.pkr_path))
 
         template = self.tpl_env.get_template(rel_template_file)
         out = template.render(self.tpl_context)  # .encode('utf-8')
-        if target is None:
-            return out
-        if hasattr(target, 'write'):
-            target.write(out)
-        else:
-            target.write_text(out)
+        return out
 
     def copy(self, path, origin, local_dst, excluded_paths,
              gen_template=False):
@@ -232,9 +227,11 @@ class TemplateEngine(object):
                         dst_path = self.remove_ext(dst_path)
                 else:  # We create the destination path
                     dst_path = dst_path / self.remove_ext(path.name)
-                self.process_template(path, dst_path)
+                out = self.process_template(path)
+                dst_path.write_text(out)
+                shutil.copystat(path_str, str(dst_path))
             else:
-                shutil.copy(path_str, str(dst_path))
+                shutil.copy2(path_str, str(dst_path))
         else:
             for path_it in path.iterdir():
                 path_it = path / path_it
