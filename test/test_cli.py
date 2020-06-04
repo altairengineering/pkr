@@ -2,6 +2,7 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 import os
+from stat import S_IMODE
 import shutil
 import subprocess
 import tempfile
@@ -422,6 +423,32 @@ class TestKardMakeWithRelativeSrcPath(unittest.TestCase):
 
         self.assertEqual(expected_docker_compose, yaml.safe_load(dc_file.open('r')))
 
+    def test_start_script_present_with_proper_mod(self):
+        gen_file = self.context_path / 'backend' / 'start.sh'
+        expected_content = "#!/bin/bash\n\nsleep 1\n"
+        # We only check permissions for user, to be compatible with Travis CI environment
+        expected_user_mode = '5'
+
+        self.assertTrue(gen_file.exists())
+
+        content = gen_file.open('r').read()
+        self.assertEqual(expected_content, content)
+
+        mode = str(S_IMODE(gen_file.stat().st_mode))[:1]
+        self.assertEqual(expected_user_mode, mode)
+
+    def test_exec_script_present_with_proper_mod(self):
+        gen_file = self.context_path / 'backend' / 'exec.sh'
+        expected_content = "echo test"
+        expected_user_mode = '5'
+
+        self.assertTrue(gen_file.exists())
+
+        content = gen_file.open('r').read()
+        self.assertEqual(expected_content, content)
+
+        mode = str(S_IMODE(gen_file.stat().st_mode))[:1]
+        self.assertEqual(expected_user_mode, mode)
 
 class TestKardMakeWithExtensionDev(TestKardMake):
 
