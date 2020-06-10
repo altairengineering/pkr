@@ -5,6 +5,8 @@
 import os
 import shlex
 import subprocess
+import yaml
+from tempfile import NamedTemporaryFile
 from time import sleep
 
 from kubernetes import client, config
@@ -14,6 +16,15 @@ from .base import DOCKER_SOCK, AbstractDriver, Pkr
 from ..cli.log import write
 from ..utils import TemplateEngine, get_pkr_path, ensure_definition_matches, \
     merge
+
+CONFIGMAP = {
+    'apiVersion': 'v1',
+    'kind': 'ConfigMap',
+    'metadata': {
+        'namespace': 'kube-system',
+    },
+    'data': {},
+}
 
 
 class Driver(AbstractDriver):
@@ -102,19 +113,41 @@ class KubernetesPkr(Pkr):
                                 excluded_paths=[],
                                 gen_template=True)
 
-    def run_cmd(self, command):
+    def run_cmd(self, command, silent=False):
+        kwargs = {}
+        if silent:
+            kwargs['stdout'] = subprocess.PIPE
         proc = subprocess.Popen(
             shlex.split(command),
             env=self.env,
-            close_fds=True
+            close_fds=True,
+            **kwargs
         )
         stdout, stderr = proc.communicate()
 
         return stdout or '', stderr or ''
 
-    def run_kubectl(self, cmd):
+    def run_kubectl(self, cmd, silent=False):
         """Run kubectl tool with the provided command"""
-        return self.run_cmd('kubectl {}'.format(cmd))
+        return self.run_cmd('kubectl {}'.format(cmd), silent)
+
+    def new_configmap(self, kard):
+        cm = CONFIGMAP.copy()
+        cm['metadata']['name'] = "pkr-{}".format(kard.name)
+        return cm
+
+    def get_configmap(self, kard):
+        out, _ = self.run_kubectl(
+            'get cm -n kube-system pkr-{} -o yaml'.format(kard.name),
+            silent=True)
+        if out == "":
+            return self.new_configmap(kard)
+        return yaml.load(out)
+
+    def write_configmap(self, cm):
+        with NamedTemporaryFile() as f:
+            f.write(yaml.dump(cm).encode('utf-8'))
+            self.run_kubectl('apply -f {}'.format(f.name))
 
     def start(self, services):
         """Starts services
@@ -124,17 +157,47 @@ class KubernetesPkr(Pkr):
         """
         k8s_files_path = self.kard.path / 'k8s'
 
+        old_cm = self.get_configmap(self.kard)
+        new_cm = self.new_configmap(self.kard)
+
+        write("Compare with previous deployment ...")
         for k8s_file in sorted(k8s_files_path.glob('*.yml')):
+            if services and k8s_file.name[:-4] not in services:
+                continue
+
+            if k8s_file.name in old_cm['data']:
+                with NamedTemporaryFile() as f:
+                    f.write(old_cm['data'][k8s_file.name].encode('utf-8'))
+                    f.seek(0)
+                    self.run_cmd('diff -u {} {}'.format(f.name, k8s_file))
+            else:
+                write("Added file {}".format(k8s_file))
+
+            with open(str(k8s_file), 'r') as f:
+                new_cm['data'][k8s_file.name] = f.read()
+
+        for name in old_cm['data']:
+            if name not in new_cm['data']:
+                write("Removed file {}".format(name))
+
+        write("\nApplying manifests ...")
+        for k8s_file in sorted(k8s_files_path.glob('*.yml')):
+            if services and k8s_file.name[:-4] not in services:
+                continue
             write('Processing {}'.format(k8s_file))
             out, _ = self.run_kubectl('apply -f {}'.format(k8s_file))
             write(out)
             sleep(0.5)
+
+        self.write_configmap(new_cm)
 
     def stop(self):
         """Stops services"""
         k8s_files_path = self.kard.path / 'k8s'
 
         for k8s_file in sorted(k8s_files_path.glob('*.yml'), reverse=True):
+            if services and k8s_file.name[:-4] not in services:
+                continue
             write('Processing {}'.format(k8s_file))
             out, _ = self.run_kubectl('delete -f {}'.format(k8s_file))
             write(out)
