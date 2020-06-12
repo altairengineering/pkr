@@ -12,8 +12,7 @@ from passlib.apache import HtpasswdFile
 
 from .base import DOCKER_SOCK, AbstractDriver, Pkr
 from ..cli.log import write
-from ..utils import TemplateEngine, get_pkr_path, ensure_definition_matches, \
-    merge
+from ..utils import get_pkr_path, ensure_definition_matches, merge
 
 
 class Driver(AbstractDriver):
@@ -64,7 +63,6 @@ class KubernetesPkr(Pkr):
         return self.kard.meta.get('registry')
 
     def populate_kard(self):
-        data = self.kard.meta
 
         def read_kard_file(conf_file_name):
             conf_path = self.kard.path / conf_file_name
@@ -84,12 +82,12 @@ class KubernetesPkr(Pkr):
             ht.set_password(username, password)
             return str(ht.to_string().rstrip())
 
-        data.update({
+        data = {
             'kard_file_content': read_kard_file,
             'format_image': format_image,
             'format_htpasswd': format_htpasswd,
-        })
-        tpl_engine = TemplateEngine(data)
+        }
+        tpl_engine = self.kard.get_template_engine(data)
 
         k8s_files = self.kard.env.env['driver']['k8s'].get('k8s_files', [])
 

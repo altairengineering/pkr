@@ -14,7 +14,7 @@ from .context import Context
 from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
-from .utils import PkrException, get_kard_root_path, merge
+from .utils import PkrException, TemplateEngine, get_kard_root_path, merge
 
 
 class KardNotFound(PkrException):
@@ -45,7 +45,8 @@ class Kard(object):
             features=self.meta['features'])
 
         if not Path(self.meta['src_path']).is_absolute():
-            self.meta['src_path'] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
+            self.meta['src_path'] = str(
+                (self.env.pkr_path / self.meta["src_path"]).resolve())
 
         self.driver = load_driver(self.meta['driver']['name'])
 
@@ -193,3 +194,20 @@ class Kard(object):
         kard.meta['features'] = list(set(kard.meta['features']))
 
         kard.save_meta()
+
+    def get_template_engine(self, extra_data=None):
+
+        data = self.meta.copy()
+        data.update({'env': self.env.env_name})
+
+        # Get custom template data from extensions
+        for custom_data in self.extensions.get_context_template_data():
+            if custom_data:
+                data.update(custom_data)
+
+        if extra_data:
+            data.update(extra_data)
+
+        tpl_engine = TemplateEngine(data)
+
+        return tpl_engine
