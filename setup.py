@@ -22,6 +22,7 @@ def setup_pkr():
             'extensions': [
                 'git = pkr.ext.git:Git',
                 'auto-volume = pkr.ext.auto_volume:AutoVolume',
+                'basic-template = pkr.ext.basic_template:BasicTemplate',
             ],
             'drivers': [
                 'compose = pkr.driver.docker_compose:Driver',
