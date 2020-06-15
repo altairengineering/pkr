@@ -118,8 +118,18 @@ def get_parser():
         func=lambda *_: PkrShell(pkr_parser).cmdloop())
 
     # Stop parser
-    sub_p.add_parser('stop', help='Stop pkr').set_defaults(
-        func=lambda *_: Kard.load_current().docker_cli.stop())
+    stop_parser = sub_p.add_parser('stop', help='Stop pkr')
+    add_service_argument(stop_parser)
+
+    stop_parser.set_defaults(
+        func=lambda a: Kard.load_current().docker_cli.stop(a.services))
+
+    # Restart parser
+    restart_parser = sub_p.add_parser('restart', help='Restart pkr')
+    add_service_argument(restart_parser)
+
+    restart_parser.set_defaults(
+        func=lambda a: Kard.load_current().docker_cli.restart(a.services))
 
     # Start
     start_parser = sub_p.add_parser('start', help='Start pkr')

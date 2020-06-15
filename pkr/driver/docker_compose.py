@@ -219,15 +219,13 @@ class ComposePkr(Pkr):
         # Call post run handlers on extensions
         self.kard.extensions.post_up(eff_modules)
 
-    def stop(self):
+    def stop(self, services=None):
         """Stop the containers"""
-        self._call_compose('stop')
+        self._call_compose('stop', *(services or ()))
 
-    def restart(self):
-        """Stop and start containers"""
-        self.stop()
-        # TODO: Only restart started containers
-        self.cmd_up()
+    def restart(self, services=None):
+        """Restart containers"""
+        self._call_compose('restart', *(services or ()))
 
     def get_ip(self, container_name):
         """Return the first IP of a container"""
