@@ -116,7 +116,7 @@ class KubernetesPkr(Pkr):
         """Run kubectl tool with the provided command"""
         return self.run_cmd('kubectl {}'.format(cmd))
 
-    def start(self, services):
+    def start(self, services=None):
         """Starts services
 
         Args:
@@ -130,7 +130,7 @@ class KubernetesPkr(Pkr):
             write(out)
             sleep(0.5)
 
-    def stop(self):
+    def stop(self, services=None):
         """Stops services"""
         k8s_files_path = self.kard.path / 'k8s'
 
@@ -139,6 +139,10 @@ class KubernetesPkr(Pkr):
             out, _ = self.run_kubectl('delete -f {}'.format(k8s_file))
             write(out)
             sleep(0.5)
+
+    def restart(self, services=None):
+        """Restart services"""
+        raise NotImplementedError()
 
     def cmd_ps(self):
         """ List containers with ips"""
