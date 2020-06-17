@@ -72,10 +72,10 @@ def _list_kards(*_):
 
 
 def _create_kard(args):
-    extras = {a[0]: a[1] for a in [a.split('=') for a in args.extra]}
-
+    extras = {}
     if args.meta:
         extras.update(yaml.safe_load(args.meta))
+    extras.update({a[0]: a[1] for a in [a.split('=') for a in args.extra]})
 
     try:
         extra_features = args.features
