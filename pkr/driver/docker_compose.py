@@ -18,7 +18,8 @@ import yaml
 
 from .base import DOCKER_SOCK, AbstractDriver, Pkr
 from ..cli.log import write
-from ..utils import PkrException, TemplateEngine, get_kard_root_path, get_pkr_path, is_running_in_docker, merge, \
+from ..utils import PkrException, get_kard_root_path, \
+    get_pkr_path, is_running_in_docker, merge, \
     ensure_definition_matches
 
 
@@ -73,9 +74,9 @@ class ComposePkr(Pkr):
                     'grep -o -E "[0-9a-f]{64}" | head -n 1').read().rstrip()
                 cli = docker.DockerClient(version='auto')
                 cont = cli.containers.get(container_id)
-                mount = next((c
-                              for c in cont.attrs['Mounts']
-                              if c['Destination'] == str(get_kard_root_path())))
+                mount = next((
+                    c for c in cont.attrs['Mounts']
+                    if c['Destination'] == str(get_kard_root_path())))
                 self._base_path = Path(mount['Source'])
             else:
                 self._base_path = Path(self.kard.path).parent
@@ -93,23 +94,6 @@ class ComposePkr(Pkr):
 
     def populate_kard(self):
         """Populate context for compose"""
-        data = self.kard.meta.copy()
-
-        data.update({
-            'context_path': lambda p: str(
-                self.kard_folder_path / self.kard.name /
-                self.kard.context.DOCKER_CONTEXT / p),
-            'kard_path': lambda p: str(
-                self.kard_folder_path / self.kard.name / p),
-            'src_path': lambda p: str(Path(self.kard.meta['src_path']) / p),
-            'make_container_name': self.make_container_name,
-            'make_image_name': lambda n, t=None: self.make_image_name(n, t),
-        })
-
-        # Get custom template data from extensions
-        for custom_data in self.kard.extensions.get_context_template_data():
-            if custom_data:
-                data.update(custom_data)
 
         def get_data_path(path):
             """Prefix the given path with the path to data volumes.
@@ -125,9 +109,18 @@ class ComposePkr(Pkr):
             return str(self.kard_folder_path / self.kard.name / data_path /
                        path)
 
-        data['data_path'] = get_data_path
+        tpl_engine = self.kard.get_template_engine({
+            'context_path': lambda p: str(
+                self.kard_folder_path / self.kard.name /
+                self.kard.context.DOCKER_CONTEXT / p),
+            'kard_path': lambda p: str(
+                self.kard_folder_path / self.kard.name / p),
+            'src_path': lambda p: str(Path(self.kard.meta['src_path']) / p),
+            'make_container_name': self.make_container_name,
+            'make_image_name': lambda n, t=None: self.make_image_name(n, t),
+            'data_path': get_data_path,
+        })
 
-        tpl_engine = TemplateEngine(data)
         files = self.driver_meta.get('compose_extension_files', [])
         try:
             compose_file = self.driver_meta['compose_file']

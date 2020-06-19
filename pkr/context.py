@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2020 Altair Engineering Inc.
 
 """pkr functions for creating the context"""
 
@@ -10,7 +10,7 @@ from compose.cli.command import get_project_name
 from pathlib2 import Path
 
 from .cli.log import write
-from .utils import TemplateEngine, ensure_dir_absent, get_pkr_path
+from .utils import ensure_dir_absent, get_pkr_path
 
 
 class Context(object):
@@ -57,15 +57,7 @@ class Context(object):
 
         context_path = self.env.pkr_path / self.env.context_template_dir
 
-        data = self.kard.meta.copy()
-        data.update({'env': self.env.env_name})
-
-        # Get custom template data from extensions
-        for custom_data in self.kard.extensions.get_context_template_data():
-            if custom_data:
-                data.update(custom_data)
-
-        tpl_engine = TemplateEngine(data)
+        tpl_engine = self.kard.get_template_engine()
 
         for container in self.env.get_container():
             try:
