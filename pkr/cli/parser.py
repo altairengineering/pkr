@@ -75,7 +75,7 @@ def _create_kard(args):
     extras = {}
     if args.meta:
         extras.update(yaml.safe_load(args.meta))
-    extras.update({a[0]: a[1] for a in [a.split('=') for a in args.extra]})
+    extras.update({a[0]: a[1] for a in [a.split('=', 1) for a in args.extra]})
 
     try:
         extra_features = args.features
