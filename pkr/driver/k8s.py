@@ -164,6 +164,10 @@ class KubernetesPkr(Pkr):
         Write a configmap for this kard with deployed content
         cm: {"pkr_template_name": "pkr_template_content", ...}
         """
+        if len(cm) == 0:
+            self.run_kubectl(
+                'delete cm -n kube-system pkr-{}'.format(self.kard.name))
+            return
         cm_compressed = self.new_configmap()
         for key in cm:
             cm_compressed['data'][key] = base64.b64encode(
@@ -172,7 +176,7 @@ class KubernetesPkr(Pkr):
             f.write(yaml.dump(cm_compressed).encode('utf-8'))
             self.run_kubectl('apply -f {}'.format(f.name))
 
-    def start(self, services=None):
+    def start(self, services=None, yes=False):
         """Starts services
 
         Args:
@@ -186,6 +190,7 @@ class KubernetesPkr(Pkr):
         write("Compare with previous deployment ...")
         for k8s_file in sorted(k8s_files_path.glob('*.yml')):
             if services and k8s_file.name[:-4] not in services:
+                new_cm[k8s_file.name] = old_cm[k8s_file.name]
                 continue
 
             if k8s_file.name in old_cm:
@@ -203,7 +208,7 @@ class KubernetesPkr(Pkr):
             if name not in new_cm:
                 write("Removed file {}".format(name))
 
-        if sys.stdin.isatty():
+        if sys.stdin.isatty() and not yes:
             proceed = None
             while proceed not in {"y", "n"}:
                 proceed = input("Apply (y/n) ? ")
@@ -241,6 +246,8 @@ class KubernetesPkr(Pkr):
             out, _ = self.run_kubectl('delete -f {}'.format(k8s_file))
             write(out)
             sleep(0.5)
+
+        self.write_configmap({})
 
     def restart(self, services=None):
         """Restart services"""
