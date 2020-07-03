@@ -56,6 +56,15 @@ def _pull_images(args):
     kard.docker_cli.pull_images(services, registry, tag=args.tag)
 
 
+def _list_images(args):
+    kard = Kard.load_current()
+    services = args.services or list(kard.env.get_container().keys())
+    if args.tag is None:
+        args.tag = kard.meta['tag']
+    for service in services:
+        write(kard.docker_cli.make_image_name(service, args.tag))
+
+
 def _purge(args):
     kard = Kard.load_current()
     kard.docker_cli.purge(args.except_tag, args.tag, args.repository)
@@ -280,6 +289,17 @@ def configure_image_parser(parser):
         default=None,
         help='Delete image reference in a specified repository')
     purge_parser.set_defaults(func=_purge)
+
+    # List parser
+    list_parser = sub_p.add_parser(
+        'list',
+        help='List all images for containers of the current kard')
+    list_parser.add_argument(
+        '--tag',
+        default=None,
+        help='List images with the given tag')
+    add_service_argument(list_parser)
+    list_parser.set_defaults(func=_list_images)
 
 
 def configure_kard_parser(parser):
