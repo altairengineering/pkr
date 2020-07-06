@@ -28,17 +28,17 @@ class PkrShell(cmd.Cmd):
             try:
                 args = self.parser.parse_args(shlex.split(line))
             except argparse.ArgumentError as exc:
-                write((exc.message, '\n', exc.args))
+                write((exc, '\n', exc.args))
                 return
             except SystemExit as exc:
-                write(exc.message)
+                write(exc)
                 return
             if hasattr(args, 'func'):
                 try:
                     args.func(self.kard.env, args)
                     return
                 except SystemExit as exc:
-                    write(exc.message)
+                    write(exc)
                     return
         cmd.Cmd.default(self, line)
 

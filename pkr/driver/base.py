@@ -356,7 +356,7 @@ class Pkr(object):
                     try:
                         self.docker.remove_image(repo_tag)
                     except BaseException as exc:
-                        write(exc.message)
+                        write(exc)
 
 
 class LogOutput(object):
