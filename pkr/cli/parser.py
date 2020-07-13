@@ -134,9 +134,10 @@ def get_parser():
     # Start
     start_parser = sub_p.add_parser('start', help='Start pkr')
     add_service_argument(start_parser)
-
+    start_parser.add_argument(
+        '-y', '--yes', action='store_true', help="Answer yes to questions")
     start_parser.set_defaults(
-        func=lambda a: Kard.load_current().docker_cli.start(a.services))
+        func=lambda a: Kard.load_current().docker_cli.start(a.services, a.yes))
 
     # Up parser
     up_parser = sub_p.add_parser(

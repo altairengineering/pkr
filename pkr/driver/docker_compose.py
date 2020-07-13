@@ -181,7 +181,7 @@ class ComposePkr(Pkr):
         super(ComposePkr, self).build_images(
             [s for s in services if req_build(s)], tag, verbose, logfile)
 
-    def start(self, services=None):
+    def start(self, services=None, yes=False):
         self._call_compose('up', '-d', *(services or ()))
 
     def cmd_up(self, services=None, verbose=False, build_log=None):

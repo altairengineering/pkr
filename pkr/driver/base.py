@@ -253,7 +253,7 @@ class Pkr(object):
             write(error_msg)
             raise ImagePullError(error_msg)
 
-    def start(self, services):
+    def start(self, services, yes):
         """Starts services
 
         Args:
