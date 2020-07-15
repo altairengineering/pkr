@@ -27,9 +27,9 @@ class Environment(object):
 
         self.env = self._load_env_file(env_file_path)
 
-        self.features = features or []
-        self.features.extend(self.env.get('default_features', []))
-        self.features = list(set(self.features))
+        self.features = self.env.get('default_features', [])
+        if features:
+            self.features.extend(x for x in features if x not in self.features)
 
         for feature in self.features:
             f_path = env_path / (feature + '.yml')

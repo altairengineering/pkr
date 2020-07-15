@@ -22,11 +22,11 @@ class TestEnvironment(unittest.TestCase):
         pkr.utils.ENV_FOLDER = pkr.environment.ENV_FOLDER = 'env2'
 
     def test_load_dev_environment(self):
-        env = Environment('dev')
+        env = Environment('dev', features=['first', 'second', 'auto-volume'])
 
         expected_env = {
             'containers': {'backend': {'dockerfile': 'backend.dockerfile'}},
-            'default_features': ['auto-volume'],
+            'default_features': ['auto-volume', 'first', 'second'],
             'driver': {
                 'docker_compose': {
                     'compose_file': 'templates/docker-compose.yml.template'}},
