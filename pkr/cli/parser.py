@@ -34,8 +34,6 @@ def _push_images(args):
 
     # Push images
     services = args.services or list(kard.env.get_container().keys())
-    if args.tag is None:
-        args.tag = kard.meta['tag']
     registry = kard.docker_cli.get_registry(url=args.registry,
                                             username=args.username,
                                             password=args.password)
@@ -48,19 +46,31 @@ def _pull_images(args):
 
     # Push images
     services = args.services or list(kard.env.get_container().keys())
-    if args.tag is None:
-        args.tag = kard.meta['tag']
     registry = kard.docker_cli.get_registry(url=args.registry,
                                             username=args.username,
                                             password=args.password)
     kard.docker_cli.pull_images(services, registry, tag=args.tag)
 
 
+def _download_images(args):
+    kard = Kard.load_current()
+    services = args.services or list(kard.env.get_container().keys())
+    registry = kard.docker_cli.get_registry(url=args.registry,
+                                            username=args.username,
+                                            password=args.password)
+    kard.docker_cli.download_images(
+        services, registry, tag=args.tag, nopull=args.nopull)
+
+
+def _import_images(args):
+    kard = Kard.load_current()
+    services = args.services or list(kard.env.get_container().keys())
+    kard.docker_cli.import_images(services, tag=args.tag)
+
+
 def _list_images(args):
     kard = Kard.load_current()
     services = args.services or list(kard.env.get_container().keys())
-    if args.tag is None:
-        args.tag = kard.meta['tag']
     for service in services:
         write(kard.docker_cli.make_image_name(service, args.tag))
 
@@ -300,7 +310,47 @@ def configure_image_parser(parser):
         default=None,
         help='List images with the given tag')
     add_service_argument(list_parser)
+
     list_parser.set_defaults(func=_list_images)
+
+    # Download parser
+    download_parser = sub_p.add_parser(
+        'download',
+        help='Download all images for containers of the current kard')
+    download_parser.add_argument(
+        '-r', '--registry',
+        default=None,
+        help='The docker registry')
+    download_parser.add_argument(
+        '-u', '--username',
+        default=None,
+        help='The docker registry username')
+    download_parser.add_argument(
+        '-p', '--password',
+        default=None,
+        help='The docker registry password')
+    download_parser.add_argument(
+        '--tag',
+        default=None,
+        help='Download images with the given tag')
+    download_parser.add_argument(
+        '--nopull',
+        default=False,
+        action='store_true',
+        help='Do not pull before export')
+    add_service_argument(download_parser)
+    download_parser.set_defaults(func=_download_images)
+
+    # Import parser
+    import_parser = sub_p.add_parser(
+        'import',
+        help='Import all images from kard to docker')
+    import_parser.add_argument(
+        '--tag',
+        default=None,
+        help='Import images to the given tag')
+    add_service_argument(import_parser)
+    import_parser.set_defaults(func=_import_images)
 
 
 def configure_kard_parser(parser):
