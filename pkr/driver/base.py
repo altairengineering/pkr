@@ -9,6 +9,7 @@ import sys
 import traceback
 from collections import namedtuple
 from builtins import object
+from pathlib2 import Path
 
 import docker
 import tenacity
@@ -105,10 +106,9 @@ class Pkr(object):
           * tag: the tag on which the image will be saved
           * verbose: verbose logs
         """
-        with LogOutput(logfile) as logfh:
-            if tag is None:
-                tag = self.kard.meta['tag']
+        tag = tag or self.kard.meta['tag']
 
+        with LogOutput(logfile) as logfh:
             if len(services) > 1:
                 logfh.write('Building docker images...\n')
 
@@ -150,6 +150,8 @@ class Pkr(object):
           * registry: a DockerRegistry instance
           * tag: the tag of the version to push
         """
+        tag = tag or self.kard.meta['tag']
+
         if registry.username is not None:
             self._logon_remote_registry(registry)
 
@@ -157,11 +159,9 @@ class Pkr(object):
         tags.extend(other_tags)
 
         for service in services:
-            image = self.make_image_name(service)
-            rep_tag = '{}/{}'.format(registry.url, image)
-
-            if tag != 'latest':
-                image = ':'.join([image, tag])
+            image_name = self.make_image_name(service)
+            image = self.make_image_name(service, tag)
+            rep_tag = '{}/{}'.format(registry.url, image_name)
 
             for dest_tag in tags:
                 write('Pushing {} to {}:{}'.format(image, rep_tag, dest_tag))
@@ -188,7 +188,7 @@ class Pkr(object):
                     write(' Done !')
                 except docker.errors.APIError as error:
                     error_msg = '\nError while pushing the image {}: {}\n'.format(
-                    tag, error)
+                        tag, error)
                     raise error
 
     def pull_images(self, services, registry, tag=None):
@@ -199,23 +199,75 @@ class Pkr(object):
           * registry: a DockerRegistry instance
           * tag: the tag of the version to pull
         """
+        tag = tag or self.kard.meta['tag']
 
         if registry.username is not None:
             self._logon_remote_registry(registry)
 
         for service in services:
             image_name = self.make_image_name(service)
-            image = image_name if tag == 'latest' \
-                else ':'.join((image_name, tag))
-
+            image = self.make_image_name(service, tag)
             write('Pulling {} from {}...'.format(image, registry.url))
             sys.stdout.flush()
 
             self._pull_image(image_name, registry.url, tag)
 
             write(' Done !' + '\n')
-
         write('All images has been pulled successfully !' + '\n')
+
+    def download_images(self, services, registry, tag=None, nopull=False):
+        """Download images from a remote registry and save to kard
+
+        Args:
+          * services: the name of the images to download
+          * registry: a DockerRegistry instance
+          * tag: the tag of the version to download
+        """
+        tag = tag or self.kard.meta['tag']
+
+        save_path = Path(self.kard.path) / 'images'
+        write('Cleaning images destination {}'.format(save_path))
+        save_path.mkdir(exist_ok=True)
+        for child in save_path.iterdir():
+            child.unlink()
+
+        if not nopull:
+            self.pull_images(services, registry, tag=tag)
+
+        for service in services:
+            image_path = save_path / "{}.tar".format(service)
+            image_name = self.make_image_name(service, tag)
+            write('Saving {} to {}'.format(image_name, image_path))
+            sys.stdout.flush()
+
+            with open(image_path, 'wb') as f:
+                for chunk in self.docker.get_image(image_name):
+                    f.write(chunk)
+
+            write(' Done !' + '\n')
+        write('All images has been saved successfully !' + '\n')
+
+    def import_images(self, services, tag=None):
+        """Import images from kard to local docker
+
+        Args:
+          * services: the name of the images to load
+          * tag: the tag of the version to load
+        """
+        tag = tag or self.kard.meta['tag']
+
+        save_path = Path(self.kard.path) / 'images'
+        for child in save_path.iterdir():
+            service = child.name[:-4]
+            if service not in services:
+                continue
+            write('Importing {} ...'.format(child))
+            with open(child, 'rb') as f:
+                rsp = self.docker.load_image(f.read())
+            for message in rsp:
+                write(message.get('stream', ''))
+            write('\n')
+        write('All images have been loaded successfully !' + '\n')
 
     @tenacity.retry(
         wait=tenacity.wait_fixed(1),
