@@ -98,7 +98,9 @@ class Pkr(object):
             image_name = ':'.join((image_name, tag))
         return image_name
 
-    def build_images(self, services, tag=None, verbose=True, logfile=None):
+    def build_images(
+        self, services, tag=None, verbose=True, logfile=None, nocache=False
+    ):
         """Build docker images.
 
         Args:
@@ -124,6 +126,7 @@ class Pkr(object):
                     dockerfile=str(ctx.relative(dockerfile)),
                     tag=image_name,
                     decode=True,
+                    nocache=nocache,
                     forcerm=True)
 
                 self.print_docker_stream(
