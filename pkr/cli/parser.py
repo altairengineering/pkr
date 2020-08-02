@@ -72,6 +72,8 @@ def _import_images(args):
 def _list_images(args):
     kard = Kard.load_current()
     services = args.services or list(kard.env.get_container().keys())
+    if args.tag is None:
+        args.tag = kard.meta['tag']
     for service in services:
         write(kard.docker_cli.make_image_name(service, args.tag))
 
