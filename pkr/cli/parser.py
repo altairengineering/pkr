@@ -27,7 +27,7 @@ def _build_images(args):
     # Build images
     services = args.services or list(kard.env.get_container().keys())
     kard.docker_cli.build_images(
-        services, tag=args.tag, nocache=args.nocache)
+        services, tag=args.tag, nocache=args.nocache, parallel=args.parallel)
 
 
 def _push_images(args):
@@ -250,6 +250,10 @@ def configure_image_parser(parser):
         '-n', '--nocache',
         action='store_true',
         help='Pass nocache to docker for the build')
+    build_parser.add_argument(
+        '-p', '--parallel',
+        type=int, default=None,
+        help='Number of parallel image build')
     add_service_argument(build_parser)
     build_parser.set_defaults(func=_build_images)
 

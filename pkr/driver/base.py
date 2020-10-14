@@ -7,12 +7,13 @@ from __future__ import print_function
 import re
 import sys
 import traceback
-from collections import namedtuple
 from builtins import object
-from pathlib2 import Path
+from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 
 import docker
 import tenacity
+from pathlib2 import Path
 
 from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
@@ -99,7 +100,8 @@ class Pkr(object):
         return image_name
 
     def build_images(
-        self, services, tag=None, verbose=True, logfile=None, nocache=False
+        self, services, tag=None, verbose=True, logfile=None, nocache=False,
+        parallel=None
     ):
         """Build docker images.
 
@@ -107,32 +109,65 @@ class Pkr(object):
           * services: the name of the images to build
           * tag: the tag on which the image will be saved
           * verbose: verbose logs
+          * logfile: separate log file for the underlying build
+          * nocache: disable docker cache
+          * parallel: (int|None) Number of concurrent build
         """
         tag = tag or self.kard.meta['tag']
 
         with LogOutput(logfile) as logfh:
-            if len(services) > 1:
-                logfh.write('Building docker images...\n')
+            if parallel:
+                if len(services) > 1:
+                    logfh.write('Building docker images using {} threads ...\n'.format(parallel))
+                futures = []
+                with ThreadPoolExecutor(max_workers=parallel) as executor:
+                    for service in services:
+                        futures.append(executor.submit(
+                            self._build_image,
+                            service, tag, verbose, logfile, nocache, True))
+                for future in futures:
+                    future.result(timeout=300)
+            else:
+                if len(services) > 1:
+                    logfh.write('Building docker images...\n')
+                for service in services:
+                    self._build_image(
+                        service, tag, verbose, logfile, nocache, False)
 
-            ctx = self.kard.context
-            for service in services:
-                image_name = self.make_image_name(service, tag)
-                logfh.write('Building {} image...\n'.format(image_name))
+    def _build_image(
+        self, service, tag=None, verbose=True, logfile=None, nocache=False,
+        bufferize=None
+    ):
+        """Build docker image.
 
-                dockerfile = self.kard.env.get_container(service)['dockerfile']
+        Args:
+          * service: service to build
+          * tag: the tag on which the image will be saved
+          * verbose: verbose logs
+          * logfile: separate log file for the underlying build
+          * nocache: disable docker cache
+          * parallel: (int|None) Number of concurrent build
+        """
+        ctx = self.kard.context
+        image_name = self.make_image_name(service, tag)
 
-                stream = self.docker.build(
-                    path=str(ctx.path),
-                    dockerfile=str(ctx.relative(dockerfile)),
-                    tag=image_name,
-                    decode=True,
-                    nocache=nocache,
-                    forcerm=True)
+        with LogOutput(logfile, bufferize=bufferize) as logfh:
+            logfh.write('Building {} image...\n'.format(image_name))
 
-                self.print_docker_stream(
-                    stream, verbose=verbose, logfile=logfile)
+            dockerfile = self.kard.env.get_container(service)['dockerfile']
 
-                logfh.write('done.\n')
+            stream = self.docker.build(
+                path=str(ctx.path),
+                dockerfile=str(ctx.relative(dockerfile)),
+                tag=image_name,
+                decode=True,
+                nocache=nocache,
+                forcerm=True)
+
+            self.print_docker_stream(
+                stream, verbose=verbose, logfile=logfile, bufferize=bufferize)
+
+            logfh.write('done.\n')
 
     def _logon_remote_registry(self, registry):
         """Push images to a remote registry
@@ -326,9 +361,11 @@ class Pkr(object):
         raise NotImplementedError()
 
     @staticmethod
-    def print_docker_stream(stream, verbose=True, logfile=None):
+    def print_docker_stream(
+        stream, verbose=True, logfile=None, bufferize=False
+    ):
         """Util method to print docker logs"""
-        with LogOutput(logfile) as logfh:
+        with LogOutput(logfile, bufferize=bufferize) as logfh:
             log_keys = set(('status', 'stream'))
             all_logs = []
             last_log_id = [None]
@@ -416,13 +453,15 @@ class Pkr(object):
 
 class LogOutput(object):
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, bufferize=False):
         """Context manager for writing to files or to stdout."""
         if filename is None:
             self.handler = sys.stdout
         else:
             self.handler = None
             self.filename = filename
+        self.buffer = []
+        self.bufferize = bufferize
 
     def __enter__(self):
         if self.handler != sys.stdout:
@@ -430,21 +469,36 @@ class LogOutput(object):
         return self
 
     def __exit__(self, *_):
+        self.flush()
         if self.handler != sys.stdout:
             self.handler.close()
             self.handler = None
 
     def write(self, line):
         """Write a string to the configured output."""
+        if self.bufferize:
+            self.buffer.append(line)
+            return
         print(line, file=self.handler, end='')
         self.handler.flush()
 
     def writeln(self, line):
         """Write a string followed by a newline to the configured output."""
+        if self.bufferize:
+            self.buffer.append(line + "\n")
+            return
         print(line, file=self.handler)
         self.handler.flush()
 
     def write_console(self, line):
         """Write the string only when it's connected to a console."""
-        if self.handler == sys.stdout:
-            print(line, file=self.handler, end='')
+        if self.handler != sys.stdout:
+            return
+        if self.bufferize:
+            self.buffer.append(line)
+            return
+        print(line, file=self.handler, end='')
+
+    def flush(self):
+        self.handler.write(''.join(self.buffer))
+        self.handler.flush()

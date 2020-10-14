@@ -170,7 +170,8 @@ class ComposePkr(Pkr):
         return set(services) & set(all_services)
 
     def build_images(
-        self, services, tag=None, verbose=True, logfile=None, nocache=False
+        self, services, tag=None, verbose=True, logfile=None, nocache=False,
+        parallel=None
     ):
 
         def req_build(container):
@@ -181,7 +182,7 @@ class ComposePkr(Pkr):
                 return False
 
         super(ComposePkr, self).build_images(
-            [s for s in services if req_build(s)], tag, verbose, logfile, nocache)
+            [s for s in services if req_build(s)], tag, verbose, logfile, nocache, parallel)
 
     def start(self, services=None, yes=False):
         self._call_compose('up', '-d', *(services or ()))
