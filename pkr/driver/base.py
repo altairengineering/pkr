@@ -180,13 +180,14 @@ class Pkr(object):
                           password=registry.password,
                           registry=registry.url)
 
-    def push_images(self, services, registry, tag=None, other_tags=None):
+    def push_images(self, services, registry, tag=None, other_tags=None, parallel=None):
         """Push images to a remote registry
 
         Args:
           * services: the name of the images to push
           * registry: a DockerRegistry instance
           * tag: the tag of the version to push
+          * parallel: push parallelism
         """
         tag = tag or self.kard.meta['tag']
 
@@ -196,61 +197,104 @@ class Pkr(object):
         tags = [tag]
         tags.extend(other_tags)
 
+        todos = []
         for service in services:
             image_name = self.make_image_name(service)
             image = self.make_image_name(service, tag)
             rep_tag = '{}/{}'.format(registry.url, image_name)
+            todos.append((image, rep_tag, tags))
 
-            for dest_tag in tags:
+        if parallel:
+            futures = []
+            with ThreadPoolExecutor(max_workers=parallel) as executor:
+                for todo in todos:
+                    futures.append(executor.submit(self._push_image, *todo, buffer=True))
+            for future in futures:
+                future.result()
+        else:
+            for todo in todos:
+                self._push_image(*todo)
+
+
+    def _push_image(self, image, rep_tag, tags, buffer=False):
+        """Push image to a remote registry
+
+        Args:
+          * image: the name of the image to push
+          * rep_tag: distant image name
+          * tags: list of tags to push to
+        """
+        for dest_tag in tags:
+            if not buffer:
                 write('Pushing {} to {}:{}'.format(image, rep_tag, dest_tag))
                 sys.stdout.flush()
 
-                try:
-                    self.docker.tag(
-                        image=image,
-                        repository=rep_tag,
-                        tag=dest_tag,
-                        force=True)
+            try:
+                self.docker.tag(
+                    image=image,
+                    repository=rep_tag,
+                    tag=dest_tag,
+                    force=True)
 
-                    ret = self.docker.push(
-                        repository=rep_tag,
-                        tag=dest_tag,
-                        decode=True,
-                        stream=True)
+                ret = self.docker.push(
+                    repository=rep_tag,
+                    tag=dest_tag,
+                    decode=True,
+                    stream=True)
 
-                    error = ''
-                    for stream in ret:
-                        if 'error' in stream:
-                            error += '\n' + stream['errorDetail']['message']
+                error = ''
+                for stream in ret:
+                    if 'error' in stream:
+                        error += '\n' + stream['errorDetail']['message']
 
-                    write(' Done !')
-                except docker.errors.APIError as error:
-                    error_msg = '\nError while pushing the image {}: {}\n'.format(
-                        tag, error)
-                    raise error
+                if buffer:
+                    write('Pushing {} to {}:{}'.format(image, rep_tag, dest_tag))
+                    sys.stdout.flush()
+                write(' Done !')
+            except docker.errors.APIError as error:
+                error_msg = '\nError while pushing the image {}: {}\n'.format(
+                    dest_tag, error)
+                raise error
 
-    def pull_images(self, services, registry, tag=None):
+    def pull_images(self, services, registry, tag=None, parallel=None):
         """Pull images from a remote registry
 
         Args:
           * services: the name of the images to pull
           * registry: a DockerRegistry instance
           * tag: the tag of the version to pull
+          * parallel: pull parallelism
         """
         tag = tag or self.kard.meta['tag']
 
         if registry.username is not None:
             self._logon_remote_registry(registry)
 
+        todos = []
         for service in services:
             image_name = self.make_image_name(service)
             image = self.make_image_name(service, tag)
-            write('Pulling {} from {}...'.format(image, registry.url))
-            sys.stdout.flush()
+            todos.append((image, image_name))
 
-            self._pull_image(image_name, registry.url, tag)
+        if parallel:
+            futures = []
+            with ThreadPoolExecutor(max_workers=parallel) as executor:
+                for image, image_name in todos:
+                    futures.append((
+                        image,
+                        executor.submit(self._pull_image, image_name, registry.url, tag)))
+            for image, future in futures:
+                future.result()
+                write('Pulling {} from {}...'.format(image, registry.url))
+                write(' Done !' + '\n')
+                sys.stdout.flush()
+        else:
+            for image, image_name in todos:
+                write('Pulling {} from {}...'.format(image, registry.url))
+                sys.stdout.flush()
+                self._pull_image(image_name, registry.url, tag)
+                write(' Done !' + '\n')
 
-            write(' Done !' + '\n')
         write('All images has been pulled successfully !' + '\n')
 
     def download_images(self, services, registry, tag=None, nopull=False):
