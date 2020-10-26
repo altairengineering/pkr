@@ -104,7 +104,7 @@ def merge(source, destination):
         elif isinstance(value, list):
             if key in destination:
                 try:
-                    destination[key] = list(set(destination[key] + value))
+                    destination[key] = list(dict.fromkeys(destination[key] + value))
                 # Prevent errors when having unhashable dict types
                 except TypeError:
                     destination[key].extend(value)
