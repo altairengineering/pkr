@@ -6,7 +6,7 @@ cachetools==3.1.1
 certifi==2019.3.9
 cffi==1.12.3
 chardet==3.0.4
-cryptography==2.7
+cryptography==3.2
 docker==3.7.0
 docker-compose==1.25.0rc2
 docker-pycreds==0.4.0
