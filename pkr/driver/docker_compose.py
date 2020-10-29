@@ -251,10 +251,12 @@ class ComposePkr(Pkr):
                 container_ip = 'stopped'
             write(' - {}: {}'.format(service, container_ip))
 
-    def clean(self):
+    def clean(self, kill=False):
         """ Remove the containers and the build data file.
         If -w option set, also remove all environement files
         """
+        if kill:
+            self._call_compose('kill')
         self._call_compose('down', '-v')
 
     def execute(self, container_name, *args):

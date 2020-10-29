@@ -192,7 +192,9 @@ def get_parser():
     parser = sub_p.add_parser(
         'clean',
         help='Stop and remove containers of current kard')
-    parser.set_defaults(func=lambda *a: Kard.load_current().docker_cli.clean())
+    parser.add_argument(
+        '-k', '--kill', action='store_true', help="Kill (SIGKILL) before clean")
+    parser.set_defaults(func=lambda a: Kard.load_current().docker_cli.clean(a.kill))
 
     # Kard parser
     configure_kard_parser(
