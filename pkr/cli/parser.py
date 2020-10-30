@@ -27,7 +27,7 @@ def _build_images(args):
     # Build images
     services = args.services or list(kard.env.get_container().keys())
     kard.docker_cli.build_images(
-        services, tag=args.tag, nocache=args.nocache)
+        services, tag=args.tag, nocache=args.nocache, parallel=args.parallel)
 
 
 def _push_images(args):
@@ -39,7 +39,7 @@ def _push_images(args):
                                             username=args.username,
                                             password=args.password)
     kard.docker_cli.push_images(
-        services, registry, tag=args.tag, other_tags=args.other_tags)
+        services, registry, tag=args.tag, other_tags=args.other_tags, parallel=args.parallel)
 
 
 def _pull_images(args):
@@ -50,7 +50,8 @@ def _pull_images(args):
     registry = kard.docker_cli.get_registry(url=args.registry,
                                             username=args.username,
                                             password=args.password)
-    kard.docker_cli.pull_images(services, registry, tag=args.tag)
+    kard.docker_cli.pull_images(
+        services, registry, tag=args.tag, parallel=args.parallel)
 
 
 def _download_images(args):
@@ -252,6 +253,10 @@ def configure_image_parser(parser):
         '-n', '--nocache',
         action='store_true',
         help='Pass nocache to docker for the build')
+    build_parser.add_argument(
+        '-p', '--parallel',
+        type=int, default=None,
+        help='Number of parallel image build')
     add_service_argument(build_parser)
     build_parser.set_defaults(func=_build_images)
 
@@ -273,6 +278,10 @@ def configure_image_parser(parser):
     push_parser.add_argument('-o', '--other-tags',
                              default=[], nargs='+',
                              help='Supplemental tags for images')
+    push_parser.add_argument(
+        '--parallel',
+        type=int, default=None,
+        help='Number of parallel image push')
     push_parser.set_defaults(func=_push_images)
 
     # Pull parser
@@ -290,6 +299,10 @@ def configure_image_parser(parser):
     pull_parser.add_argument('-t', '--tag',
                              default=None,
                              help='The tag for images')
+    pull_parser.add_argument(
+        '--parallel',
+        type=int, default=None,
+        help='Number of parallel image pull')
     pull_parser.set_defaults(func=_pull_images)
 
     # Purge parser
