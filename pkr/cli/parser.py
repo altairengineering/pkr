@@ -165,7 +165,6 @@ def get_parser():
     # Up parser
     up_parser = sub_p.add_parser(
         'up', help='Rebuild context, images and start pkr')
-    add_service_argument(up_parser)
     up_parser.add_argument(
         '-v',
         '--verbose',
@@ -180,7 +179,7 @@ def get_parser():
 
     up_parser.set_defaults(
         func=lambda a: Kard.load_current().docker_cli.cmd_up(
-            a.services, verbose=a.verbose, build_log=a.build_log))
+            verbose=a.verbose, build_log=a.build_log))
 
     # Ps parser
     parser = sub_p.add_parser(
