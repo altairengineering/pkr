@@ -173,11 +173,6 @@ class ComposePkr(Pkr):
         self, services, tag=None, verbose=True, logfile=None, nocache=False,
         parallel=None
     ):
-        # Image names may be different from service names (e.g. image re-use)
-        images = set(s['image'].partition(':')[0]  # without ":tag" suffix
-                  for s in self._load_compose_config().services
-                  if s['name'] in services).union(services)
-
         def req_build(container):
             """Return True if the container requires being built"""
             try:
@@ -208,7 +203,12 @@ class ComposePkr(Pkr):
 
         eff_modules = self._resolve_services(services)
 
-        self.build_images(eff_modules, verbose=verbose, logfile=build_log)
+        # Image names may be different from service names (e.g. image re-use)
+        images = set(s['image'].partition(':')[0]  # without ":tag" suffix
+                  for s in self._load_compose_config().services
+                  if s['name'] in eff_modules)
+
+        self.build_images(images, verbose=verbose, logfile=build_log)
 
         self.start(services)
 
