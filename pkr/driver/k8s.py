@@ -11,6 +11,7 @@ import yaml
 import zlib
 from tempfile import NamedTemporaryFile
 from time import sleep
+from pathlib import Path
 
 from kubernetes import client, config
 from passlib.apache import HtpasswdFile
@@ -79,7 +80,7 @@ class KubernetesPkr(Pkr):
     def populate_kard(self):
 
         def read_kard_file(conf_file_name):
-            conf_path = self.kard.path / conf_file_name
+            conf_path = self.kard.path / Path(conf_file_name).expanduser()
             return conf_path.read_text()
 
         def format_image(image_name):
