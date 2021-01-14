@@ -512,13 +512,13 @@ class TestImagePull(TestCLI):
 
         # We want to test that the command `pkr image pull` get a same error 3
         # times, because it should retry 3 times, and fail with code 1
-        cmd = '{} image pull'.format(self.PKR)
+        cmd = '{} image pull -r dummyregistry -t remote_tag'.format(self.PKR)
 
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
         self.assertEqual(1, prc.returncode, stdout)
 
-        expected_cmd_output = b'Pulling backend:test from None...'
+        expected_cmd_output = b'Pulling backend:test from dummyregistry/backend:remote_tag...'
         expected_error_regex = b'Error while pulling the image test:'
         expected_final_print_prefix = b'ImagePullError'
 
