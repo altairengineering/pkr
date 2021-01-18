@@ -171,7 +171,7 @@ class ComposePkr(Pkr):
 
     def build_images(
         self, services, tag=None, verbose=True, logfile=None, nocache=False,
-        parallel=None
+        parallel=None, no_rebuild=False,
     ):
         def req_build(container):
             """Return True if the container requires being built"""
@@ -181,7 +181,8 @@ class ComposePkr(Pkr):
                 return False
 
         super(ComposePkr, self).build_images(
-            [i for i in services if req_build(i)], tag, verbose, logfile, nocache, parallel)
+            [i for i in services if req_build(i)], tag, verbose, logfile, nocache, parallel,
+            no_rebuild)
 
     def start(self, services=None, yes=False):
         self._call_compose('up', '-d', *(services or ()))

@@ -101,7 +101,7 @@ class Pkr(object):
 
     def build_images(
         self, services, tag=None, verbose=True, logfile=None, nocache=False,
-        parallel=None
+        parallel=None, no_rebuild=False,
     ):
         """Build docker images.
 
@@ -112,6 +112,7 @@ class Pkr(object):
           * logfile: separate log file for the underlying build
           * nocache: disable docker cache
           * parallel: (int|None) Number of concurrent build
+          * no_rebuild: do not build if destination image exists
         """
         tag = tag or self.kard.meta['tag']
 
@@ -124,7 +125,7 @@ class Pkr(object):
                     for service in services:
                         futures.append(executor.submit(
                             self._build_image,
-                            service, tag, verbose, logfile, nocache, True))
+                            service, tag, verbose, logfile, nocache, no_rebuild, True))
                 for future in futures:
                     future.result(timeout=300)
             else:
@@ -132,11 +133,11 @@ class Pkr(object):
                     logfh.write('Building docker images...\n')
                 for service in services:
                     self._build_image(
-                        service, tag, verbose, logfile, nocache, False)
+                        service, tag, verbose, logfile, nocache, no_rebuild, False)
 
     def _build_image(
         self, service, tag=None, verbose=True, logfile=None, nocache=False,
-        bufferize=None
+        no_rebuild=False, bufferize=None
     ):
         """Build docker image.
 
@@ -147,6 +148,7 @@ class Pkr(object):
           * logfile: separate log file for the underlying build
           * nocache: disable docker cache
           * parallel: (int|None) Number of concurrent build
+          * no_rebuild: do not build if destination image exists
         """
         ctx = self.kard.context
         image_name = self.make_image_name(service, tag)
@@ -154,18 +156,25 @@ class Pkr(object):
         with LogOutput(logfile, bufferize=bufferize) as logfh:
             logfh.write('Building {} image...\n'.format(image_name))
 
-            dockerfile = self.kard.env.get_container(service)['dockerfile']
+            if no_rebuild:
+                try:
+                    image = self.docker.get(image_name)
+                except docker.errors.ImageNotFound:
+                    image = None
 
-            stream = self.docker.build(
-                path=str(ctx.path),
-                dockerfile=str(ctx.relative(dockerfile)),
-                tag=image_name,
-                decode=True,
-                nocache=nocache,
-                forcerm=True)
+            if not no_rebuild or image is None:
+                dockerfile = self.kard.env.get_container(service)['dockerfile']
 
-            self.print_docker_stream(
-                stream, verbose=verbose, logfile=logfile, bufferize=bufferize)
+                stream = self.docker.build(
+                    path=str(ctx.path),
+                    dockerfile=str(ctx.relative(dockerfile)),
+                    tag=image_name,
+                    decode=True,
+                    nocache=nocache,
+                    forcerm=True)
+
+                self.print_docker_stream(
+                    stream, verbose=verbose, logfile=logfile, bufferize=bufferize)
 
             logfh.write('done.\n')
 
