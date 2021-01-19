@@ -262,10 +262,11 @@ class Pkr(object):
         Args:
           * services: the name of the images to pull
           * registry: a DockerRegistry instance
-          * tag: the tag of the version to pull
+          * remote_tag: the tag of the version to pull
           * parallel: pull parallelism
         """
-        tag = tag or self.kard.meta['tag']
+        remote_tag = tag
+        tag = self.kard.meta['tag']
 
         if registry.username is not None:
             self._logon_remote_registry(registry)
@@ -282,17 +283,18 @@ class Pkr(object):
                 for image, image_name in todos:
                     futures.append((
                         image,
-                        executor.submit(self._pull_image, image_name, registry.url, tag)))
+                        executor.submit(
+                            self._pull_image, image_name, registry.url, tag, remote_tag)))
             for image, future in futures:
                 future.result()
-                write('Pulling {} from {}...'.format(image, registry.url))
+                write('Pulling {} from {}/{}:{}...'.format(image, registry.url, image_name, remote_tag))
                 write(' Done !' + '\n')
                 sys.stdout.flush()
         else:
             for image, image_name in todos:
-                write('Pulling {} from {}...'.format(image, registry.url))
+                write('Pulling {} from {}/{}:{}...'.format(image, registry.url, image_name, remote_tag))
                 sys.stdout.flush()
-                self._pull_image(image_name, registry.url, tag)
+                self._pull_image(image_name, registry.url, tag, remote_tag)
                 write(' Done !' + '\n')
 
         write('All images has been pulled successfully !' + '\n')
@@ -357,7 +359,7 @@ class Pkr(object):
         reraise=True,
         retry=tenacity.retry_if_exception_type(ImagePullError),
     )
-    def _pull_image(self, image_name, registry_url, tag):
+    def _pull_image(self, image_name, registry_url, tag, remote_tag):
         """
         Pull one image, retry few times to be robust to registry or network
         related issues.
@@ -373,10 +375,10 @@ class Pkr(object):
 
         try:
             self.docker.pull(repository=rep_tag,
-                             tag=tag)
+                             tag=remote_tag)
 
             # Strip the repository tag
-            self.docker.tag(image=':'.join((rep_tag, tag)),
+            self.docker.tag(image=':'.join((rep_tag, remote_tag)),
                             repository=image_name,
                             tag=tag,
                             force=True)
