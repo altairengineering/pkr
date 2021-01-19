@@ -27,7 +27,8 @@ def _build_images(args):
     # Build images
     services = args.services or list(kard.env.get_container().keys())
     kard.docker_cli.build_images(
-        services, tag=args.tag, nocache=args.nocache, parallel=args.parallel)
+        services, tag=args.tag, nocache=args.nocache, parallel=args.parallel,
+        no_rebuild=args.no_rebuild)
 
 
 def _push_images(args):
@@ -257,6 +258,10 @@ def configure_image_parser(parser):
         '-p', '--parallel',
         type=int, default=None,
         help='Number of parallel image build')
+    build_parser.add_argument(
+        '-b', '--no-rebuild',
+        action='store_true',
+        help='Disable rebuild if image already exists')
     add_service_argument(build_parser)
     build_parser.set_defaults(func=_build_images)
 
