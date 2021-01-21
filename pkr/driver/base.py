@@ -157,12 +157,9 @@ class Pkr(object):
             logfh.write('Building {} image...\n'.format(image_name))
 
             if no_rebuild:
-                try:
-                    image = self.docker.get(image_name)
-                except docker.errors.ImageNotFound:
-                    image = None
+                image = len(self.docker.images(image_name)) == 1
 
-            if not no_rebuild or image is None:
+            if not no_rebuild or image is False:
                 dockerfile = self.kard.env.get_container(service)['dockerfile']
 
                 stream = self.docker.build(
