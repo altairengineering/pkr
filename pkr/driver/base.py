@@ -271,7 +271,7 @@ class Pkr(object):
           * remote_tag: the tag of the version to pull
           * parallel: pull parallelism
         """
-        remote_tag = tag
+        remote_tag = tag or self.kard.meta['tag']
         tag = self.kard.meta['tag']
 
         if registry.username is not None:
