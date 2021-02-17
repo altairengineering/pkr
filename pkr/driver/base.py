@@ -502,6 +502,9 @@ class Pkr(object):
                     except BaseException as exc:
                         write(exc)
 
+    def clean(self, kill=False):
+        NotImplementedError()
+
 
 class LogOutput(object):
 
