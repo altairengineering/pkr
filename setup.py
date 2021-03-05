@@ -35,10 +35,10 @@ def setup_pkr():
         license='AGPLv3 (See LICENSE file for terms)',
         classifiers=[
             'Intended Audience :: Developers',
-            'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9',
             'Topic :: Software Development :: Build Tools',
             'Topic :: Software Development :: Testing',
             'License :: OSI Approved :: Apache Software License',
@@ -61,8 +61,7 @@ def setup_pkr():
             'urllib3<1.25'
         ],
         packages=find_packages(exclude=['test', 'docs']),
-        python_requires='>=2.7, !=3.0., !=3.1., !=3.2., !=3.3., !=3.4.*, '
-                        '!=3.5.*, <4,',
+        python_requires='>=3.6, <4,',
     )
 
 
