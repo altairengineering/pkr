@@ -33,12 +33,16 @@ class Kard(object):
     def __init__(self, name, path, meta=None):
         self.path = path
         self.name = name
+        self.meta_file = path / self.META_FILE
 
         if meta is None:
-            with (path / self.META_FILE).open() as meta_file:
+            with self.meta_file.open() as meta_file:
                 self.meta = yaml.safe_load(meta_file)
         else:
             self.meta = meta
+
+        if self.meta['env'] is None:
+            return
 
         self.env = Environment(
             env_name=self.meta['env'],
@@ -64,7 +68,7 @@ class Kard(object):
 
     def save_meta(self):
         """Persist the kard to the meta file"""
-        with (self.path / self.META_FILE).open('w') as meta_file:
+        with self.meta_file.open('w') as meta_file:
             yaml.safe_dump(self.meta, meta_file, default_flow_style=False)
 
     def make(self, reset=True):
@@ -84,8 +88,8 @@ class Kard(object):
         """
 
     @classmethod
-    def list(cls):
-        """Return  a list of all kards"""
+    def list(cls, kubernetes=False):
+        """Return a list of all kards"""
         try:
             kards = [p.name for p in get_kard_root_path().iterdir()]
         except OSError:
@@ -94,6 +98,10 @@ class Kard(object):
             kards.pop(kards.index(cls.CURRENT_NAME))
         except ValueError:
             pass
+
+        if kubernetes:
+            kards += load_driver('k8s').get_docker_client(None).list_kards()
+
         return kards
 
     @classmethod
@@ -119,7 +127,8 @@ class Kard(object):
 
             kard = cls(kard_name, kard_path, meta)
 
-            cls.set_meta(kard, extra)
+            if env_name is not None:
+                cls.set_meta(kard, extra)
 
         except Exception:
             # If anything happened, we remove the folder
@@ -158,6 +167,10 @@ class Kard(object):
         """Set the current kard by making the symlink pointing to the correct
         folder.
         """
+        if '/' in kard_name:
+            driver, kard_name = kard_name.split('/')
+            kard = cls.create(kard_name, None, driver, {})
+            load_driver(driver).get_docker_client(kard).load_kard()
         dst_path = kard_name
 
         if not cls._build_kard_path(dst_path).exists():

@@ -25,6 +25,9 @@ CONFIGMAP = {
     'kind': 'ConfigMap',
     'metadata': {
         'namespace': 'kube-system',
+        'labels': {
+            'pkr': 'kard',
+        }
     },
     'data': {},
 }
@@ -184,12 +187,14 @@ class KubernetesPkr(Pkr):
           * services: a list with the services name to start
         """
         k8s_files_path = self.kard.path / 'k8s'
+        meta_file = self.kard.path / 'meta.yml'
+        saved_files = [meta_file] + sorted(k8s_files_path.glob('*.yml'))
 
         old_cm = self.get_configmap()
         new_cm = {}
 
         write("Compare with previous deployment ...")
-        for k8s_file in sorted(k8s_files_path.glob('*.yml')):
+        for k8s_file in saved_files:
             if services and k8s_file.name[:-4] not in services:
                 new_cm[k8s_file.name] = old_cm[k8s_file.name]
                 continue
@@ -217,7 +222,7 @@ class KubernetesPkr(Pkr):
                 return
 
         write("\nApplying manifests ...")
-        for k8s_file in sorted(k8s_files_path.glob('*.yml')):
+        for k8s_file in saved_files[1:]:
             if services and k8s_file.name[:-4] not in services:
                 continue
             write('Processing {}'.format(k8s_file.name))
@@ -263,3 +268,23 @@ class KubernetesPkr(Pkr):
                 service.metadata.name,
                 service.status.phase,
                 service.status.pod_ip))
+
+    def clean(self, kill=False):
+        self.stop()
+
+    def list_kards(self):
+        out, err = self.run_kubectl('get cm -n kube-system -l pkr=kard -o name', True)
+        if err != "":
+            raise Exception("Error getting kards from k8s: {}".format(err))
+
+        kards = []
+        if out != '':
+            for line in out.decode('utf-8').splitlines():
+                _, name = line.split('configmap/pkr-')
+                kards.append('k8s/{}'.format(name))
+        return kards
+
+    def load_kard(self):
+        cm = self.get_configmap()
+        with self.kard.meta_file.open('w+') as meta_file:
+            meta_file.write(cm['meta.yml'])

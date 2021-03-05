@@ -85,8 +85,8 @@ def _purge(args):
     kard.docker_cli.purge(args.except_tag, args.tag, args.repository)
 
 
-def _list_kards(*_):
-    kards = Kard.list()
+def _list_kards(args):
+    kards = Kard.list(args.kubernetes)
     if kards:
         write('Kards:')
         for kard in kards:
@@ -454,6 +454,8 @@ def configure_kard_parser(parser):
         '--extra', nargs='*', default=[], help='Extra args')
 
     list_kard = sub_p.add_parser('list', help='List kards')
+    list_kard.add_argument(
+        '-k', '--kubernetes', action='store_true', help="Query kube remote kards")
     list_kard.set_defaults(func=_list_kards)
 
     get_kard = sub_p.add_parser('get', help='Get current kard')
