@@ -40,7 +40,7 @@ python-dateutil==2.8.0
 PyYAML==4.2b4
 requests==2.20.1
 requests-oauthlib==1.2.0
-rsa==4.0
+rsa==4.1
 scandir==1.10.0
 six==1.12.0
 smmap2==2.0.5
