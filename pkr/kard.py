@@ -64,7 +64,10 @@ class Kard(object):
     @property
     def extensions(self):
         """Return the Extension class loaded with the correct instance"""
-        return Extensions(self.meta['features'])
+        ext_path = self.meta.get('ext_path')
+        if ext_path:
+            ext_path = self.env.pkr_path / ext_path
+        return Extensions(self.meta['features'], path=ext_path)
 
     def save_meta(self):
         """Persist the kard to the meta file"""

@@ -3,6 +3,7 @@
 
 """Module containing extensions for pkr"""
 import abc
+import sys
 from builtins import object
 from builtins import str
 import signal
@@ -55,15 +56,17 @@ class Extensions(object):
     extensions
     """
 
-    def __init__(self, features):
+    def __init__(self, features, path=None):
         super(Extensions, self).__init__()
         self.features = set(features)
         self._extensions = None
+        self.path = path
 
     @property
     def extensions(self):
         """Lazy loading of extensions"""
         if self._extensions is None:
+            sys.path.insert(0, str(self.path))
             self._extensions = NamedExtensionManager(
                 namespace='extensions',
                 names=self.features,
