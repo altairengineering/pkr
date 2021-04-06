@@ -55,7 +55,7 @@ def setup_pkr():
             'paramiko == 2.4.2',
             'passlib>=1.7.1',
             'pathlib2==2.3.0',
-            'pyyaml>=4.2b1,<5',
+            'pyyaml>=4.2b1,<6',
             'stevedore==1.21.0',
             'tenacity==5.0.3',
             'urllib3<1.25'
