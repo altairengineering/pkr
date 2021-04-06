@@ -4,6 +4,7 @@
 """Docker base object"""
 from __future__ import print_function
 
+import os
 import re
 import sys
 import traceback
@@ -19,6 +20,7 @@ from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
 
 DOCKER_SOCK = 'unix://var/run/docker.sock'
+DOCKER_CLIENT_TIMEOUT = os.environ.get('DOCKER_CLIENT_TIMEOUT', 300)
 
 
 class ImagePullError(PkrException):
@@ -59,7 +61,7 @@ class Pkr(object):
     SERVICE_VAR = '%SERVICE%'
 
     def __init__(self, kard, *args, **kwargs):
-        self.docker = docker.APIClient(*args, version='auto', **kwargs)
+        self.docker = docker.APIClient(*args, version='auto', timeout=DOCKER_CLIENT_TIMEOUT, **kwargs)
         self.kard = kard
 
     def get_registry(self, **kwargs):
