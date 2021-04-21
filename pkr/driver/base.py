@@ -484,7 +484,7 @@ class Pkr(object):
         else:
             tag = '(?!{})$'.format(except_tag)
 
-        images_to_del = [self.make_image_name(s, '*') for s in services]
+        images_to_del = [self.make_image_name(s, tag) for s in services]
 
         if repository:
             tmp = []
