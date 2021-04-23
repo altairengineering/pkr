@@ -20,7 +20,7 @@ from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
 
 DOCKER_SOCK = 'unix://var/run/docker.sock'
-DOCKER_CLIENT_TIMEOUT = os.environ.get('DOCKER_CLIENT_TIMEOUT', 300)
+DOCKER_CLIENT_TIMEOUT = int(os.environ.get('DOCKER_CLIENT_TIMEOUT', 300))
 
 
 class ImagePullError(PkrException):
@@ -29,7 +29,7 @@ class ImagePullError(PkrException):
 
 class DockerRegistry(namedtuple('DockerRegistry',
                                 ('url', 'username', 'password'))):
-    """A Docker registry representation
+    """A Docker registry representation
 
     Args:
       * url: the URL of the registry
