@@ -14,7 +14,6 @@ from time import sleep
 from pathlib import Path
 
 from kubernetes import client, config
-from passlib.apache import HtpasswdFile
 
 from .base import DOCKER_SOCK, AbstractDriver, Pkr
 from ..cli.log import write
@@ -81,31 +80,7 @@ class KubernetesPkr(Pkr):
         return self.kard.meta.get('registry')
 
     def populate_kard(self):
-
-        def read_kard_file(conf_file_name):
-            conf_path = self.kard.path / Path(conf_file_name).expanduser()
-            return conf_path.read_text()
-
-        def format_image(image_name):
-
-            image = '{}:{}'.format(image_name, self.kard.meta['tag'])
-
-            if not self._get_registry():
-                return image
-
-            return '{}/{}'.format(self._get_registry(), image)
-
-        def format_htpasswd(username, password):
-            ht = HtpasswdFile()
-            ht.set_password(username, password)
-            return ht.to_string().rstrip().decode('utf-8')
-
-        data = {
-            'kard_file_content': read_kard_file,
-            'format_image': format_image,
-            'format_htpasswd': format_htpasswd,
-        }
-        tpl_engine = self.kard.get_template_engine(data)
+        tpl_engine = self.kard.get_template_engine()
 
         k8s_files = self.kard.env.env['driver']['k8s'].get('k8s_files', [])
 

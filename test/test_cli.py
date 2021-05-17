@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 import six
+import re
 import yaml
 from pathlib2 import Path
 
@@ -379,8 +380,10 @@ class TestKardMake(unittest.TestCase):
 
     def test_config_present(self):
         gen_file = self.context_path / 'backend' / 'backend.conf'
-        expected_content = "foo=bar\ntag_b64=dGVzdA==\ntag_sha256=" \
-            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        expected_content = "foo=bar\n" \
+            "tag_b64=dGVzdA==\n" \
+            "tag_sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n" \
+            "htpassword=a:"
 
         self.assertTrue(gen_file.exists())
 
@@ -553,12 +556,13 @@ class TestImagePush(TestCLI):
         self.assertEqual(1, prc.returncode, stdout)
 
         expected_cmd_output = b'Pushing backend:foo to testrepo.io/backend:foo'
-        expected_cmd_output_2 = b'ERROR: (ImageNotFound) 404 Client Error: ' + \
-            b'Not Found ("No such image: backend:foo")'
+        expected_cmd_output_2 = re.compile(
+            b'ERROR: \(ImageNotFound\) 404 Client Error for http\+docker://.*: '
+            b'Not Found \("No such image: backend:foo"\)')
 
         error_outputs = stdout.split(b'\n')[:-1]
         # 1 line for the command output
         # 4 lines with the same error (3 tries, and the final print)
         self.assertEqual(len(error_outputs), 2)
         self.assertEqual(error_outputs[0], expected_cmd_output)
-        self.assertEqual(error_outputs[1], expected_cmd_output_2)
+        assert re.match(expected_cmd_output_2, error_outputs[1])

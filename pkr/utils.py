@@ -24,6 +24,7 @@ import time
 
 import jinja2
 from pathlib2 import Path
+from passlib.apache import HtpasswdFile
 
 KARD_FOLDER = 'kard'
 PATH_ENV_VAR = 'PKR_PATH'
@@ -151,21 +152,25 @@ def ask_input(name):
 class TemplateEngine(object):
 
     def __init__(self, tpl_context):
+        """Init templating context (filters and functions)"""
         self.tpl_context = tpl_context.copy()
 
         self.pkr_path = get_pkr_path()
         self.tpl_env = jinja2.Environment(
+            extensions=['jinja2_ansible_filters.AnsibleCoreFiltersExtension'],
             loader=jinja2.FileSystemLoader(str(self.pkr_path)))
-
-        def b64encode(string):
-            return base64.b64encode(string.encode("utf-8")).decode("utf-8")
-
-        self.tpl_env.filters['b64encode'] = b64encode
 
         def sha256(string):
             return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
         self.tpl_env.filters['sha256'] = sha256
+
+        def format_htpasswd(username, password):
+            ht = HtpasswdFile()
+            ht.set_password(username, password)
+            return ht.to_string().rstrip().decode('utf-8')
+
+        self.tpl_context['format_htpasswd'] = format_htpasswd
 
     def process_template(self, template_file):
         """Process a template and render it in the context

@@ -1,3 +1,4 @@
 foo={{ foo }}
 tag_b64={{ tag | b64encode }}
 tag_sha256={{ tag | sha256 }}
+htpassword={{ format_htpasswd('a', 'b') | regex_replace(':.*$', ':') }}
