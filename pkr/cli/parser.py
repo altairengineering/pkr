@@ -7,11 +7,11 @@
 import argparse
 
 from pathlib import Path
-import stevedore
 import yaml
 
 from .log import write
 from .shell import PkrShell
+from ..driver import list_drivers
 from ..ext import Extensions
 from ..kard import Kard
 from ..utils import PkrException, create_pkr_folder
@@ -103,7 +103,13 @@ def _create_kard(args):
     try:
         extra_features = args.features
         if extra_features is not None:
-            extras.update({'features': extra_features.split(',')})
+            extra_features = extra_features.split(',')
+            if 'features' in extras:
+                extra_features.extend(
+                    x for x in extras['features'] if x not in extra_features)
+                extras['features'] = extra_features
+            else:
+                extras.update({'features': extra_features})
     except AttributeError:
         pass
 
@@ -120,9 +126,10 @@ def _create_kard(args):
                 dict_it = dict_it.setdefault(sub_key, {})
             dict_it[sub_keys[-1]] = value
 
-    Kard.create(args.name, args.env, args.driver, extras)
+    kard = Kard.create(args.name, args.env, args.driver, extras)
     Kard.set_current(args.name)
     write('Current kard is now: {}'.format(args.name))
+    return kard
 
 
 def get_parser():
@@ -207,13 +214,14 @@ def get_parser():
 
     # List available extensions
     list_extension_parser = sub_p.add_parser(
-        'listext', help='ListExt')
+        'listext', help='List extensions')
+    list_extension_parser.add_argument('-a', '--all', action='store_true', help="Show all available extensions")
     list_extension_parser.set_defaults(
-        func=lambda *_: Kard.load_current().extensions.list())
+        func=lambda a: print(*(Extensions().list() if a.all else Kard.load_current().extensions.list()), sep = "\n"))
 
     # Ext parser
     configure_ext_parser(
-        sub_p.add_parser('ext', help='Manage extensions images'))
+        sub_p.add_parser('ext', help='Call extension method'))
 
     # Init
     init_parser = sub_p.add_parser(
@@ -432,14 +440,10 @@ def configure_kard_parser(parser):
                                default='dev',
                                help='The environment (dev/prod)')
 
-    entry_points = stevedore.NamedExtensionManager(
-        'drivers', []).list_entry_points()
-
     create_kard_p.add_argument('-d', '--driver',
                                default='compose',
                                help='The pkr driver to use {}'.format(
-                                   tuple(entry_point.name
-                                         for entry_point in entry_points)))
+                                    list_drivers()))
 
     create_kard_p.add_argument('-m', '--meta',
                                type=argparse.FileType('r'),
@@ -470,8 +474,9 @@ def configure_kard_parser(parser):
 
 
 def configure_ext_parser(parser):
+    parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(
-        title='Extensions', metavar='<extension>', help='<features>')
+        title="Extensions", metavar="<extension>", help='Extensions')
 
     # Build parser
     try:
@@ -479,9 +484,10 @@ def configure_ext_parser(parser):
     except PkrException:  # Catch missing PKR_PATH
         return
 
-    for name, ext in Extensions.list_all():
-        ext.configure_parser(sub_p.add_parser(
-            name, help='{} extension features'.format(name.capitalize())))
+    for name, ext in Extensions.list_all().items():
+        if hasattr(ext, 'configure_parser'):
+            ext.configure_parser(sub_p.add_parser(
+                name, help='{} extension features'.format(name.capitalize())))
 
 
 def add_service_argument(parser):

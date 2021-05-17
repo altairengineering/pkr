@@ -27,7 +27,6 @@ monotonic==1.5
 netifaces==0.10.5
 oauthlib==3.0.1
 passlib==1.7.4
-pbr==5.2.1
 pyasn1==0.4.5
 pyasn1-modules==0.2.5
 pycparser==2.19
@@ -38,9 +37,7 @@ requests==2.20.1
 requests-oauthlib==1.2.0
 rsa==4.7
 scandir==1.10.0
-six==1.12.0
 smmap2==2.0.5
-stevedore==1.21.0
 tenacity==5.0.3
 texttable==0.9.1
 urllib3==1.24.3

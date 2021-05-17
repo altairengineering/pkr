@@ -98,7 +98,7 @@ def merge(source, destination):
     before using it if you do not want to destroy the destination dict.
     """
     for key, value in list(source.items()):
-        if isinstance(value, collections.Mapping):
+        if isinstance(value, collections.abc.Mapping):
             # get node or create one
             node = destination.setdefault(key, {})
             merge(value, node)

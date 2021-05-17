@@ -15,7 +15,8 @@ import sys
 from pathlib import Path
 
 from pkr.cli.parser import get_parser
-from pkr import utils
+import pkr.utils
+import pkr.environment
 
 
 class _EnvTest(object):
@@ -23,32 +24,25 @@ class _EnvTest(object):
     Allow you to enable/disable environment test where
     pkr dir is in temporary directory.
     """
-
-    PKR_SRC = Path(__file__).absolute().parents[1]
-
-    def __init__(self):
+    def __init__(self, path):
+        self.path = Path(__file__).parent / 'files' / path
         self.tmp_kard = None
-        self.original_pkr_path = utils.get_pkr_path()
 
     def enable(self):
         """
         Set PKR_PATH to created temporary directory and link
         `env` and `templates` directories to new env.
         """
-        reload(sys.modules['pkr.kard'])
-        reload(sys.modules['pkr.parser'])
-
         self.tmp_kard = Path(tempfile.mkdtemp())
         os.environ['PKR_PATH'] = str(self.tmp_kard)
-        for dir_name in ('env', 'templates'):
-            (self.tmp_kard / dir_name).symlink_to(self.PKR_SRC / dir_name)
+        pkr.utils.ENV_FOLDER = pkr.environment.ENV_FOLDER = 'env'
+        for dir_name in ('env', 'templates', 'extensions'):
+            (self.tmp_kard / dir_name).symlink_to(self.path / dir_name)
 
     def disable(self):
         """
         Removes temporary directory and reset `PKR_PATH`
         """
-        if self.original_pkr_path is not None:
-            os.environ['PKR_PATH'] = self.original_pkr_path
         shutil.rmtree(str(self.tmp_kard))
 
 
@@ -70,6 +64,7 @@ class pkrTestCase(unittest.TestCase):
         - src (Path): The path to the src directory.
     """
 
+    pkr_folder = None
     kard_env = None
     kard_driver = 'none'
     kard_features = ()
@@ -91,7 +86,7 @@ class pkrTestCase(unittest.TestCase):
 
         if cls.kard_features:
             cmd_args.extend(
-                ['--with', ','.join(cls.kard_features)]
+                ['--features', ','.join(cls.kard_features)]
             )
 
         cmd_args.extend(
@@ -105,8 +100,8 @@ class pkrTestCase(unittest.TestCase):
         func(pkr_args)
 
         # set utilities variable.
-        cls.kard = old_div(Path(utils.get_kard_root_path()), 'current')
-        cls.src = old_div(cls.kard, 'src')
+        cls.kard = Path(pkr.utils.get_kard_root_path()) / 'current'
+        cls.src = cls.kard / 'src'
 
     @classmethod
     def regenerate_kard(cls):
@@ -133,18 +128,15 @@ class pkrTestCase(unittest.TestCase):
         """
         Create kard.
         """
-        cls._env_test = _EnvTest()
-        cls._env_test.enable()
-        cls.generate_kard()
-        cls.generate_src()
-        cls.regenerate_kard()
+        cls.env_test = _EnvTest(cls.pkr_folder)
+        cls.env_test.enable()
 
     @classmethod
     def tearDownClass(cls):
         """
         Remove kard
         """
-        cls._env_test.disable()
+        cls.env_test.disable()
 
 def get_test_files_path():
     return Path(os.path.dirname(os.path.abspath(__file__))) / 'files'
