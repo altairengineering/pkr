@@ -7,7 +7,7 @@ import os
 import shutil
 
 import yaml
-from pathlib2 import Path
+from pathlib import Path
 from builtins import object
 
 from .context import Context

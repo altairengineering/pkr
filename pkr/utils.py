@@ -23,7 +23,7 @@ import shutil
 import time
 
 import jinja2
-from pathlib2 import Path
+from pathlib import Path
 from passlib.apache import HtpasswdFile
 
 KARD_FOLDER = 'kard'

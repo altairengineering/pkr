@@ -3,9 +3,6 @@
 
 """Git extension to allow using sources from volumes or build them into the
 image"""
-
-from __future__ import absolute_import
-
 import os
 
 import jinja2

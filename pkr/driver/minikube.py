@@ -2,17 +2,13 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 """pkr functions for handling the life cycle for minikube"""
-
-from future import standard_library
-
-standard_library.install_aliases()
 import json
 import os
 import shlex
 import subprocess
 
 from docker.tls import TLSConfig
-from pathlib2 import Path
+from pathlib import Path
 from kubernetes.client.rest import ApiException
 
 from ..cli.log import write

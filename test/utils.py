@@ -4,17 +4,15 @@
 """
 This module provide utilities to write tests
 """
-from __future__ import division
 from builtins import str
 from builtins import object
-from past.utils import old_div
 import unittest
 import tempfile
 import os
 import shutil
 import sys
 
-from pathlib2 import Path
+from pathlib import Path
 
 from pkr.cli.parser import get_parser
 from pkr import utils
@@ -43,7 +41,7 @@ class _EnvTest(object):
         self.tmp_kard = Path(tempfile.mkdtemp())
         os.environ['PKR_PATH'] = str(self.tmp_kard)
         for dir_name in ('env', 'templates'):
-            (old_div(self.tmp_kard, dir_name)).symlink_to(old_div(self.PKR_SRC, dir_name))
+            (self.tmp_kard / dir_name).symlink_to(self.PKR_SRC / dir_name)
 
     def disable(self):
         """
