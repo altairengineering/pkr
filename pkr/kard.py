@@ -209,9 +209,23 @@ class Kard(object):
         kard.save_meta()
 
     def get_template_engine(self, extra_data=None):
-
         data = self.meta.copy()
-        data.update({'env': self.env.env_name})
+
+        def read_kard_file(conf_file_name):
+            conf_path = self.kard.path / Path(conf_file_name).expanduser()
+            return conf_path.read_text()
+
+        def format_image(image_name):
+            image = '{}:{}'.format(image_name, self.kard.meta['tag'])
+            if not self._get_registry():
+                return image
+            return '{}/{}'.format(self._get_registry(), image)
+
+        data.update({
+            'env': self.env.env_name,
+            'kard_file_content': read_kard_file,
+            'format_image': format_image,
+        })
 
         # Get custom template data from extensions
         for custom_data in self.extensions.get_context_template_data():

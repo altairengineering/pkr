@@ -44,8 +44,8 @@ def setup_pkr():
             'License :: OSI Approved :: Apache Software License',
         ],
         install_requires=[
-            'docker-compose==1.25.0-rc2',
-            'docker==3.7.0',
+            'docker==4.4.4',
+            'docker-compose==1.26.2',
             'future==0.16.0',
             'GitPython==2.1.5',
             'ipaddress==1.0.17',
@@ -58,7 +58,8 @@ def setup_pkr():
             'pyyaml>=4.2b1,<6',
             'stevedore==1.21.0',
             'tenacity==5.0.3',
-            'urllib3<1.25'
+            'urllib3<1.25',
+            'jinja2-ansible-filters==1.3.0',
         ],
         packages=find_packages(exclude=['test', 'docs']),
         python_requires='>=3.6, <4,',
