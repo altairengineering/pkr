@@ -2,9 +2,6 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 """Git extension to allow fetching a git repository when creating a Kard"""
-
-from __future__ import absolute_import
-
 from builtins import str
 import os
 

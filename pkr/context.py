@@ -7,7 +7,7 @@ import os
 
 from builtins import object
 from compose.cli.command import get_project_name
-from pathlib2 import Path
+from pathlib import Path
 
 from .cli.log import write
 from .utils import ensure_dir_absent, get_pkr_path

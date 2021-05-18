@@ -11,7 +11,7 @@ import unittest
 import six
 import re
 import yaml
-from pathlib2 import Path
+from pathlib import Path
 
 from pkr.kard import Kard
 from pkr.utils import PATH_ENV_VAR

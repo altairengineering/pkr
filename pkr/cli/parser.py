@@ -3,11 +3,10 @@
 # Copyright© 1986-2019 Altair Engineering Inc.
 
 """pkr CLI parser"""
-from __future__ import absolute_import
 
 import argparse
 
-from pathlib2 import Path
+from pathlib import Path
 import stevedore
 import yaml
 

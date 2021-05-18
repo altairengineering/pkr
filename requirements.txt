@@ -13,9 +13,6 @@ docker-pycreds==0.4.0
 dockerpty==0.4.1
 docopt==0.6.2
 enum34==1.1.6
-functools32==3.2.3.post2; python_version < '3.0'
-future==0.16.0; python_version < '3.0'
-futures==3.2.0; python_version < '3.0'
 gitdb2==2.0.5
 GitPython==2.1.5
 google-auth==1.6.3
@@ -29,9 +26,7 @@ MarkupSafe==1.1.1
 monotonic==1.5
 netifaces==0.10.5
 oauthlib==3.0.1
-paramiko==2.4.2
-passlib==1.7.1
-pathlib2==2.3.0
+passlib==1.7.4
 pbr==5.2.1
 pyasn1==0.4.5
 pyasn1-modules==0.2.5

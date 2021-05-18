@@ -13,7 +13,7 @@ import traceback
 from compose import config as docker_config
 from compose.cli.command import get_project_name
 import docker
-from pathlib2 import Path
+from pathlib import Path
 import yaml
 
 from .base import DOCKER_SOCK, AbstractDriver, Pkr

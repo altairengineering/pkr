@@ -7,14 +7,13 @@ from builtins import object
 from builtins import str
 import signal
 
-from future.utils import with_metaclass
 from stevedore.named import ExtensionManager, NamedExtensionManager
 
 from pkr.cli.log import write
 from pkr.utils import PkrException
 
 
-class ExtMixin(with_metaclass(abc.ABCMeta, object)):
+class ExtMixin(metaclass=abc.ABCMeta):
     """Mixin for an extension implementation"""
 
     @staticmethod

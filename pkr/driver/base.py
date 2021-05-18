@@ -2,8 +2,6 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 """Docker base object"""
-from __future__ import print_function
-
 import os
 import re
 import sys
@@ -14,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import docker
 import tenacity
-from pathlib2 import Path
+from pathlib import Path
 
 from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
