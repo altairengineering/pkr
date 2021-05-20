@@ -10,7 +10,6 @@ from pathlib import Path
 import yaml
 
 from .log import write
-from .shell import PkrShell
 from ..driver import list_drivers
 from ..ext import Extensions
 from ..kard import Kard
@@ -135,6 +134,7 @@ def _create_kard(args):
 def get_parser():
     """Return the pkr parser"""
     pkr_parser = argparse.ArgumentParser()
+    pkr_parser.set_defaults(func=lambda _: pkr_parser.print_help())
     pkr_parser.add_argument('-v', '--version', action='version',
                             version='%(prog)s ' + __version__)
 
@@ -142,10 +142,6 @@ def get_parser():
 
     sub_p = pkr_parser.add_subparsers(
         title="Commands", metavar="<command>", help='<action>')
-
-    # Shell
-    sub_p.add_parser('shell', help='Launch pkr shell').set_defaults(
-        func=lambda *_: PkrShell(pkr_parser).cmdloop())
 
     # Stop parser
     stop_parser = sub_p.add_parser('stop', help='Stop pkr')
@@ -243,6 +239,7 @@ def get_parser():
 
 
 def configure_image_parser(parser):
+    parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(
         title="Commands", metavar="<command>", help='<action>')
 
@@ -417,7 +414,7 @@ def configure_kard_parser(parser):
             note: All value set with --extra parameter are available in
                   template.
     """
-
+    parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(
         title="Commands", metavar="<command>", help='<action>')
 
