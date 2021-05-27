@@ -13,7 +13,7 @@ from .log import write
 from ..driver import list_drivers
 from ..ext import Extensions
 from ..kard import Kard
-from ..utils import PkrException, create_pkr_folder
+from ..utils import PkrException, create_pkr_folder, features_merge
 from ..version import __version__
 
 
@@ -94,21 +94,19 @@ def _list_kards(args):
 
 
 def _create_kard(args):
-    extras = {}
+    extras = {'features': []}
     if args.meta:
         extras.update(yaml.safe_load(args.meta))
     extras.update({a[0]: a[1] for a in [a.split('=', 1) for a in args.extra]})
+    for feature in features_merge(extras['features']):
+        write("WARNING: Feature {} is duplicated in passed meta".format(feature))
 
     try:
         extra_features = args.features
         if extra_features is not None:
             extra_features = extra_features.split(',')
-            if 'features' in extras:
-                extra_features.extend(
-                    x for x in extras['features'] if x not in extra_features)
-                extras['features'] = extra_features
-            else:
-                extras.update({'features': extra_features})
+            for feature in features_merge(extra_features, extras['features'], False):
+                write("WARNING: Feature {} is duplicated in args".format(feature))
     except AttributeError:
         pass
 
@@ -446,7 +444,7 @@ def configure_kard_parser(parser):
                                type=argparse.FileType('r'),
                                help='A file to load meta from')
     create_kard_p.add_argument(
-        '--features',
+        '-f', '--features',
         help='Comma-separated list of features to include in the deployment. '
              'Take one or more of: elk, protractor, salt',
         default=None)

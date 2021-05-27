@@ -6,7 +6,8 @@
 import yaml
 from builtins import object
 
-from .utils import HashableDict, ensure_definition_matches, get_pkr_path, merge
+from pkr.cli.log import write
+from .utils import HashableDict, ensure_definition_matches, get_pkr_path, merge, features_merge
 
 ENV_FOLDER = 'env'
 
@@ -18,6 +19,7 @@ class Environment(object):
     DEFAULT_TEMPLATE_DIR = 'templates/dockerfiles'
 
     def __init__(self, env_name, features=None, path=None):
+        self.env_name = env_name
         self.pkr_path = get_pkr_path()
         self.path = path or self.default_path
 
@@ -27,22 +29,24 @@ class Environment(object):
 
         self.env = self._load_env_file(env_file_path)
 
-        self.features = self.env.get('default_features', [])
-        if features:
-            self.features.extend(x for x in features if x not in self.features)
+        self.features = features or []
+        for feature in features_merge(self.env.get('default_features', []), self.features):
+            write("WARNING: Feature {} is duplicated in env {}".format(feature, env_name))
 
         for feature in self.features:
             f_path = env_path / (feature + '.yml')
             if f_path.is_file():
                 content = self._load_env_file(f_path)
+                for dup in features_merge(content.pop('default_features', []), self.features):
+                    write(f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}")
                 merge(content, self.env)
-
-        self.env_name = env_name
 
     def _load_env_file(self, path):
         """Load an environment with its dependencies recursively"""
         with path.open() as env_file:
             content = yaml.safe_load(env_file)
+            if 'default_features' not in content:
+                content['default_features'] = []
 
         if content is None:
             return {}
@@ -51,6 +55,8 @@ class Environment(object):
             imp_path = self.path / (imp_name + '.yml')
             imp_data = self._load_env_file(imp_path)
             imp_data.pop(self.IMPORT_KEY, None)
+            for dup in features_merge(imp_data.pop('default_features', []), content['default_features']):
+                write(f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}")
             content = merge(content, imp_data)
         return content
 

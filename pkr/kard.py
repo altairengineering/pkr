@@ -196,15 +196,11 @@ class Kard(object):
         merge(kard.env.get_meta(extra), kard.meta)
         merge(kard.driver.get_meta(extra, kard), kard.meta)
 
-        # Prevent duplication of features in case of update
-        kard.meta['features'] = list(kard.meta['features'])
-
         # Extensions
         kard.extensions.setup(extra, kard)
 
         # We add all remaining extra to the meta
         merge(extra, kard.meta)
-        kard.meta['features'] = list(kard.meta['features'])
 
         kard.save_meta()
 

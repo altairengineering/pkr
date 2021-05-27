@@ -25,7 +25,7 @@ class TestExt(pkrTestCase):
                 res.append((kard.meta['features'], kard.extensions.extensions))
                 self.assertEqual(repr(res[-1]), repr(res[0]))
                 f.seek(0)
-            self.assertEqual(res[0][0], ['a', 'b', 'ext_mock', 'auto-volume'])
+            self.assertEqual(res[0][0], ['auto-volume', 'a', 'ext_mock', 'b'])
 
     def test_ext_loaded_from_pkr_path(self):
         f = open(str(self.env_test.path / 'meta1.yml'), 'r')
@@ -53,4 +53,4 @@ class TestExt(pkrTestCase):
         )
         kard = _create_kard(args)
         self.assertIn('auto-volume', kard.extensions.extensions)
-        self.assertIn('use_volume', kard.extensions.get_context_template_data()[1])
+        self.assertIn('use_volume', kard.extensions.get_context_template_data()[0])
