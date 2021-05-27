@@ -22,6 +22,9 @@ def main():
         log.set_debug(cli_args.debug)
         cli_args.func(cli_args)
     except Exception as exc:  # pylint: disable=W0703
+        # Here we do exception catching on parser as our parser
+        # is dynamic to current directory (kard mostly), thus
+        # we cannot ensure it will not fail
         if '--debug' in sys.argv or '-d' in sys.argv:
             log.set_debug(True)
         log.write('ERROR: ({}) {}'.format(type(exc).__name__, exc))
