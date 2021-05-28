@@ -19,15 +19,16 @@ from .utils import PkrException, TemplateEngine, get_kard_root_path, merge
 
 class KardNotFound(PkrException):
     """Exception raised if the kard is not found"""
+
     pass
 
 
 class Kard(object):
     """Object representing the kard"""
 
-    META_FILE = 'meta.yml'
-    CURRENT_NAME = 'current'
-    LOCAL_SRC = './src'
+    META_FILE = "meta.yml"
+    CURRENT_NAME = "current"
+    LOCAL_SRC = "./src"
     CURRENT_KARD = None
 
     def __init__(self, name, path, meta=None):
@@ -41,18 +42,15 @@ class Kard(object):
         else:
             self.meta = meta
 
-        if self.meta['env'] is None:
+        if self.meta["env"] is None:
             return
 
-        self.env = Environment(
-            env_name=self.meta['env'],
-            features=self.meta['features'])
+        self.env = Environment(env_name=self.meta["env"], features=self.meta["features"])
 
-        if not Path(self.meta['src_path']).is_absolute():
-            self.meta['src_path'] = str(
-                (self.env.pkr_path / self.meta["src_path"]).resolve())
+        if not Path(self.meta["src_path"]).is_absolute():
+            self.meta["src_path"] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
 
-        self.driver = load_driver(self.meta['driver']['name'])
+        self.driver = load_driver(self.meta["driver"]["name"])
 
         self.context = Context(self)
 
@@ -64,11 +62,11 @@ class Kard(object):
     @property
     def extensions(self):
         """Return the Extension class loaded with the correct instance"""
-        return Extensions(self.meta['features'])
+        return Extensions(self.meta["features"])
 
     def save_meta(self):
         """Persist the kard to the meta file"""
-        with self.meta_file.open('w') as meta_file:
+        with self.meta_file.open("w") as meta_file:
             yaml.safe_dump(self.meta, meta_file, default_flow_style=False)
 
     def make(self, reset=True):
@@ -100,7 +98,7 @@ class Kard(object):
             pass
 
         if kubernetes:
-            kards += load_driver('k8s').get_docker_client(None).list_kards()
+            kards += load_driver("k8s").get_docker_client(None).list_kards()
 
         return kards
 
@@ -114,16 +112,13 @@ class Kard(object):
         kard_path.mkdir(exist_ok=True)
 
         try:
-            features = extra.pop('features') if 'features' in extra else []
-            meta = {'env': env_name,
-                    'driver': {'name': driver_name},
-                    'features': features}
+            features = extra.pop("features") if "features" in extra else []
+            meta = {"env": env_name, "driver": {"name": driver_name}, "features": features}
 
             # PBS Cloud source code
             # If a path is provided, we take it. Otherwise, we use a src folder
             # in the kard folder.
-            meta.update({'src_path': extra.pop(
-                'src_path', str(kard_path / cls.LOCAL_SRC))})
+            meta.update({"src_path": extra.pop("src_path", str(kard_path / cls.LOCAL_SRC))})
 
             kard = cls(kard_name, kard_path, meta)
 
@@ -167,8 +162,8 @@ class Kard(object):
         """Set the current kard by making the symlink pointing to the correct
         folder.
         """
-        if '/' in kard_name:
-            driver, kard_name = kard_name.split('/')
+        if "/" in kard_name:
+            driver, kard_name = kard_name.split("/")
             kard = cls.create(kard_name, None, driver, {})
             load_driver(driver).get_docker_client(kard).load_kard()
         dst_path = kard_name
@@ -212,17 +207,19 @@ class Kard(object):
             return conf_path.read_text()
 
         def format_image(image_name):
-            image = '{}:{}'.format(image_name, self.meta['tag'])
-            registry = self.meta.get('registry')
+            image = "{}:{}".format(image_name, self.meta["tag"])
+            registry = self.meta.get("registry")
             if not registry:
                 return image
-            return '{}/{}'.format(registry, image)
+            return "{}/{}".format(registry, image)
 
-        data.update({
-            'env': self.env.env_name,
-            'kard_file_content': read_kard_file,
-            'format_image': format_image,
-        })
+        data.update(
+            {
+                "env": self.env.env_name,
+                "kard_file_content": read_kard_file,
+                "format_image": format_image,
+            }
+        )
 
         # Get custom template data from extensions
         for custom_data in self.extensions.get_context_template_data():

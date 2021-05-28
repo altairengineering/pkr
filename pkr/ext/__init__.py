@@ -7,6 +7,7 @@ from builtins import object
 from builtins import str
 import signal
 import pkgutil
+
 try:
     from importlib.metadata import entry_points
 except ModuleNotFoundError:
@@ -37,7 +38,7 @@ class ExtMixin(metaclass=abc.ABCMeta):
 
     @staticmethod
     def get_context_template_data():
-        """"""
+        """ """
 
     @staticmethod
     def post_up(effective_modules):
@@ -68,7 +69,9 @@ class Extensions(object):
         if self._extensions is None:
             self._extensions = self.list_all()
         if self.features is not None:
-            return {name: self._extensions[name] for name in self.features if name in self._extensions}
+            return {
+                name: self._extensions[name] for name in self.features if name in self._extensions
+            }
         return self._extensions
 
     def __getattr__(self, attribute):
@@ -86,10 +89,11 @@ class Extensions(object):
                 output[1]
                 for output in map(
                     lambda ext: self._wrap_call(ext[0], ext[1], attribute, *args, *kwargs),
-                    self.extensions.items()
+                    self.extensions.items(),
                 )
                 if output is not None
             ]
+
         return wrapper
 
     @staticmethod
@@ -104,15 +108,19 @@ class Extensions(object):
         try:
             return (name, method(*args, **kwargs))
         except TimeoutError:
-            write('Extension "{}" raise timeout error, step "{}"'.format(
-                extension.name, method_name))
+            write(
+                'Extension "{}" raise timeout error, step "{}"'.format(extension.name, method_name)
+            )
             raise
         except PkrException:
             # If this is a PkrException, we simply propagate it, and delegate its handling to the caller
             raise
         except Exception as exc:
-            write('Extension "{}" raise an unknown exception, step "{}": {}'.format(
-                extension.name, method_name, str(exc)))
+            write(
+                'Extension "{}" raise an unknown exception, step "{}": {}'.format(
+                    extension.name, method_name, str(exc)
+                )
+            )
             raise
 
     def list(self):
@@ -134,11 +142,15 @@ class Extensions(object):
         """Return the list of all available extensions"""
         # Load from pkr path
         extensions = {}
-        for importer, package_name, _ in pkgutil.iter_modules([str(get_pkr_path() / 'extensions')]):
+        for importer, package_name, _ in pkgutil.iter_modules(
+            [str(get_pkr_path() / "extensions")]
+        ):
             module = importer.find_module(package_name).load_module(package_name)
             extensions[package_name] = cls._get_extension_class(module)
         # Load from pkr_extensions entrypoints (and TO BE DEPRECATED extensions group)
-        for entry in entry_points().get('pkr_extensions', ()) + entry_points().get('extensions', ()):
+        for entry in entry_points().get("pkr_extensions", ()) + entry_points().get(
+            "extensions", ()
+        ):
             if entry.name not in extensions:
                 extensions[entry.name] = entry.load()
         return extensions

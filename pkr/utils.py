@@ -26,8 +26,8 @@ import jinja2
 from pathlib import Path
 from passlib.apache import HtpasswdFile
 
-KARD_FOLDER = 'kard'
-PATH_ENV_VAR = 'PKR_PATH'
+KARD_FOLDER = "kard"
+PATH_ENV_VAR = "PKR_PATH"
 
 
 class PkrException(Exception):
@@ -41,8 +41,8 @@ class KardInitializationException(PkrException):
 def is_pkr_path(path):
     """Check environments files to deduce if path is a usable pkr path"""
     from pkr.environment import ENV_FOLDER
-    return path.is_dir() and \
-           len(list(path.glob('{}/*/env.yml'.format(ENV_FOLDER)))) > 0
+
+    return path.is_dir() and len(list(path.glob("{}/*/env.yml".format(ENV_FOLDER)))) > 0
 
 
 def get_pkr_path(raise_if_not_found=True):
@@ -61,9 +61,10 @@ def get_pkr_path(raise_if_not_found=True):
 
     if raise_if_not_found and not is_pkr_path(pkr_path):
         raise KardInitializationException(
-            '{} path {} is not a valid pkr path, no usable env found'.format(
-                'Given' if PATH_ENV_VAR in os.environ else 'Current',
-                full_path))
+            "{} path {} is not a valid pkr path, no usable env found".format(
+                "Given" if PATH_ENV_VAR in os.environ else "Current", full_path
+            )
+        )
 
     return pkr_path
 
@@ -75,7 +76,7 @@ def get_kard_root_path():
 
 def get_timestamp():
     """Return a string timestamp"""
-    return time.strftime('%Y%m%d-%H%M%S')
+    return time.strftime("%Y%m%d-%H%M%S")
 
 
 class HashableDict(dict):
@@ -119,7 +120,7 @@ def merge(source, destination):
 
 def generate_password(pw_len=15):
     """Generate a password"""
-    alphabet = 'abcdefghijklmnopqrstuvwxyz'
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
     upperalphabet = alphabet.upper()
     pwlist = []
 
@@ -131,7 +132,7 @@ def generate_password(pw_len=15):
         pwlist.append(alphabet[random.randrange(len(alphabet))])
 
     random.shuffle(pwlist)
-    return ''.join(pwlist)
+    return "".join(pwlist)
 
 
 def ensure_dir_absent(path):
@@ -146,31 +147,31 @@ def ensure_dir_absent(path):
 
 
 def ask_input(name):
-    return input('Missing meta({}):'.format(name))
+    return input("Missing meta({}):".format(name))
 
 
 class TemplateEngine(object):
-
     def __init__(self, tpl_context):
         """Init templating context (filters and functions)"""
         self.tpl_context = tpl_context.copy()
 
         self.pkr_path = get_pkr_path()
         self.tpl_env = jinja2.Environment(
-            extensions=['jinja2_ansible_filters.AnsibleCoreFiltersExtension'],
-            loader=jinja2.FileSystemLoader(str(self.pkr_path)))
+            extensions=["jinja2_ansible_filters.AnsibleCoreFiltersExtension"],
+            loader=jinja2.FileSystemLoader(str(self.pkr_path)),
+        )
 
         def sha256(string):
             return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
-        self.tpl_env.filters['sha256'] = sha256
+        self.tpl_env.filters["sha256"] = sha256
 
         def format_htpasswd(username, password):
             ht = HtpasswdFile()
             ht.set_password(username, password)
-            return ht.to_string().rstrip().decode('utf-8')
+            return ht.to_string().rstrip().decode("utf-8")
 
-        self.tpl_context['format_htpasswd'] = format_htpasswd
+        self.tpl_context["format_htpasswd"] = format_htpasswd
 
     def process_template(self, template_file):
         """Process a template and render it in the context
@@ -187,8 +188,7 @@ class TemplateEngine(object):
         out = template.render(self.tpl_context)  # .encode('utf-8')
         return out
 
-    def copy(self, path, origin, local_dst, excluded_paths,
-             gen_template=False):
+    def copy(self, path, origin, local_dst, excluded_paths, gen_template=False):
         """Copy a tree recursively, while excluding specified files
 
         Args:
@@ -198,17 +198,16 @@ class TemplateEngine(object):
           - excluded_paths: the list of unwanted excluded files
         """
         path_str = str(path)
-        if '*' in path_str:
+        if "*" in path_str:
             file_list = [Path(p) for p in glob(path_str)]
-            if '*' in origin.name:
+            if "*" in origin.name:
                 origin = origin.parent
 
             for path_it in file_list:
                 rel_local_dst = path_it.relative_to(origin)
                 full_local_dst = local_dst / rel_local_dst
 
-                self.copy(path_it, path_it, full_local_dst,
-                          excluded_paths, gen_template)
+                self.copy(path_it, path_it, full_local_dst, excluded_paths, gen_template)
         elif path.is_file():
             # Direct match for excluded paths
             if path in excluded_paths:
@@ -225,10 +224,10 @@ class TemplateEngine(object):
             # We ensure that the containing folder exists
 
             dst_path.parent.mkdir(parents=True, exist_ok=True)
-            if gen_template and path.name.endswith('.template'):
+            if gen_template and path.name.endswith(".template"):
                 # If the dst_local contains the filename with template
                 if not dst_path.is_dir():
-                    if dst_path.name.endswith('.template'):
+                    if dst_path.name.endswith(".template"):
                         dst_path = self.remove_ext(dst_path)
                 else:  # We create the destination path
                     dst_path = dst_path / self.remove_ext(path.name)
@@ -240,10 +239,8 @@ class TemplateEngine(object):
         else:
             for path_it in path.iterdir():
                 path_it = path / path_it
-                if not any([fnmatch(str(path_it), str(exc_path))
-                            for exc_path in excluded_paths]):
-                    self.copy(path_it, origin, local_dst,
-                              excluded_paths, gen_template)
+                if not any([fnmatch(str(path_it), str(exc_path)) for exc_path in excluded_paths]):
+                    self.copy(path_it, origin, local_dst, excluded_paths, gen_template)
 
     @staticmethod
     def remove_ext(path):
@@ -252,11 +249,10 @@ class TemplateEngine(object):
 
 
 FLAGS = re.VERBOSE | re.MULTILINE | re.DOTALL
-WHITESPACE = re.compile(r'[ \t\n\r]*', FLAGS)
+WHITESPACE = re.compile(r"[ \t\n\r]*", FLAGS)
 
 
 class ConcatJSONDecoder(json.JSONDecoder):
-
     def decode(self, s, _w=WHITESPACE.match):
         s_len = len(s)
 
@@ -271,7 +267,7 @@ class ConcatJSONDecoder(json.JSONDecoder):
 
 def is_running_in_docker():
     """Return True if running in a docker container, False otherwise"""
-    return os.path.exists('/.dockerenv')
+    return os.path.exists("/.dockerenv")
 
 
 def ensure_key_present(key, default, data, path=None):
@@ -283,7 +279,7 @@ def ensure_key_present(key, default, data, path=None):
     if key in default:
         return default.pop(key)
 
-    return ask_input((path or '') + key)
+    return ask_input((path or "") + key)
 
 
 def ensure_definition_matches(definition, defaults, data, path=None):
@@ -291,23 +287,27 @@ def ensure_definition_matches(definition, defaults, data, path=None):
 
     Ask for it if not.
     """
-    path = path or ''
+    path = path or ""
     if isinstance(definition, dict):
-        values = {k: ensure_definition_matches(
-            definition=v,
-            defaults=defaults.get(k, []),
-            data=data.get(k, {}),
-            path=path + k + '/') for k, v in definition.items()}
+        values = {
+            k: ensure_definition_matches(
+                definition=v,
+                defaults=defaults.get(k, []),
+                data=data.get(k, {}),
+                path=path + k + "/",
+            )
+            for k, v in definition.items()
+        }
         return values
 
     elif isinstance(definition, list):
         values = {}
         for element in definition:
-            values.update(ensure_definition_matches(
-                definition=element,
-                defaults=defaults,
-                data=data,
-                path=path))
+            values.update(
+                ensure_definition_matches(
+                    definition=element, defaults=defaults, data=data, path=path
+                )
+            )
         return values
 
     else:
@@ -327,9 +327,9 @@ def create_pkr_folder(pkr_path=None):
     """
     pkr_path = pkr_path or get_pkr_path(False)
 
-    (pkr_path / 'env' / 'dev').mkdir(parents=True)
-    (pkr_path / 'env' / 'dev' / 'env.yml').touch()
-    (pkr_path / 'kard').mkdir(parents=True)
+    (pkr_path / "env" / "dev").mkdir(parents=True)
+    (pkr_path / "env" / "dev" / "env.yml").touch()
+    (pkr_path / "kard").mkdir(parents=True)
 
 
 def features_merge(src, dest=None, reverse=True):

@@ -19,27 +19,23 @@ class AutoVolume(ExtMixin):
     @staticmethod
     def get_context_template_data():
         kard = Kard.load_current()
-        return {
-            'add_file': add_file,
-            'use_volume': kard.env.get('use_volume', False)
-        }
+        return {"add_file": add_file, "use_volume": kard.env.get("use_volume", False)}
 
 
 @jinja2.contextfunction
 def add_file(context, paths):
     """This function is used inside the dockerfiles templates to
     render them by using either the ADD or VOLUME instruction."""
-    if context['use_volume']:
-        paths = paths.get('common', {})
+    if context["use_volume"]:
+        paths = paths.get("common", {})
         paths = ['"{}"'.format(path) for path in list(paths.keys())]
         if len(paths):
-            return 'VOLUME [{}]'.format(', '.join(paths))
+            return "VOLUME [{}]".format(", ".join(paths))
         else:
-            return ''
+            return ""
 
     lines = []
-    paths = dict(list(paths.get('common', {}).items()) +
-                 list(paths.get('copied', {}).items()))
+    paths = dict(list(paths.get("common", {}).items()) + list(paths.get("copied", {}).items()))
     for remote, local in sorted(paths.items()):
         lines.append('ADD "{}" "{}"'.format(local, remote))
     return os.linesep.join(lines)

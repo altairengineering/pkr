@@ -19,7 +19,8 @@ from .k8s import KubernetesPkr
 
 
 def print_manual():
-    print('''
+    print(
+        """
 To create or start a kubernetes stack:
 
 # sudo ip link set docker0 promisc on
@@ -28,7 +29,8 @@ To create or start a kubernetes stack:
 # export CHANGE_MINIKUBE_NONE_USER=true
 # sudo -E minikube start --vm-driver=none --extra-config=kubelet.hairpin-mode=promiscuous-bridge
 # sudo -E minikube addons enable ingress
-''')
+"""
+    )
 
 
 class Driver(AbstractDriver):
@@ -44,7 +46,7 @@ class Driver(AbstractDriver):
         the 'docker-env' command.
         """
 
-        cmd = '/usr/local/bin/minikube config get vm-driver'
+        cmd = "/usr/local/bin/minikube config get vm-driver"
         out = subprocess.Popen(
             shlex.split(cmd),
             stdout=subprocess.PIPE,
@@ -56,36 +58,35 @@ class Driver(AbstractDriver):
         if out.returncode == 64:
             return MinikubePkr(kard)
 
-        cmd = '''
+        cmd = """
 /bin/bash -c 'eval $(minikube docker-env) && \
 echo "{\\"host\\": \\"$DOCKER_HOST\\", \\"cert\\":\\"$DOCKER_CERT_PATH\\"}"'
-        '''
+        """
 
         out = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
         out.wait()
         stdout = out.stdout.read()
 
         if out.returncode != 0:
-            write('Error while getting the docker environment.')
+            write("Error while getting the docker environment.")
             write(stdout)
 
         target = json.loads(stdout)
 
-        if not target['host']:
+        if not target["host"]:
             return MinikubePkr(kard)
 
-        cert_path = Path(target['cert'])
+        cert_path = Path(target["cert"])
 
         tls_config = TLSConfig(
-            client_cert=(
-                str(cert_path / 'cert.pem'),
-                str(cert_path / 'key.pem')),
-            verify=str(cert_path / 'ca.pem'))
-        return MinikubePkr(kard, target['host'], tls=tls_config)
+            client_cert=(str(cert_path / "cert.pem"), str(cert_path / "key.pem")),
+            verify=str(cert_path / "ca.pem"),
+        )
+        return MinikubePkr(kard, target["host"], tls=tls_config)
 
     @staticmethod
     def get_meta(extras, kard):
-        metas = ('tag',)
+        metas = ("tag",)
         ret = {}
         for meta in metas:
             if meta in extras:
@@ -98,24 +99,26 @@ echo "{\\"host\\": \\"$DOCKER_HOST\\", \\"cert\\":\\"$DOCKER_CERT_PATH\\"}"'
 class MinikubePkr(KubernetesPkr):
     """pkr implementation for minikube"""
 
-    K8S_CONFIG = os.path.expandvars('$HOME/.kube/minikube.config')
+    K8S_CONFIG = os.path.expandvars("$HOME/.kube/minikube.config")
 
     def __init__(self, kard, *args, **kwargs):
         super(MinikubePkr, self).__init__(kard, *args, **kwargs)
-        self.mk_bin = 'minikube'
+        self.mk_bin = "minikube"
 
-        self.env.update({
-            'MINIKUBE_HOME': os.path.expandvars('$HOME'),
-            'CHANGE_MINIKUBE_NONE_USER': 'true',
-        })
+        self.env.update(
+            {
+                "MINIKUBE_HOME": os.path.expandvars("$HOME"),
+                "CHANGE_MINIKUBE_NONE_USER": "true",
+            }
+        )
 
     def get_status(self):
         try:
-            self.client.read_node_status('minikube')
+            self.client.read_node_status("minikube")
         except ApiException:
             print_manual()
             return False
 
     def run_minikube(self, cmd):
         """Run kubectl tool with the provided command"""
-        return self.run_cmd('minikube {}'.format(cmd))
+        return self.run_cmd("minikube {}".format(cmd))

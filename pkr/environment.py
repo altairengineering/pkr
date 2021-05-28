@@ -9,14 +9,14 @@ from builtins import object
 from pkr.cli.log import write
 from .utils import HashableDict, ensure_definition_matches, get_pkr_path, merge, features_merge
 
-ENV_FOLDER = 'env'
+ENV_FOLDER = "env"
 
 
 class Environment(object):
     """Class for loading and holding pkr environment"""
 
-    IMPORT_KEY = 'import'
-    DEFAULT_TEMPLATE_DIR = 'templates/dockerfiles'
+    IMPORT_KEY = "import"
+    DEFAULT_TEMPLATE_DIR = "templates/dockerfiles"
 
     def __init__(self, env_name, features=None, path=None):
         self.env_name = env_name
@@ -25,44 +25,50 @@ class Environment(object):
 
         # First load the main file to add eventual dependencies
         env_path = self.path / env_name
-        env_file_path = env_path / 'env.yml'
+        env_file_path = env_path / "env.yml"
 
         self.env = self._load_env_file(env_file_path)
 
         self.features = features or []
-        for feature in features_merge(self.env.get('default_features', []), self.features):
+        for feature in features_merge(self.env.get("default_features", []), self.features):
             write("WARNING: Feature {} is duplicated in env {}".format(feature, env_name))
 
         for feature in self.features:
-            f_path = env_path / (feature + '.yml')
+            f_path = env_path / (feature + ".yml")
             if f_path.is_file():
                 content = self._load_env_file(f_path)
-                for dup in features_merge(content.pop('default_features', []), self.features):
-                    write(f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}")
+                for dup in features_merge(content.pop("default_features", []), self.features):
+                    write(
+                        f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}"
+                    )
                 merge(content, self.env)
 
     def _load_env_file(self, path):
         """Load an environment with its dependencies recursively"""
         with path.open() as env_file:
             content = yaml.safe_load(env_file)
-            if 'default_features' not in content:
-                content['default_features'] = []
+            if "default_features" not in content:
+                content["default_features"] = []
 
         if content is None:
             return {}
 
         for imp_name in content.get(self.IMPORT_KEY, ()):
-            imp_path = self.path / (imp_name + '.yml')
+            imp_path = self.path / (imp_name + ".yml")
             imp_data = self._load_env_file(imp_path)
             imp_data.pop(self.IMPORT_KEY, None)
-            for dup in features_merge(imp_data.pop('default_features', []), content['default_features']):
-                write(f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}")
+            for dup in features_merge(
+                imp_data.pop("default_features", []), content["default_features"]
+            ):
+                write(
+                    f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}"
+                )
             content = merge(content, imp_data)
         return content
 
     def get_meta(self, extra):
         """Ensure that all metadata are present"""
-        default = self.env.get('default_meta')
+        default = self.env.get("default_meta")
 
         if not default:  # This prevent an empty value in the YAML
             default = {}
@@ -70,16 +76,17 @@ class Environment(object):
         ret = default.copy()
         merge(extra, ret)
 
-        required_values = ensure_definition_matches(
-            definition=self.env.get('required_meta', []),
-            defaults=ret,
-            data=extra
-        ) or {}
+        required_values = (
+            ensure_definition_matches(
+                definition=self.env.get("required_meta", []), defaults=ret, data=extra
+            )
+            or {}
+        )
 
         merge(required_values, ret)
 
         # Feature
-        ret['features'] = self.env.get('default_features', [])
+        ret["features"] = self.env.get("default_features", [])
         return ret
 
     @property
@@ -95,7 +102,7 @@ class Environment(object):
           - template: a bool specifying if templates should be returned
         """
 
-        containers = self.env['containers']
+        containers = self.env["containers"]
 
         if template:
             return containers
@@ -103,19 +110,21 @@ class Environment(object):
         if not containers:
             return {}
 
-        return {name: value
-                for name, value in containers.items()
-                if value and not value.get('template', False)}
+        return {
+            name: value
+            for name, value in containers.items()
+            if value and not value.get("template", False)
+        }
 
     @property
     def context_dir(self):
         """Return the context folder name"""
-        return self.env['context_dir']
+        return self.env["context_dir"]
 
     @property
     def context_template_dir(self):
         """Return the template folder name"""
-        return self.env.get('context_template_dir', self.DEFAULT_TEMPLATE_DIR)
+        return self.env.get("context_template_dir", self.DEFAULT_TEMPLATE_DIR)
 
     def get_container(self, name=None):
         """Return a compiled dictionary representing a container, or a list of
@@ -127,13 +136,13 @@ class Environment(object):
         if name is None:
             ret = {}
             for c_name, cont in self._containers().items():
-                if not cont.get('template', False):
+                if not cont.get("template", False):
                     ret[c_name] = self.get_container(c_name)
             return ret
 
         container = self._containers(template=True)[name] or {}
-        if 'parent' in container and container['parent'] is not None:
-            parent = self.get_container(container['parent'])
+        if "parent" in container and container["parent"] is not None:
+            parent = self.get_container(container["parent"])
             return merge(container, parent.copy())
 
         return container
@@ -155,7 +164,7 @@ class Environment(object):
         # We first put them in a dict containing sets to avoid having doubles
         for name in containers:
             env = self.get_container(name)
-            for key, value in env.get('requires', {}).items():
+            for key, value in env.get("requires", {}).items():
                 dst_set = requirements.get(key, set())
                 dst_set.add(HashableDict(value))
                 requirements[key] = dst_set
@@ -164,7 +173,7 @@ class Environment(object):
         ret = []
         for key, values in requirements.items():
             for value in values:
-                item = {'origin': key}
+                item = {"origin": key}
                 item.update(value)
                 ret.append(item)
 
