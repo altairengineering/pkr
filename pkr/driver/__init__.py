@@ -8,16 +8,18 @@ import pkgutil
 import os
 
 DRIVER_MAPPING = {
-    'compose': 'docker_compose',
-    'kubernetes': 'k8s',
+    "compose": "docker_compose",
+    "kubernetes": "k8s",
 }
+
 
 def load_driver(driver_name):
     """Return the loaded driver"""
     if driver_name in DRIVER_MAPPING:
         driver_name = DRIVER_MAPPING[driver_name]
-    module = import_module(f'pkr.driver.{driver_name}', 'pkr.driver')
+    module = import_module(f"pkr.driver.{driver_name}", "pkr.driver")
     return module.Driver
+
 
 def list_drivers():
     drivers_dir = os.path.dirname(os.path.realpath(__file__))

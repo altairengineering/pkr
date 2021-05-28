@@ -17,16 +17,15 @@ from pathlib import Path
 from pkr.cli.log import write
 from pkr.utils import PkrException, get_timestamp
 
-DOCKER_SOCK = 'unix://var/run/docker.sock'
-DOCKER_CLIENT_TIMEOUT = int(os.environ.get('DOCKER_CLIENT_TIMEOUT', 300))
+DOCKER_SOCK = "unix://var/run/docker.sock"
+DOCKER_CLIENT_TIMEOUT = int(os.environ.get("DOCKER_CLIENT_TIMEOUT", 300))
 
 
 class ImagePullError(PkrException):
     """Raise when error occurs while pulling image"""
 
 
-class DockerRegistry(namedtuple('DockerRegistry',
-                                ('url', 'username', 'password'))):
+class DockerRegistry(namedtuple("DockerRegistry", ("url", "username", "password"))):
     """A Docker registry representation
 
     Args:
@@ -56,17 +55,19 @@ class AbstractDriver(object):
 class Pkr(object):
     """Calls the docker Client class and add extra features for pkr."""
 
-    SERVICE_VAR = '%SERVICE%'
+    SERVICE_VAR = "%SERVICE%"
 
     def __init__(self, kard, *args, **kwargs):
-        self.docker = docker.APIClient(*args, version='auto', timeout=DOCKER_CLIENT_TIMEOUT, **kwargs)
+        self.docker = docker.APIClient(
+            *args, version="auto", timeout=DOCKER_CLIENT_TIMEOUT, **kwargs
+        )
         self.kard = kard
 
     def get_registry(self, **kwargs):
         """Return a DockerRegistry instance with either the provided values, or
         those present in the meta.
         """
-        for var in ('url', 'username', 'password'):
+        for var in ("url", "username", "password"):
             if var not in kwargs and var in self.kard.meta:
                 kwargs[var] = self.kard.meta[var]
 
@@ -74,8 +75,7 @@ class Pkr(object):
 
     def make_container_name(self, name):
         """Return the container name formatted with the pattern in metas."""
-        container_pattern = self.kard.meta.get(
-            'container_pattern', self.SERVICE_VAR)
+        container_pattern = self.kard.meta.get("container_pattern", self.SERVICE_VAR)
         return container_pattern.replace(self.SERVICE_VAR, name)
 
     def rename_old_image(self, name_tag):
@@ -84,24 +84,29 @@ class Pkr(object):
         rename it by appending the current timestamp.
         This helps to keep the name information for eventual cleanup"""
         images = self.docker.images(name_tag)
-        if images and len(images[0]['RepoTags']) == 1:
-            (name, _) = name_tag.split(':')
-            self.docker.tag(
-                name_tag, name, '{}-{}'.format(name, get_timestamp()))
+        if images and len(images[0]["RepoTags"]) == 1:
+            (name, _) = name_tag.split(":")
+            self.docker.tag(name_tag, name, "{}-{}".format(name, get_timestamp()))
             # Remove the former tag, otherwise we cannot tag another image
             self.docker.remove_image(name_tag)  # will only "untag" now
 
     def make_image_name(self, service, tag=None):
         """Return the image name formatted with the pattern in metas."""
-        image_pattern = self.kard.meta.get('image_pattern', self.SERVICE_VAR)
+        image_pattern = self.kard.meta.get("image_pattern", self.SERVICE_VAR)
         image_name = image_pattern.replace(self.SERVICE_VAR, service)
         if tag is not None:
-            image_name = ':'.join((image_name, tag))
+            image_name = ":".join((image_name, tag))
         return image_name
 
     def build_images(
-        self, services, tag=None, verbose=True, logfile=None, nocache=False,
-        parallel=None, no_rebuild=False,
+        self,
+        services,
+        tag=None,
+        verbose=True,
+        logfile=None,
+        nocache=False,
+        parallel=None,
+        no_rebuild=False,
     ):
         """Build docker images.
 
@@ -114,30 +119,44 @@ class Pkr(object):
           * parallel: (int|None) Number of concurrent build
           * no_rebuild: do not build if destination image exists
         """
-        tag = tag or self.kard.meta['tag']
+        tag = tag or self.kard.meta["tag"]
 
         with LogOutput(logfile) as logfh:
             if parallel:
                 if len(services) > 1:
-                    logfh.write('Building docker images using {} threads ...\n'.format(parallel))
+                    logfh.write("Building docker images using {} threads ...\n".format(parallel))
                 futures = []
                 with ThreadPoolExecutor(max_workers=parallel) as executor:
                     for service in services:
-                        futures.append(executor.submit(
-                            self._build_image,
-                            service, tag, verbose, logfile, nocache, no_rebuild, True))
+                        futures.append(
+                            executor.submit(
+                                self._build_image,
+                                service,
+                                tag,
+                                verbose,
+                                logfile,
+                                nocache,
+                                no_rebuild,
+                                True,
+                            )
+                        )
                 for future in futures:
                     future.result(timeout=300)
             else:
                 if len(services) > 1:
-                    logfh.write('Building docker images...\n')
+                    logfh.write("Building docker images...\n")
                 for service in services:
-                    self._build_image(
-                        service, tag, verbose, logfile, nocache, no_rebuild, False)
+                    self._build_image(service, tag, verbose, logfile, nocache, no_rebuild, False)
 
     def _build_image(
-        self, service, tag=None, verbose=True, logfile=None, nocache=False,
-        no_rebuild=False, bufferize=None
+        self,
+        service,
+        tag=None,
+        verbose=True,
+        logfile=None,
+        nocache=False,
+        no_rebuild=False,
+        bufferize=None,
     ):
         """Build docker image.
 
@@ -154,13 +173,13 @@ class Pkr(object):
         image_name = self.make_image_name(service, tag)
 
         with LogOutput(logfile, bufferize=bufferize) as logfh:
-            logfh.write('Building {} image...\n'.format(image_name))
+            logfh.write("Building {} image...\n".format(image_name))
 
             if no_rebuild:
                 image = len(self.docker.images(image_name)) == 1
 
             if not no_rebuild or image is False:
-                dockerfile = self.kard.env.get_container(service)['dockerfile']
+                dockerfile = self.kard.env.get_container(service)["dockerfile"]
 
                 stream = self.docker.build(
                     path=str(ctx.path),
@@ -168,12 +187,14 @@ class Pkr(object):
                     tag=image_name,
                     decode=True,
                     nocache=nocache,
-                    forcerm=True)
+                    forcerm=True,
+                )
 
                 self.print_docker_stream(
-                    stream, verbose=verbose, logfile=logfile, bufferize=bufferize)
+                    stream, verbose=verbose, logfile=logfile, bufferize=bufferize
+                )
 
-            logfh.write('done.\n')
+            logfh.write("done.\n")
 
     def _logon_remote_registry(self, registry):
         """Push images to a remote registry
@@ -181,10 +202,10 @@ class Pkr(object):
         Args:
           * registry: a DockerRegistry instance
         """
-        write('Logging to {}...'.format(registry.url))
-        self.docker.login(username=registry.username,
-                          password=registry.password,
-                          registry=registry.url)
+        write("Logging to {}...".format(registry.url))
+        self.docker.login(
+            username=registry.username, password=registry.password, registry=registry.url
+        )
 
     def push_images(self, services, registry, tag=None, other_tags=None, parallel=None):
         """Push images to a remote registry
@@ -195,7 +216,7 @@ class Pkr(object):
           * tag: the tag of the version to push
           * parallel: push parallelism
         """
-        tag = tag or self.kard.meta['tag']
+        tag = tag or self.kard.meta["tag"]
 
         if registry.username is not None:
             self._logon_remote_registry(registry)
@@ -207,7 +228,7 @@ class Pkr(object):
         for service in services:
             image_name = self.make_image_name(service)
             image = self.make_image_name(service, tag)
-            rep_tag = '{}/{}'.format(registry.url, image_name)
+            rep_tag = "{}/{}".format(registry.url, image_name)
             todos.append((image, rep_tag, tags))
 
         if parallel:
@@ -221,7 +242,6 @@ class Pkr(object):
             for todo in todos:
                 self._push_image(*todo)
 
-
     def _push_image(self, image, rep_tag, tags, buffer=False):
         """Push image to a remote registry
 
@@ -232,34 +252,25 @@ class Pkr(object):
         """
         for dest_tag in tags:
             if not buffer:
-                write('Pushing {} to {}:{}'.format(image, rep_tag, dest_tag))
+                write("Pushing {} to {}:{}".format(image, rep_tag, dest_tag))
                 sys.stdout.flush()
 
             try:
-                self.docker.tag(
-                    image=image,
-                    repository=rep_tag,
-                    tag=dest_tag,
-                    force=True)
+                self.docker.tag(image=image, repository=rep_tag, tag=dest_tag, force=True)
 
-                ret = self.docker.push(
-                    repository=rep_tag,
-                    tag=dest_tag,
-                    decode=True,
-                    stream=True)
+                ret = self.docker.push(repository=rep_tag, tag=dest_tag, decode=True, stream=True)
 
-                error = ''
+                error = ""
                 for stream in ret:
-                    if 'error' in stream:
-                        error += '\n' + stream['errorDetail']['message']
+                    if "error" in stream:
+                        error += "\n" + stream["errorDetail"]["message"]
 
                 if buffer:
-                    write('Pushing {} to {}:{}'.format(image, rep_tag, dest_tag))
+                    write("Pushing {} to {}:{}".format(image, rep_tag, dest_tag))
                     sys.stdout.flush()
-                write(' Done !')
+                write(" Done !")
             except docker.errors.APIError as error:
-                error_msg = '\nError while pushing the image {}: {}\n'.format(
-                    dest_tag, error)
+                error_msg = "\nError while pushing the image {}: {}\n".format(dest_tag, error)
                 raise error
 
     def pull_images(self, services, registry, tag=None, parallel=None):
@@ -271,8 +282,8 @@ class Pkr(object):
           * remote_tag: the tag of the version to pull
           * parallel: pull parallelism
         """
-        remote_tag = tag or self.kard.meta['tag']
-        tag = self.kard.meta['tag']
+        remote_tag = tag or self.kard.meta["tag"]
+        tag = self.kard.meta["tag"]
 
         if registry.username is not None:
             self._logon_remote_registry(registry)
@@ -287,23 +298,35 @@ class Pkr(object):
             futures = []
             with ThreadPoolExecutor(max_workers=parallel) as executor:
                 for image, image_name in todos:
-                    futures.append((
-                        image,
-                        executor.submit(
-                            self._pull_image, image_name, registry.url, tag, remote_tag)))
+                    futures.append(
+                        (
+                            image,
+                            executor.submit(
+                                self._pull_image, image_name, registry.url, tag, remote_tag
+                            ),
+                        )
+                    )
             for image, future in futures:
                 future.result()
-                write('Pulling {} from {}/{}:{}...'.format(image, registry.url, image_name, remote_tag))
-                write(' Done !' + '\n')
+                write(
+                    "Pulling {} from {}/{}:{}...".format(
+                        image, registry.url, image_name, remote_tag
+                    )
+                )
+                write(" Done !" + "\n")
                 sys.stdout.flush()
         else:
             for image, image_name in todos:
-                write('Pulling {} from {}/{}:{}...'.format(image, registry.url, image_name, remote_tag))
+                write(
+                    "Pulling {} from {}/{}:{}...".format(
+                        image, registry.url, image_name, remote_tag
+                    )
+                )
                 sys.stdout.flush()
                 self._pull_image(image_name, registry.url, tag, remote_tag)
-                write(' Done !' + '\n')
+                write(" Done !" + "\n")
 
-        write('All images has been pulled successfully !' + '\n')
+        write("All images has been pulled successfully !" + "\n")
 
     def download_images(self, services, registry, tag=None, nopull=False):
         """Download images from a remote registry and save to kard
@@ -313,10 +336,10 @@ class Pkr(object):
           * registry: a DockerRegistry instance
           * tag: the tag of the version to download
         """
-        tag = tag or self.kard.meta['tag']
+        tag = tag or self.kard.meta["tag"]
 
-        save_path = Path(self.kard.path) / 'images'
-        write('Cleaning images destination {}'.format(save_path))
+        save_path = Path(self.kard.path) / "images"
+        write("Cleaning images destination {}".format(save_path))
         save_path.mkdir(exist_ok=True)
         for child in save_path.iterdir():
             child.unlink()
@@ -327,15 +350,15 @@ class Pkr(object):
         for service in services:
             image_path = save_path / "{}.tar".format(service)
             image_name = self.make_image_name(service, tag)
-            write('Saving {} to {}'.format(image_name, image_path))
+            write("Saving {} to {}".format(image_name, image_path))
             sys.stdout.flush()
 
-            with open(image_path, 'wb') as f:
+            with open(image_path, "wb") as f:
                 for chunk in self.docker.get_image(image_name):
                     f.write(chunk)
 
-            write(' Done !' + '\n')
-        write('All images has been saved successfully !' + '\n')
+            write(" Done !" + "\n")
+        write("All images has been saved successfully !" + "\n")
 
     def import_images(self, services, tag=None):
         """Import images from kard to local docker
@@ -344,20 +367,20 @@ class Pkr(object):
           * services: the name of the images to load
           * tag: the tag of the version to load
         """
-        tag = tag or self.kard.meta['tag']
+        tag = tag or self.kard.meta["tag"]
 
-        save_path = Path(self.kard.path) / 'images'
+        save_path = Path(self.kard.path) / "images"
         for child in save_path.iterdir():
             service = child.name[:-4]
             if service not in services:
                 continue
-            write('Importing {} ...'.format(child))
-            with open(child, 'rb') as f:
+            write("Importing {} ...".format(child))
+            with open(child, "rb") as f:
                 rsp = self.docker.load_image(f.read())
             for message in rsp:
-                write(message.get('stream', ''))
-            write('\n')
-        write('All images have been loaded successfully !' + '\n')
+                write(message.get("stream", ""))
+            write("\n")
+        write("All images have been loaded successfully !" + "\n")
 
     @tenacity.retry(
         wait=tenacity.wait_fixed(1),
@@ -377,21 +400,18 @@ class Pkr(object):
           * tag: the tag of the version to pull
         """
 
-        rep_tag = '{}/{}'.format(registry_url, image_name)
+        rep_tag = "{}/{}".format(registry_url, image_name)
 
         try:
-            self.docker.pull(repository=rep_tag,
-                             tag=remote_tag)
+            self.docker.pull(repository=rep_tag, tag=remote_tag)
 
             # Strip the repository tag
-            self.docker.tag(image=':'.join((rep_tag, remote_tag)),
-                            repository=image_name,
-                            tag=tag,
-                            force=True)
+            self.docker.tag(
+                image=":".join((rep_tag, remote_tag)), repository=image_name, tag=tag, force=True
+            )
 
         except docker.errors.APIError as error:
-            error_msg = 'Error while pulling the image {}: {}'.format(
-                tag, error)
+            error_msg = "Error while pulling the image {}: {}".format(tag, error)
             write(error_msg)
             raise ImagePullError(error_msg)
 
@@ -413,31 +433,28 @@ class Pkr(object):
         raise NotImplementedError()
 
     @staticmethod
-    def print_docker_stream(
-        stream, verbose=True, logfile=None, bufferize=False
-    ):
+    def print_docker_stream(stream, verbose=True, logfile=None, bufferize=False):
         """Util method to print docker logs"""
         with LogOutput(logfile, bufferize=bufferize) as logfh:
-            log_keys = set(('status', 'stream'))
+            log_keys = set(("status", "stream"))
             all_logs = []
             last_log_id = [None]
 
             def print_log(log):
-                for key in (log_keys & set(log)):
+                for key in log_keys & set(log):
                     try:
-                        if key == 'status' and log.get(key) in (
-                                'Downloading', 'Extracting'):
-                            status_id = log.get('id')
+                        if key == "status" and log.get(key) in ("Downloading", "Extracting"):
+                            status_id = log.get("id")
 
                             if last_log_id[0] is None:
                                 last_log_id[0] = status_id
                             if last_log_id[0] != status_id:
                                 last_log_id[0] = status_id
-                                logfh.writeln(log['progress'])
+                                logfh.writeln(log["progress"])
                             else:
-                                logfh.write_console(log['progress'] + '\r')
+                                logfh.write_console(log["progress"] + "\r")
                         else:
-                            logfh.write_console('\n')
+                            logfh.write_console("\n")
                             logfh.writeln(log.get(key))
                     except:
                         write(traceback.format_exc())
@@ -460,11 +477,12 @@ class Pkr(object):
                         print_log(last_log)
 
                     # Catch errors
-                    if 'error' in last_log:
+                    if "error" in last_log:
                         for log_it in all_logs:
                             print_log(log_it)
-                        raise Exception('Error during docker process: ' +
-                                        last_log['errorDetail']['message'])
+                        raise Exception(
+                            "Error during docker process: " + last_log["errorDetail"]["message"]
+                        )
 
     def purge(self, except_tag=None, tag=None, repository=None):
         """Delete all images of this project.
@@ -478,9 +496,9 @@ class Pkr(object):
         """
         services = list(self.kard.env.get_container().keys())
         if except_tag is None:
-            tag = tag or self.kard.meta['tag']
+            tag = tag or self.kard.meta["tag"]
         else:
-            tag = '(?!{})$'.format(except_tag)
+            tag = "(?!{})$".format(except_tag)
 
         images_to_del = [self.make_image_name(s, tag) for s in services]
 
@@ -488,15 +506,15 @@ class Pkr(object):
             tmp = []
             for image in images_to_del:
                 tmp.append(image)
-                tmp.append('/'.join((repository, image)))
+                tmp.append("/".join((repository, image)))
             images_to_del = tmp
 
-        images_regex = '(' + ')|('.join(images_to_del) + ')'
+        images_regex = "(" + ")|(".join(images_to_del) + ")"
 
         for img in self.docker.images():
-            for repo_tag in img.get('RepoTags', []):
+            for repo_tag in img.get("RepoTags", []):
                 if re.match(images_regex, repo_tag):
-                    write('Deleting image ' + repo_tag)
+                    write("Deleting image " + repo_tag)
                     try:
                         self.docker.remove_image(repo_tag)
                     except BaseException as exc:
@@ -507,7 +525,6 @@ class Pkr(object):
 
 
 class LogOutput(object):
-
     def __init__(self, filename=None, bufferize=False):
         """Context manager for writing to files or to stdout."""
         if filename is None:
@@ -520,7 +537,7 @@ class LogOutput(object):
 
     def __enter__(self):
         if self.handler != sys.stdout:
-            self.handler = open(self.filename, 'a')
+            self.handler = open(self.filename, "a")
         return self
 
     def __exit__(self, *_):
@@ -534,7 +551,7 @@ class LogOutput(object):
         if self.bufferize:
             self.buffer.append(line)
             return
-        print(line, file=self.handler, end='')
+        print(line, file=self.handler, end="")
         self.handler.flush()
 
     def writeln(self, line):
@@ -552,8 +569,8 @@ class LogOutput(object):
         if self.bufferize:
             self.buffer.append(line)
             return
-        print(line, file=self.handler, end='')
+        print(line, file=self.handler, end="")
 
     def flush(self):
-        self.handler.write(''.join(self.buffer))
+        self.handler.write("".join(self.buffer))
         self.handler.flush()
