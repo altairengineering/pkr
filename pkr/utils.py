@@ -98,7 +98,7 @@ def merge(source, destination):
     before using it if you do not want to destroy the destination dict.
     """
     for key, value in list(source.items()):
-        if isinstance(value, collections.Mapping):
+        if isinstance(value, collections.abc.Mapping):
             # get node or create one
             node = destination.setdefault(key, {})
             merge(value, node)
@@ -330,3 +330,18 @@ def create_pkr_folder(pkr_path=None):
     (pkr_path / 'env' / 'dev').mkdir(parents=True)
     (pkr_path / 'env' / 'dev' / 'env.yml').touch()
     (pkr_path / 'kard').mkdir(parents=True)
+
+
+def features_merge(src, dest=None, reverse=True):
+    for feature in set(src):
+        if src.count(feature) != 1:
+            yield feature
+            src.remove(feature)
+    if dest is not None:
+        if reverse:
+            for x in reversed(src):
+                if x in dest:
+                    continue
+                dest.insert(0, x)
+        else:
+            dest.extend([x for x in src if x not in dest])

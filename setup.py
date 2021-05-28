@@ -19,17 +19,10 @@ def setup_pkr():
             'console_scripts': [
                 'pkr = pkr.__main__:main',
             ],
-            'extensions': [
+            'pkr_extensions': [
                 'git = pkr.ext.git:Git',
                 'auto-volume = pkr.ext.auto_volume:AutoVolume',
                 'basic-template = pkr.ext.basic_template:BasicTemplate',
-            ],
-            'drivers': [
-                'compose = pkr.driver.docker_compose:Driver',
-                'docker_compose = pkr.driver.docker_compose:Driver',
-                'k8s = pkr.driver.k8s:Driver',
-                'kubernetes = pkr.driver.k8s:Driver',
-                'minikube = pkr.driver.minikube:Driver',
             ],
         },
         license='AGPLv3 (See LICENSE file for terms)',
@@ -46,20 +39,19 @@ def setup_pkr():
         install_requires=[
             'docker==4.4.4',
             'docker-compose==1.26.2',
-            'GitPython==2.1.5',
+            'GitPython==3.1.14',
             'ipaddress==1.0.17',
             'jinja2',
             'kubernetes>=9.0.0',
             'netifaces==0.10.5',
             'passlib>=1.7.1',
             'pyyaml>=4.2b1,<6',
-            'stevedore==1.21.0',
             'tenacity==5.0.3',
             'urllib3<1.25',
             'jinja2-ansible-filters==1.3.0',
         ],
         packages=find_packages(exclude=['test', 'docs']),
-        python_requires='>=3.6, <4,',
+        python_requires='>=3.7, <4,',
     )
 
 

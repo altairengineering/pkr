@@ -246,8 +246,12 @@ class TestCLI(unittest.TestCase):
 
         self.assertEqual(0, prc.returncode)
 
-        msg = (b'Kards:\n'
-               b' - test\n')
+        msg = (
+            b'WARNING: Feature g is duplicated in import dev/e from env dev\n'
+            b'WARNING: Feature e is duplicated in env dev\n'
+            b'WARNING: Feature g is duplicated in feature e from env dev\n'
+            b'Kards:\n'
+            b' - test\n')
         stdout = prc.stdout.read()
         self.assertEqual(msg, stdout)
 
@@ -262,7 +266,12 @@ class TestCLI(unittest.TestCase):
 
         self.assertEqual(0, prc.returncode)
 
-        msg = b'Current kard is now: test\n'
+        msg = (
+            b'WARNING: Feature g is duplicated in import dev/e from env dev\n'
+            b'WARNING: Feature e is duplicated in env dev\n'
+            b'WARNING: Feature g is duplicated in feature e from env dev\n'
+            b'Current kard is now: test\n'
+        )
         stdout = prc.stdout.read()
         self.assertEqual(msg, stdout)
 
@@ -272,7 +281,7 @@ class TestCLI(unittest.TestCase):
         expected_meta = {
             'driver': {'name': 'compose'},
             'env': 'dev',
-            'features': [],
+            'features': ['h', 'g', 'f', 'e'],
             'project_name': self.pkr_path.name.lower(),
             'src_path': '{}/kard/test/src'.format(str(self.pkr_path)),
             'tag': '123',
@@ -288,15 +297,21 @@ class TestCLI(unittest.TestCase):
         shutil.copy(str(get_test_files_path() / 'meta1.yml'),
                     str(self.pkr_path / 'meta1.yml'))
 
-        cmd = '{} kard create test --meta {}/meta1.yml'.format(
+        cmd = '{} kard create test --features c,d,c --meta {}/meta1.yml'.format(
             self.PKR, str(self.pkr_path))
 
         prc = self._run_cmd(cmd)
 
         self.assertEqual(0, prc.returncode)
 
-        msg = b'Current kard is now: test\n'
+        msg = b'WARNING: Feature a is duplicated in passed meta\n' \
+            b'WARNING: Feature c is duplicated in args\n' \
+            b'WARNING: Feature g is duplicated in import dev/e from env dev\n' \
+            b'WARNING: Feature e is duplicated in env dev\n' \
+            b'WARNING: Feature g is duplicated in feature e from env dev\n' \
+            b'Current kard is now: test\n'
         stdout = prc.stdout.read()
+        print(stdout)
         self.assertEqual(msg, stdout)
 
         meta_file = self.pkr_path / 'kard' / 'test' / 'meta.yml'
@@ -305,7 +320,7 @@ class TestCLI(unittest.TestCase):
         expected_meta = {
             'driver': {'name': 'compose'},
             'env': 'dev',
-            'features': [],
+            'features': ['h', 'g', 'f', 'e', 'b', 'a', 'd', 'c'],
             'project_name': self.pkr_path.name.lower(),
             'src_path': '{}/kard/test/src'.format(str(self.pkr_path)),
             'tag': '123',
@@ -327,9 +342,13 @@ class TestCLI(unittest.TestCase):
 
         self.assertEqual(0, prc.returncode, stdout)
 
-        msg = (b'Removing docker-context... done !\n'
-               b'(Re)creating docker-context... done !\n'
-               b'Recreating sources in pkr context... done !\n')
+        msg = (
+            b'WARNING: Feature g is duplicated in import dev/e from env dev\n' \
+            b'WARNING: Feature e is duplicated in env dev\n' \
+            b'WARNING: Feature g is duplicated in feature e from env dev\n' \
+            b'Removing docker-context... done !\n'
+            b'(Re)creating docker-context... done !\n'
+            b'Recreating sources in pkr context... done !\n')
 
         self.assertEqual(msg, stdout)
 
@@ -528,10 +547,10 @@ class TestImagePull(TestCLI):
         error_outputs = stdout.split(b'\n')[:-1]
         # 1 line for the command output
         # 4 lines with the same error (3 tries, and the final print)
-        self.assertEqual(len(error_outputs), 5)
-        self.assertEqual(error_outputs[0], expected_cmd_output)
+        self.assertEqual(len(error_outputs), 8)
+        self.assertEqual(error_outputs[3], expected_cmd_output)
 
-        errors = error_outputs[1:]
+        errors = error_outputs[4:]
         # Check for 3 lines with the same message that indicate we have
         # retried 3 times
         six.assertRegex(self, errors[0], expected_error_regex)
@@ -563,6 +582,6 @@ class TestImagePush(TestCLI):
         error_outputs = stdout.split(b'\n')[:-1]
         # 1 line for the command output
         # 4 lines with the same error (3 tries, and the final print)
-        self.assertEqual(len(error_outputs), 2)
-        self.assertEqual(error_outputs[0], expected_cmd_output)
-        assert re.match(expected_cmd_output_2, error_outputs[1])
+        self.assertEqual(len(error_outputs), 5)
+        self.assertEqual(error_outputs[3], expected_cmd_output)
+        assert re.match(expected_cmd_output_2, error_outputs[4])

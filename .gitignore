@@ -1,5 +1,6 @@
 *~
 env
+!test/files/ext/env
 docker-context/*
 *.pyc
 config/*

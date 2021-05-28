@@ -26,7 +26,7 @@ class TestEnvironment(unittest.TestCase):
 
         expected_env = {
             'containers': {'backend': {'dockerfile': 'backend.dockerfile'}},
-            'default_features': ['auto-volume', 'first', 'second'],
+            'default_features': ['auto-volume'],
             'driver': {
                 'docker_compose': {
                     'compose_file': 'templates/docker-compose.yml.template'}},
@@ -35,6 +35,7 @@ class TestEnvironment(unittest.TestCase):
         }
 
         self.assertEqual(env.env, expected_env)
+        self.assertEqual(env.features, ['first', 'second', 'auto-volume'])
 
     def test_load_prod_environment(self):
         env = Environment('prod')

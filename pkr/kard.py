@@ -196,15 +196,11 @@ class Kard(object):
         merge(kard.env.get_meta(extra), kard.meta)
         merge(kard.driver.get_meta(extra, kard), kard.meta)
 
-        # Prevent duplication of features in case of update
-        kard.meta['features'] = list(set(kard.meta['features']))
-
         # Extensions
         kard.extensions.setup(extra, kard)
 
         # We add all remaining extra to the meta
         merge(extra, kard.meta)
-        kard.meta['features'] = list(set(kard.meta['features']))
 
         kard.save_meta()
 
@@ -212,14 +208,15 @@ class Kard(object):
         data = self.meta.copy()
 
         def read_kard_file(conf_file_name):
-            conf_path = self.kard.path / Path(conf_file_name).expanduser()
+            conf_path = self.path / Path(conf_file_name).expanduser()
             return conf_path.read_text()
 
         def format_image(image_name):
-            image = '{}:{}'.format(image_name, self.kard.meta['tag'])
-            if not self._get_registry():
+            image = '{}:{}'.format(image_name, self.meta['tag'])
+            registry = self.meta.get('registry')
+            if not registry:
                 return image
-            return '{}/{}'.format(self._get_registry(), image)
+            return '{}/{}'.format(registry, image)
 
         data.update({
             'env': self.env.env_name,

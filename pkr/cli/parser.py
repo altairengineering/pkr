@@ -7,14 +7,13 @@
 import argparse
 
 from pathlib import Path
-import stevedore
 import yaml
 
 from .log import write
-from .shell import PkrShell
+from ..driver import list_drivers
 from ..ext import Extensions
 from ..kard import Kard
-from ..utils import PkrException, create_pkr_folder
+from ..utils import PkrException, create_pkr_folder, features_merge
 from ..version import __version__
 
 
@@ -95,15 +94,19 @@ def _list_kards(args):
 
 
 def _create_kard(args):
-    extras = {}
+    extras = {'features': []}
     if args.meta:
         extras.update(yaml.safe_load(args.meta))
     extras.update({a[0]: a[1] for a in [a.split('=', 1) for a in args.extra]})
+    for feature in features_merge(extras['features']):
+        write("WARNING: Feature {} is duplicated in passed meta".format(feature))
 
     try:
         extra_features = args.features
         if extra_features is not None:
-            extras.update({'features': extra_features.split(',')})
+            extra_features = extra_features.split(',')
+            for feature in features_merge(extra_features, extras['features'], False):
+                write("WARNING: Feature {} is duplicated in args".format(feature))
     except AttributeError:
         pass
 
@@ -120,14 +123,16 @@ def _create_kard(args):
                 dict_it = dict_it.setdefault(sub_key, {})
             dict_it[sub_keys[-1]] = value
 
-    Kard.create(args.name, args.env, args.driver, extras)
+    kard = Kard.create(args.name, args.env, args.driver, extras)
     Kard.set_current(args.name)
     write('Current kard is now: {}'.format(args.name))
+    return kard
 
 
 def get_parser():
     """Return the pkr parser"""
     pkr_parser = argparse.ArgumentParser()
+    pkr_parser.set_defaults(func=lambda _: pkr_parser.print_help())
     pkr_parser.add_argument('-v', '--version', action='version',
                             version='%(prog)s ' + __version__)
 
@@ -135,10 +140,6 @@ def get_parser():
 
     sub_p = pkr_parser.add_subparsers(
         title="Commands", metavar="<command>", help='<action>')
-
-    # Shell
-    sub_p.add_parser('shell', help='Launch pkr shell').set_defaults(
-        func=lambda *_: PkrShell(pkr_parser).cmdloop())
 
     # Stop parser
     stop_parser = sub_p.add_parser('stop', help='Stop pkr')
@@ -207,13 +208,14 @@ def get_parser():
 
     # List available extensions
     list_extension_parser = sub_p.add_parser(
-        'listext', help='ListExt')
+        'listext', help='List extensions')
+    list_extension_parser.add_argument('-a', '--all', action='store_true', help="Show all available extensions")
     list_extension_parser.set_defaults(
-        func=lambda *_: Kard.load_current().extensions.list())
+        func=lambda a: print(*(Extensions().list() if a.all else Kard.load_current().extensions.list()), sep = "\n"))
 
     # Ext parser
     configure_ext_parser(
-        sub_p.add_parser('ext', help='Manage extensions images'))
+        sub_p.add_parser('ext', help='Call extension method'))
 
     # Init
     init_parser = sub_p.add_parser(
@@ -235,6 +237,7 @@ def get_parser():
 
 
 def configure_image_parser(parser):
+    parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(
         title="Commands", metavar="<command>", help='<action>')
 
@@ -409,7 +412,7 @@ def configure_kard_parser(parser):
             note: All value set with --extra parameter are available in
                   template.
     """
-
+    parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(
         title="Commands", metavar="<command>", help='<action>')
 
@@ -432,20 +435,16 @@ def configure_kard_parser(parser):
                                default='dev',
                                help='The environment (dev/prod)')
 
-    entry_points = stevedore.NamedExtensionManager(
-        'drivers', []).list_entry_points()
-
     create_kard_p.add_argument('-d', '--driver',
                                default='compose',
                                help='The pkr driver to use {}'.format(
-                                   tuple(entry_point.name
-                                         for entry_point in entry_points)))
+                                    list_drivers()))
 
     create_kard_p.add_argument('-m', '--meta',
                                type=argparse.FileType('r'),
                                help='A file to load meta from')
     create_kard_p.add_argument(
-        '--features',
+        '-f', '--features',
         help='Comma-separated list of features to include in the deployment. '
              'Take one or more of: elk, protractor, salt',
         default=None)
@@ -470,8 +469,9 @@ def configure_kard_parser(parser):
 
 
 def configure_ext_parser(parser):
+    parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(
-        title='Extensions', metavar='<extension>', help='<features>')
+        title="Extensions", metavar="<extension>", help='Extensions')
 
     # Build parser
     try:
@@ -479,9 +479,10 @@ def configure_ext_parser(parser):
     except PkrException:  # Catch missing PKR_PATH
         return
 
-    for name, ext in Extensions.list_all():
-        ext.configure_parser(sub_p.add_parser(
-            name, help='{} extension features'.format(name.capitalize())))
+    for name, ext in Extensions.list_all().items():
+        if hasattr(ext, 'configure_parser'):
+            ext.configure_parser(sub_p.add_parser(
+                name, help='{} extension features'.format(name.capitalize())))
 
 
 def add_service_argument(parser):

@@ -7,6 +7,15 @@ This repository provide a tool which allows generating docker images using templ
 
 `pkr` comes from `pocker`, which was the first name of this software.
 
+## Features
+When creating a kard, you have several ways to provide `features`. Those will be loaded either as plugins (python code) or add-ins files from the environment.
+
+The order of evaluation is :
+ * features from `import` children
+ * features from env file
+ * features from meta file (passed in args)
+ * features from args
+
 
 # How to use pkr ?
 
@@ -32,7 +41,7 @@ pkr requires gcc and the python-devel libraries.
     ```
     yum install epel-release
     yum update
-    yum install gcc python-pip python-devel
+    yum install gcc python3-pip python3-devel
     ```
 Note: you might also want to install git to automatically fetch sources from the Git repository.
 
@@ -42,7 +51,7 @@ Note: you might also want to install git to automatically fetch sources from the
     pip install --upgrade setuptools
     pip install --upgrade pip
     ```
-    
+
 
 ## Install with pip
 
@@ -78,14 +87,14 @@ Install it on your machine, or in a virtual env
     ```
     # Direct mode
     docker run \
-        -v /run/docker.sock:/run/docker.sock \ 
-        -v /home/sami/pkr/kard:/pkr/kard \
+        -v /run/docker.sock:/run/docker.sock \
+        -v /home/myuser/pkr/kard:/pkr/kard \
         pkr:dev pkr <command>
 
     # Interactive mode
     docker run -ti \
         -v /run/docker.sock:/run/docker.sock \
-        -v /home/sami/pkr/kard:/pkr/kard \
+        -v /home/myuser/pkr/kard:/pkr/kard \
         pkr:dev bash
     ```
 
@@ -95,5 +104,3 @@ Install it on your machine, or in a virtual env
 In the source folder, run the following command:
 
     docker build -t pkr:<TAG_NAME> .
-
-

@@ -6,11 +6,14 @@ import abc
 from builtins import object
 from builtins import str
 import signal
-
-from stevedore.named import ExtensionManager, NamedExtensionManager
+import pkgutil
+try:
+    from importlib.metadata import entry_points
+except ModuleNotFoundError:
+    from importlib_metadata import entry_points
 
 from pkr.cli.log import write
-from pkr.utils import PkrException
+from pkr.utils import PkrException, get_pkr_path
 
 
 class ExtMixin(metaclass=abc.ABCMeta):
@@ -54,41 +57,52 @@ class Extensions(object):
     extensions
     """
 
-    def __init__(self, features):
+    def __init__(self, features=None):
         super(Extensions, self).__init__()
-        self.features = set(features)
+        self.features = features
         self._extensions = None
 
     @property
     def extensions(self):
         """Lazy loading of extensions"""
         if self._extensions is None:
-            self._extensions = NamedExtensionManager(
-                namespace='extensions',
-                names=self.features,
-                name_order=True,
-                propagate_map_exceptions=True
-            )
+            self._extensions = self.list_all()
+        if self.features is not None:
+            return {name: self._extensions[name] for name in self.features if name in self._extensions}
         return self._extensions
 
     def __getattr__(self, attribute):
-        if hasattr(ExtMixin, attribute):
-            if not self.features:
-                return lambda *args, **kw: ()
-            return lambda *args, **kw: self.extensions.map(
-                self._wrap_call, attribute, *args, **kw)
-        return super(Extensions, self).__getattribute__(attribute)
+        """Return all matching extensions methods wrapped into a lambda"""
+        # Unknown extension method
+        if not hasattr(ExtMixin, attribute):
+            return super(Extensions, self).__getattribute__(attribute)
+
+        # Called outside a kard, doing nothing
+        if not self.features:
+            return lambda *args, **kw: ()
+
+        def wrapper(*args, **kwargs):
+            return [
+                output[1]
+                for output in map(
+                    lambda ext: self._wrap_call(ext[0], ext[1], attribute, *args, *kwargs),
+                    self.extensions.items()
+                )
+                if output is not None
+            ]
+        return wrapper
 
     @staticmethod
-    def _wrap_call(extension, method_name, *args, **kwargs):
-        method = getattr(extension.plugin(), method_name, None)
+    def _wrap_call(name, extension, method_name, *args, **kwargs):
+        method = getattr(extension, method_name, None)
+        base_method = getattr(ExtMixin, method_name, None)
 
-        if method is None:
+        if method is None or method is base_method:
             # it is OK if an extension does not implement all methods
             return
 
         try:
-            return method(*args, **kwargs)
+            return (name, method(*args, **kwargs))
         except TimeoutError:
             write('Extension "{}" raise timeout error, step "{}"'.format(
                 extension.name, method_name))
@@ -103,13 +117,31 @@ class Extensions(object):
 
     def list(self):
         """Return the list of the extensions"""
-        return iter(((e.name, e.plugin()) for e in self.extensions))
+        return self.extensions.keys()
 
-    @staticmethod
-    def list_all():
+    @classmethod
+    def _get_extension_class(cls, module):
+        for attr in dir(module):
+            ext_cls = getattr(module, attr)
+            try:
+                if issubclass(ext_cls, ExtMixin) and ext_cls != ExtMixin:
+                    return ext_cls
+            except TypeError:
+                pass
+
+    @classmethod
+    def list_all(cls):
         """Return the list of all available extensions"""
-        extensions = ExtensionManager(namespace='extensions')
-        return iter(((e.name, e.plugin()) for e in extensions.extensions))
+        # Load from pkr path
+        extensions = {}
+        for importer, package_name, _ in pkgutil.iter_modules([str(get_pkr_path() / 'extensions')]):
+            module = importer.find_module(package_name).load_module(package_name)
+            extensions[package_name] = cls._get_extension_class(module)
+        # Load from pkr_extensions entrypoints (and TO BE DEPRECATED extensions group)
+        for entry in entry_points().get('pkr_extensions', ()) + entry_points().get('extensions', ()):
+            if entry.name not in extensions:
+                extensions[entry.name] = entry.load()
+        return extensions
 
     def __contains__(self, ext_name):
         return ext_name in self.features
