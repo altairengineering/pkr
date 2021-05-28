@@ -11,125 +11,10 @@ import yaml
 
 from .log import write
 from ..driver import list_drivers
-from ..ext import Extensions
+from ..ext import ExtMixin, Extensions
 from ..kard import Kard
-from ..utils import PkrException, create_pkr_folder, features_merge
+from ..utils import PkrException, create_pkr_folder
 from ..version import __version__
-
-
-def _build_images(args):
-    kard = Kard.load_current()
-    if args.rebuild_context:
-        kard.make()
-
-    # Build images
-    services = args.services or list(kard.env.get_container().keys())
-    kard.docker_cli.build_images(
-        services,
-        tag=args.tag,
-        nocache=args.nocache,
-        parallel=args.parallel,
-        no_rebuild=args.no_rebuild,
-    )
-
-
-def _push_images(args):
-    kard = Kard.load_current()
-
-    # Push images
-    services = args.services or list(kard.env.get_container().keys())
-    registry = kard.docker_cli.get_registry(
-        url=args.registry, username=args.username, password=args.password
-    )
-    kard.docker_cli.push_images(
-        services, registry, tag=args.tag, other_tags=args.other_tags, parallel=args.parallel
-    )
-
-
-def _pull_images(args):
-    kard = Kard.load_current()
-
-    # Push images
-    services = args.services or list(kard.env.get_container().keys())
-    registry = kard.docker_cli.get_registry(
-        url=args.registry, username=args.username, password=args.password
-    )
-    kard.docker_cli.pull_images(services, registry, tag=args.tag, parallel=args.parallel)
-
-
-def _download_images(args):
-    kard = Kard.load_current()
-    services = args.services or list(kard.env.get_container().keys())
-    registry = kard.docker_cli.get_registry(
-        url=args.registry, username=args.username, password=args.password
-    )
-    kard.docker_cli.download_images(services, registry, tag=args.tag, nopull=args.nopull)
-
-
-def _import_images(args):
-    kard = Kard.load_current()
-    services = args.services or list(kard.env.get_container().keys())
-    kard.docker_cli.import_images(services, tag=args.tag)
-
-
-def _list_images(args):
-    kard = Kard.load_current()
-    services = args.services or list(kard.env.get_container().keys())
-    if args.tag is None:
-        args.tag = kard.meta["tag"]
-    for service in services:
-        write(kard.docker_cli.make_image_name(service, args.tag))
-
-
-def _purge(args):
-    kard = Kard.load_current()
-    kard.docker_cli.purge(args.except_tag, args.tag, args.repository)
-
-
-def _list_kards(args):
-    kards = Kard.list(args.kubernetes)
-    if kards:
-        write("Kards:")
-        for kard in kards:
-            write(" - {}".format(kard))
-    else:
-        write("No kard found.")
-
-
-def _create_kard(args):
-    extras = {"features": []}
-    if args.meta:
-        extras.update(yaml.safe_load(args.meta))
-    extras.update({a[0]: a[1] for a in [a.split("=", 1) for a in args.extra]})
-    for feature in features_merge(extras["features"]):
-        write("WARNING: Feature {} is duplicated in passed meta".format(feature))
-
-    try:
-        extra_features = args.features
-        if extra_features is not None:
-            extra_features = extra_features.split(",")
-            for feature in features_merge(extra_features, extras["features"], False):
-                write("WARNING: Feature {} is duplicated in args".format(feature))
-    except AttributeError:
-        pass
-
-    for key, value in list(extras.items()):
-
-        if isinstance(value, str) and value.lower() in ("true", "false"):
-            extras[key] = value = value.lower() == "true"
-
-        if "." in key:
-            extras.pop(key)
-            dict_it = extras
-            sub_keys = key.split(".")
-            for sub_key in sub_keys[:-1]:
-                dict_it = dict_it.setdefault(sub_key, {})
-            dict_it[sub_keys[-1]] = value
-
-    kard = Kard.create(args.name, args.env, args.driver, extras)
-    Kard.set_current(args.name)
-    write("Current kard is now: {}".format(args.name))
-    return kard
 
 
 def get_parser():
@@ -179,7 +64,7 @@ def get_parser():
 
     # Ps parser
     parser = sub_p.add_parser("ps", help="List containers defined in the current kard")
-    parser.set_defaults(func=lambda *a: Kard.load_current().docker_cli.cmd_ps())
+    parser.set_defaults(func=lambda _: Kard.load_current().docker_cli.cmd_ps())
 
     # Clean parser
     parser = sub_p.add_parser("clean", help="Stop and remove containers of current kard")
@@ -242,7 +127,7 @@ def configure_image_parser(parser):
         "-b", "--no-rebuild", action="store_true", help="Disable rebuild if image already exists"
     )
     add_service_argument(build_parser)
-    build_parser.set_defaults(func=_build_images)
+    build_parser.set_defaults(func=lambda args: Kard.load_current().build_images(**args.__dict__))
 
     # Push parser
     push_parser = sub_p.add_parser("push", help="Push docker images")
@@ -257,7 +142,7 @@ def configure_image_parser(parser):
     push_parser.add_argument(
         "--parallel", type=int, default=None, help="Number of parallel image push"
     )
-    push_parser.set_defaults(func=_push_images)
+    push_parser.set_defaults(func=lambda args: Kard.load_current().push_images(**args.__dict__))
 
     # Pull parser
     pull_parser = sub_p.add_parser("pull", help="Pull docker images")
@@ -269,7 +154,7 @@ def configure_image_parser(parser):
     pull_parser.add_argument(
         "--parallel", type=int, default=None, help="Number of parallel image pull"
     )
-    pull_parser.set_defaults(func=_pull_images)
+    pull_parser.set_defaults(func=lambda args: Kard.load_current().pull_images(**args.__dict__))
 
     # Purge parser
     purge_parser = sub_p.add_parser(
@@ -282,7 +167,7 @@ def configure_image_parser(parser):
     purge_parser.add_argument(
         "--repository", default=None, help="Delete image reference in a specified repository"
     )
-    purge_parser.set_defaults(func=_purge)
+    purge_parser.set_defaults(func=lambda args: Kard.load_current().purge_images(**args.__dict__))
 
     # List parser
     list_parser = sub_p.add_parser(
@@ -291,7 +176,7 @@ def configure_image_parser(parser):
     list_parser.add_argument("--tag", default=None, help="List images with the given tag")
     add_service_argument(list_parser)
 
-    list_parser.set_defaults(func=_list_images)
+    list_parser.set_defaults(func=lambda args: Kard.load_current().list_images(**args.__dict__))
 
     # Download parser
     download_parser = sub_p.add_parser(
@@ -309,13 +194,17 @@ def configure_image_parser(parser):
         "--nopull", default=False, action="store_true", help="Do not pull before export"
     )
     add_service_argument(download_parser)
-    download_parser.set_defaults(func=_download_images)
+    download_parser.set_defaults(
+        func=lambda args: Kard.load_current().download_images(**args.__dict__)
+    )
 
     # Import parser
     import_parser = sub_p.add_parser("import", help="Import all images from kard to docker")
     import_parser.add_argument("--tag", default=None, help="Import images to the given tag")
     add_service_argument(import_parser)
-    import_parser.set_defaults(func=_import_images)
+    import_parser.set_defaults(
+        func=lambda args: Kard.load_current().import_images(**args.__dict__)
+    )
 
 
 def configure_kard_parser(parser):
@@ -366,7 +255,7 @@ def configure_kard_parser(parser):
     make_context.set_defaults(func=lambda a: Kard.load_current().make(reset=a.update))
 
     create_kard_p = sub_p.add_parser("create", help="Create a new kard")
-    create_kard_p.set_defaults(func=_create_kard)
+    create_kard_p.set_defaults(func=lambda args: Kard.create(**args.__dict__))
     create_kard_p.add_argument("name", help="The name of the kard")
     create_kard_p.add_argument("-e", "--env", default="dev", help="The environment (dev/prod)")
 
@@ -390,34 +279,46 @@ def configure_kard_parser(parser):
     list_kard.add_argument(
         "-k", "--kubernetes", action="store_true", help="Query kube remote kards"
     )
-    list_kard.set_defaults(func=_list_kards)
+
+    def _list_kard_handler(args):
+        kards = Kard.list(args.kubernetes)
+        if kards:
+            write("Kards:")
+            for kard in kards:
+                write(" - {}".format(kard))
+        else:
+            write("No kard found.")
+
+    list_kard.set_defaults(func=_list_kard_handler)
 
     get_kard = sub_p.add_parser("get", help="Get current kard")
-    get_kard.set_defaults(func=lambda *_: write("Current Kard: {}".format(Kard.get_current())))
+
+    def _get_kard_handler():
+        write("Current Kard: {}".format(Kard.get_current()))
+
+    get_kard.set_defaults(func=_get_kard_handler)
 
     load_kard = sub_p.add_parser("load", help="Load a kard")
     load_kard.set_defaults(func=lambda a: Kard.set_current(a.name))
     load_kard.add_argument("name", help="The name of the kard")
 
     update_kard_p = sub_p.add_parser("update", help="Update the current kard")
-    update_kard_p.set_defaults(func=lambda a: Kard.load_current().update())
+    update_kard_p.set_defaults(func=lambda _: Kard.load_current().update())
 
 
 def configure_ext_parser(parser):
     parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(title="Extensions", metavar="<extension>", help="Extensions")
 
-    # Build parser
-    try:
-        Kard.load_current()
-    except PkrException:  # Catch missing PKR_PATH
-        return
-
     for name, ext in Extensions.list_all().items():
-        if hasattr(ext, "configure_parser"):
-            ext.configure_parser(
-                sub_p.add_parser(name, help="{} extension features".format(name.capitalize()))
+        if (
+            hasattr(ext, "configure_parser")
+            and ext.configure_parser is not ExtMixin.configure_parser
+        ):
+            ext_parser = sub_p.add_parser(
+                name, help="{} extension features".format(name.capitalize())
             )
+            ext.configure_parser(ext_parser)
 
 
 def add_service_argument(parser):

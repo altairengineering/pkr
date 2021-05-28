@@ -18,7 +18,7 @@ class TestEnvironment(unittest.TestCase):
     def setUp(self):
         self.env_path = get_test_files_path()
         os.environ[PATH_ENV_VAR] = str(self.env_path)
-        pkr.utils.ENV_FOLDER = pkr.environment.ENV_FOLDER = "env2"
+        pkr.utils.ENV_FOLDER = pkr.environment.ENV_FOLDER = "path2/env"
 
     def test_load_dev_environment(self):
         env = Environment("dev", features=["first", "second", "auto-volume"])
