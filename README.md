@@ -7,6 +7,18 @@ This repository provide a tool which allows generating docker images using templ
 
 `pkr` comes from `pocker`, which was the first name of this software.
 
+## Meta
+Meta(s) are values passed to the kard during creation or update. They are available in templating context. They can come from different sources and will be merged when applicable (dictionnaries and lists).
+
+Meta(s) follow this order of precedence (most important to lower):
+ * command line `extra` (--extra)
+ * command line `meta` file (--meta)
+ * extensions `setup` method
+ * driver `get_meta` method
+ * environment
+ * environment `import` directive
+
+
 ## Features
 When creating a kard, you have several ways to provide `features`. Those will be loaded either as plugins (python code) or add-ins files from the environment.
 

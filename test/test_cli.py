@@ -135,8 +135,9 @@ class TestCLI(pkrTestCase):
         cmd = "{} kard create test --extra tag=123".format(self.PKR)
 
         prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
 
-        self.assertEqual(0, prc.returncode)
+        self.assertEqual(0, prc.returncode, stdout)
 
         msg = (
             b"WARNING: Feature g is duplicated in import dev/e from env dev\n"
@@ -144,7 +145,6 @@ class TestCLI(pkrTestCase):
             b"WARNING: Feature g is duplicated in feature e from env dev\n"
             b"Current kard is now: test\n"
         )
-        stdout = prc.stdout.read()
         self.assertEqual(msg, stdout, stdout)
 
         meta_file = self.pkr_path / "kard" / "test" / "meta.yml"

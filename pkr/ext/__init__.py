@@ -125,7 +125,7 @@ class Extensions(object):
 
     def list(self):
         """Return the list of the extensions"""
-        return self.extensions.keys()
+        return self.extensions.keys()  # pylint: disable=dict-keys-not-iterating
 
     @classmethod
     def _get_extension_class(cls, module):

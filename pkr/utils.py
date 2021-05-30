@@ -92,7 +92,7 @@ class HashableDict(dict):
         return self.__key() == other.__key()  # pylint: disable=W0212
 
 
-def merge(source, destination):
+def merge(source, destination, overwrite=True):
     """Deep merge 2 dicts
 
     Warning: the source dict is merged INTO the destination one. Make a copy
@@ -102,7 +102,7 @@ def merge(source, destination):
         if isinstance(value, collections.abc.Mapping):
             # get node or create one
             node = destination.setdefault(key, {})
-            merge(value, node)
+            merge(value, node, overwrite)
         elif isinstance(value, list):
             if key in destination:
                 try:
@@ -112,7 +112,7 @@ def merge(source, destination):
                     destination[key].extend(value)
             else:
                 destination[key] = value
-        else:
+        elif overwrite or key not in destination:
             destination[key] = value
 
     return destination

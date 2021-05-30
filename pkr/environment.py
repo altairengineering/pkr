@@ -41,7 +41,7 @@ class Environment(object):
                     write(
                         f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}"
                     )
-                merge(content, self.env)
+                merge(content, self.env, False)
 
     def _load_env_file(self, path):
         """Load an environment with its dependencies recursively"""
