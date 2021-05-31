@@ -31,7 +31,9 @@ class Environment(object):
 
         self.features = features or []
         for feature in features_merge(self.env.get("default_features", []), self.features):
-            write("WARNING: Feature {} is duplicated in env {}".format(feature, env_name))
+            write(
+                "WARNING: Feature {} is duplicated in env {}".format(feature, env_name), error=True
+            )
 
         for feature in self.features:
             f_path = env_path / (feature + ".yml")
@@ -39,9 +41,10 @@ class Environment(object):
                 content = self._load_env_file(f_path)
                 for dup in features_merge(content.pop("default_features", []), self.features):
                     write(
-                        f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}"
+                        f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}",
+                        error=True,
                     )
-                merge(content, self.env, False)
+                merge(content, self.env)
 
     def _load_env_file(self, path):
         """Load an environment with its dependencies recursively"""
@@ -61,7 +64,8 @@ class Environment(object):
                 imp_data.pop("default_features", []), content["default_features"]
             ):
                 write(
-                    f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}"
+                    f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}",
+                    error=True,
                 )
             content = merge(content, imp_data)
         return content
@@ -76,14 +80,10 @@ class Environment(object):
         ret = default.copy()
         merge(extra, ret)
 
-        required_values = (
-            ensure_definition_matches(
-                definition=self.env.get("required_meta", []), defaults=ret, data=extra
-            )
-            or {}
+        required_values = ensure_definition_matches(
+            definition=self.env.get("required_meta", []), defaults=ret, data=extra
         )
-
-        merge(required_values, ret)
+        merge(required_values, extra)
 
         # Feature
         ret["features"] = self.env.get("default_features", [])

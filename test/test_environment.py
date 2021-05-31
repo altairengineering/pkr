@@ -75,7 +75,8 @@ class TestEnvironment(unittest.TestCase):
         }
 
         with patch("pkr.utils.ask_input", side_effect=metas.get) as std_mock:
-            values = env.get_meta({})
+            extra = {}
+            values = env.get_meta(extra)
 
             for func_call in [call(m) for m in metas.keys()]:
                 self.assertIn(func_call, std_mock.call_args_list)
@@ -83,8 +84,11 @@ class TestEnvironment(unittest.TestCase):
         expected_values = {
             "features": ["auto-volume"],
             "from": "import",
+        }
+        self.assertEqual(values, expected_values)
+
+        expected_extra = {
             "simple_meta": "simple_meta_value",
             "dict_meta": {"dict_meta_value": "dict_meta_value"},
         }
-
-        self.assertEqual(values, expected_values)
+        self.assertEqual(extra, expected_extra)

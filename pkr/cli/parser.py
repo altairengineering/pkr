@@ -258,11 +258,9 @@ def configure_kard_parser(parser):
     create_kard_p.set_defaults(func=lambda args: Kard.create(**args.__dict__))
     create_kard_p.add_argument("name", help="The name of the kard")
     create_kard_p.add_argument("-e", "--env", default="dev", help="The environment (dev/prod)")
-
     create_kard_p.add_argument(
         "-d", "--driver", default="compose", help="The pkr driver to use {}".format(list_drivers())
     )
-
     create_kard_p.add_argument(
         "-m", "--meta", type=argparse.FileType("r"), help="A file to load meta from"
     )
@@ -293,10 +291,21 @@ def configure_kard_parser(parser):
 
     get_kard = sub_p.add_parser("get", help="Get current kard")
 
-    def _get_kard_handler():
+    def _get_kard_handler(_):
         write("Current Kard: {}".format(Kard.get_current()))
 
     get_kard.set_defaults(func=_get_kard_handler)
+
+    dump_kard = sub_p.add_parser(
+        "dump", help="Dump current kard templating context (including all values)"
+    )
+    dump_kard.add_argument(
+        "-c",
+        "--cleaned",
+        action="store_true",
+        help="Include only kard specific values (effectively dump the content of meta.yml)",
+    )
+    dump_kard.set_defaults(func=lambda args: write(Kard.load_current().dump(**args.__dict__)))
 
     load_kard = sub_p.add_parser("load", help="Load a kard")
     load_kard.set_defaults(func=lambda a: Kard.set_current(a.name))

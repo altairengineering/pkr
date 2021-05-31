@@ -118,6 +118,35 @@ def merge(source, destination, overwrite=True):
     return destination
 
 
+def diff(previous, current):
+    """Deep diff 2 dicts
+
+    Return a dict of new elements in the `current` dict.
+    Does not handle removed elements.
+    """
+    result = {}
+
+    for key in current.keys():
+        value = current[key]
+        p_value = previous.get(key, None)
+        if p_value is None:
+            result[key] = value
+            continue
+
+        if isinstance(value, dict):
+            difference = diff(previous.get(key, {}), value)
+            if difference:
+                result[key] = difference
+
+        elif isinstance(value, list):
+            result[key] = [x for x in value if x not in p_value]
+
+        elif value != p_value:
+            result[key] = value
+
+    return result
+
+
 def generate_password(pw_len=15):
     """Generate a password"""
     alphabet = "abcdefghijklmnopqrstuvwxyz"

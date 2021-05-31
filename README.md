@@ -15,6 +15,8 @@ Meta(s) follow this order of precedence (most important to lower):
  * command line `meta` file (--meta)
  * extensions `setup` method
  * driver `get_meta` method
+ * features file
+ * features `import` directive
  * environment
  * environment `import` directive
 

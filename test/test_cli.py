@@ -58,15 +58,15 @@ class TestCLI(pkrTestCase):
         self.assertEqual(1, prc.returncode)
 
         error_msg = b"Current path .* is not a valid pkr path, " b"no usable env found\n"
-        stdout = prc.stdout.read()
-        self.assertRegex(stdout, error_msg)
+        stderr = prc.stderr.read()
+        self.assertRegex(stderr, error_msg)
 
     def test_should_use_valid_pkr_path_from_env(self):
         cmd = "{} kard list".format(self.PKR)
 
         prc = self._run_cmd(cmd)
 
-        self.assertEqual(0, prc.returncode, prc.stdout.read())
+        self.assertEqual(0, prc.returncode, prc.stderr.read())
 
     def test_should_not_use_invalid_pkr_path_from_env(self):
         os.environ[PATH_ENV_VAR] = "/dev"
@@ -74,24 +74,24 @@ class TestCLI(pkrTestCase):
         cmd = "{} kard list".format(self.PKR)
 
         prc = self._run_cmd(cmd)
-        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
 
-        self.assertEqual(1, prc.returncode, stdout)
+        self.assertEqual(1, prc.returncode, stderr)
 
         error_msg = b"Given path .* is not a valid pkr path, " b"no usable env found\n"
-        self.assertRegex(stdout, error_msg, stdout)
+        self.assertRegex(stderr, error_msg, stderr)
 
     def test_should_not_use_invalid_pkr_path_from_current_path(self):
         os.environ.pop(PATH_ENV_VAR)
         cmd = "cd {} && {} kard list".format("/", self.PKR)
 
         prc = self._run_cmd(cmd)
-        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
 
-        self.assertEqual(1, prc.returncode, stdout)
+        self.assertEqual(1, prc.returncode, stderr)
 
         error_msg = b"Current path .* is not a valid pkr path, " b"no usable env found\n"
-        self.assertRegex(stdout, error_msg, stdout)
+        self.assertRegex(stderr, error_msg, stderr)
 
     def test_should_use_valid_pkr_path_from_current_path(self):
         cmd = "cd {} && {} kard list".format(os.environ.pop(PATH_ENV_VAR), self.PKR)
@@ -136,16 +136,18 @@ class TestCLI(pkrTestCase):
 
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
 
         self.assertEqual(0, prc.returncode, stdout)
 
-        msg = (
+        msg_err = (
             b"WARNING: Feature g is duplicated in import dev/e from env dev\n"
             b"WARNING: Feature e is duplicated in env dev\n"
             b"WARNING: Feature g is duplicated in feature e from env dev\n"
-            b"Current kard is now: test\n"
         )
+        msg = b"Current kard is now: test\n"
         self.assertEqual(msg, stdout, stdout)
+        self.assertEqual(msg_err, stderr, stderr)
 
         meta_file = self.pkr_path / "kard" / "test" / "meta.yml"
         self.assertTrue(meta_file.exists())
@@ -153,8 +155,7 @@ class TestCLI(pkrTestCase):
         expected_meta = {
             "driver": {"name": "compose"},
             "env": "dev",
-            "features": ["h", "g", "f", "e"],
-            "project_name": self.pkr_path.name.lower(),
+            "features": [],
             "src_path": "{}/kard/test/src".format(str(self.pkr_path)),
             "tag": "123",
         }
@@ -172,16 +173,18 @@ class TestCLI(pkrTestCase):
 
         self.assertEqual(0, prc.returncode)
 
-        msg = (
+        msg_err = (
             b"WARNING: Feature a is duplicated in passed meta\n"
             b"WARNING: Feature c is duplicated in args\n"
             b"WARNING: Feature g is duplicated in import dev/e from env dev\n"
             b"WARNING: Feature e is duplicated in env dev\n"
             b"WARNING: Feature g is duplicated in feature e from env dev\n"
-            b"Current kard is now: test\n"
         )
+        msg = b"Current kard is now: test\n"
         stdout = prc.stdout.read()
-        self.assertEqual(msg, stdout)
+        stderr = prc.stderr.read()
+        self.assertEqual(msg, stdout, stdout)
+        self.assertEqual(msg_err, stderr, stderr)
 
         meta_file = self.pkr_path / "kard" / "test" / "meta.yml"
         self.assertTrue(meta_file.exists())
@@ -189,13 +192,19 @@ class TestCLI(pkrTestCase):
         expected_meta = {
             "driver": {"name": "compose"},
             "env": "dev",
-            "features": ["h", "g", "f", "e", "b", "a", "d", "c"],
-            "project_name": self.pkr_path.name.lower(),
+            "features": ["b", "a", "d", "c"],
             "src_path": "{}/kard/test/src".format(str(self.pkr_path)),
             "tag": "123",
         }
 
         self.assertEqual(expected_meta, yaml.safe_load(meta_file.open("r")))
+
+        # Test pkr kard dump
+        cmd = "{} kard dump".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        dump = yaml.safe_load(prc.stdout)
+        self.assertEqual(dump.get("features", []), ["h", "g", "f", "e", "b", "a", "d", "c"])
+        self.assertEqual(dump.get("env_meta"), "dummy")
 
     def test_kard_make(self):
         self.generate_kard()
@@ -207,9 +216,6 @@ class TestCLI(pkrTestCase):
         self.assertEqual(0, prc.returncode, stdout)
 
         msg = (
-            b"WARNING: Feature g is duplicated in import dev/e from env dev\n"
-            b"WARNING: Feature e is duplicated in env dev\n"
-            b"WARNING: Feature g is duplicated in feature e from env dev\n"
             b"Removing docker-context... done !\n"
             b"(Re)creating docker-context... done !\n"
             b"Recreating sources in pkr context... done !\n"
@@ -225,6 +231,7 @@ class TestCLI(pkrTestCase):
 
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
         self.assertEqual(1, prc.returncode, stdout)
 
         expected_cmd_output = b"Pulling backend:test from dummyregistry/backend:remote_tag..."
@@ -234,10 +241,10 @@ class TestCLI(pkrTestCase):
         error_outputs = stdout.split(b"\n")[:-1]
         # 1 line for the command output
         # 4 lines with the same error (3 tries, and the final print)
-        self.assertEqual(len(error_outputs), 8, stdout)
-        self.assertEqual(error_outputs[3], expected_cmd_output)
+        self.assertEqual(len(error_outputs), 4, stdout)
+        self.assertEqual(error_outputs[0], expected_cmd_output)
 
-        errors = error_outputs[4:]
+        errors = error_outputs[1:]
         # Check for 3 lines with the same message that indicate we have
         # retried 3 times
         self.assertRegex(errors[0], expected_error_regex)
@@ -245,7 +252,7 @@ class TestCLI(pkrTestCase):
         self.assertRegex(errors[2], expected_error_regex)
         # Check that the last line is the final error print with the proper
         # error type
-        self.assertRegex(errors[-1], expected_final_print_prefix)
+        self.assertRegex(stderr, expected_final_print_prefix)
 
     def test_image_push(self):
         self.generate_kard()
@@ -254,20 +261,21 @@ class TestCLI(pkrTestCase):
 
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
         self.assertEqual(1, prc.returncode, stdout)
 
-        expected_cmd_output = b"Pushing backend:foo to testrepo.io/backend:foo"
+        expected_cmd_output = b"Pushing backend:foo to testrepo.io/backend:foo\n"
         expected_cmd_output_2 = re.compile(
             b"ERROR: \(ImageNotFound\) 404 Client Error for http\+docker://.*: "
             b'Not Found \("No such image: backend:foo"\)'
         )
 
-        error_outputs = stdout.split(b"\n")[:-1]
+        error_outputs = stderr.split(b"\n")[:-1]
         # 1 line for the command output
         # 4 lines with the same error (3 tries, and the final print)
-        self.assertEqual(len(error_outputs), 5, stdout)
-        self.assertEqual(error_outputs[3], expected_cmd_output)
-        assert re.match(expected_cmd_output_2, error_outputs[4])
+        self.assertEqual(len(error_outputs), 4, stdout)
+        self.assertEqual(stdout, expected_cmd_output)
+        assert re.match(expected_cmd_output_2, error_outputs[3])
 
 
 class TestKardMake(pkrTestCase):
