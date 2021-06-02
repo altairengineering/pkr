@@ -10,6 +10,7 @@ import unittest
 import tempfile
 import os
 import shutil
+import subprocess
 
 
 from pathlib import Path
@@ -81,9 +82,15 @@ class pkrTestCase(unittest.TestCase):
     pkr_folder = None
     kard_name = "test"
     kard_env = None
-    kard_driver = "compose"
+    kard_driver = None
     kard_features = ()
     kard_extra = {"tag": "test"}
+
+    @staticmethod
+    def _run_cmd(cmd):
+        prc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        prc.wait()
+        return prc
 
     @classmethod
     def generate_kard(cls):

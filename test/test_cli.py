@@ -4,8 +4,6 @@
 import os
 from stat import S_IMODE
 import shutil
-import subprocess
-import unittest
 
 import re
 import yaml
@@ -20,12 +18,7 @@ class TestCLI(pkrTestCase):
     PKR = "pkr"
     pkr_folder = "path1"
     kard_env = "dev"
-
-    @staticmethod
-    def _run_cmd(cmd):
-        prc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        prc.wait()
-        return prc
+    kard_driver = "compose"
 
     def test_help(self):
         cmd = "{} -h".format(self.PKR)
@@ -153,10 +146,8 @@ class TestCLI(pkrTestCase):
         self.assertTrue(meta_file.exists())
 
         expected_meta = {
-            "driver": {"name": "compose"},
             "env": "dev",
             "features": [],
-            "src_path": "{}/kard/test/src".format(str(self.pkr_path)),
             "tag": "123",
         }
 
@@ -190,10 +181,8 @@ class TestCLI(pkrTestCase):
         self.assertTrue(meta_file.exists())
 
         expected_meta = {
-            "driver": {"name": "compose"},
             "env": "dev",
             "features": ["b", "a", "d", "c"],
-            "src_path": "{}/kard/test/src".format(str(self.pkr_path)),
             "tag": "123",
         }
 
@@ -205,6 +194,7 @@ class TestCLI(pkrTestCase):
         dump = yaml.safe_load(prc.stdout)
         self.assertEqual(dump.get("features", []), ["h", "g", "f", "e", "b", "a", "d", "c"])
         self.assertEqual(dump.get("env_meta"), "dummy")
+        self.assertEqual(dump.get("src_path"), "/tmp")
 
     def test_kard_make(self):
         self.generate_kard()
@@ -278,10 +268,28 @@ class TestCLI(pkrTestCase):
         assert re.match(expected_cmd_output_2, error_outputs[3])
 
 
+class TestCLIProd(pkrTestCase):
+    PKR = "pkr"
+    pkr_folder = "path2"
+    kard_env = "prod"
+
+    def test_kard_driver_coming_from_env(self):
+        self.generate_kard()
+        self.make_kard()
+
+        k8s_path = self.pkr_path / "kard" / "test" / "k8s"
+        self.assertTrue(k8s_path.exists())
+
+    def test_src_path_coming_from_env(self):
+        self.generate_kard()
+        self.make_kard()
+
+
 class TestKardMake(pkrTestCase):
     kard_extra = {"tag": "test", "foo": "bar"}
     pkr_folder = "path1"
     kard_env = "dev"
+    kard_driver = "compose"
 
     def test_docker_compose_present(self):
         self.generate_kard()
@@ -295,7 +303,7 @@ class TestKardMake(pkrTestCase):
             "services": {},
             "paths": [
                 str(self.context_path.resolve() / "test"),
-                str(self.pkr_path / "kard" / "test" / "src" / "test"),
+                str("/tmp/test"),
             ],
         }
 
@@ -392,6 +400,24 @@ class TestKardMakeWithExtensionDev(TestKardMake):
     pkr_folder = "path2"
     kard_env = "dev"
 
+    def test_docker_compose_present(self):
+        self.generate_kard()
+        self.make_kard()
+
+        # Check if files are created
+        dc_file = self.pkr_path / "kard" / "current" / "docker-compose.yml"
+        self.assertTrue(dc_file.exists())
+
+        expected_docker_compose = {
+            "services": {},
+            "paths": [
+                str(self.context_path.resolve() / "test"),
+                str(self.pkr_path / "kard" / "test" / "src" / "test"),
+            ],
+        }
+
+        self.assertEqual(expected_docker_compose, yaml.safe_load(dc_file.open("r")))
+
     def test_dockerfile_present(self):
         self.generate_kard()
         self.make_kard()
@@ -408,6 +434,24 @@ class TestKardMakeWithExtensionDev(TestKardMake):
 class TestKardMakeWithExtensionProd(TestKardMake):
     pkr_folder = "path2"
     kard_env = "prod"
+
+    def test_docker_compose_present(self):
+        self.generate_kard()
+        self.make_kard()
+
+        # Check if files are created
+        dc_file = self.pkr_path / "kard" / "current" / "docker-compose.yml"
+        self.assertTrue(dc_file.exists())
+
+        expected_docker_compose = {
+            "services": {},
+            "paths": [
+                str(self.context_path.resolve() / "test"),
+                str(self.pkr_path / "kard" / "test" / "src" / "test"),
+            ],
+        }
+
+        self.assertEqual(expected_docker_compose, yaml.safe_load(dc_file.open("r")))
 
     def test_dockerfile_present(self):
         self.generate_kard()

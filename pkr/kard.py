@@ -50,14 +50,12 @@ class Kard(object):
             env_name=self.clean_meta["env"], features=self.clean_meta["features"].copy()
         )
 
-        if not Path(self.clean_meta["src_path"]).is_absolute():
-            self.clean_meta["src_path"] = str(
-                (self.env.pkr_path / self.clean_meta["src_path"]).resolve()
-            )
-
-        self.driver = load_driver(self.clean_meta["driver"]["name"])
-
         self.compute_meta(self, self.clean_meta)
+
+        if "src_path" not in self.meta:
+            self.meta["src_path"] = str(self.path / self.LOCAL_SRC)
+        if not Path(self.meta["src_path"]).is_absolute():
+            self.meta["src_path"] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
 
         self.context = Context(self)
 
@@ -132,11 +130,14 @@ class Kard(object):
         kard_path.mkdir(exist_ok=True)
 
         try:
-            extras.setdefault("driver", {})["name"] = driver
+            if driver is not None:
+                extras.setdefault("driver", {})["name"] = driver
             extras["env"] = env
             # If a path is provided, we take it. Otherwise, we use a src folder
             # in the kard folder.
-            extras.update({"src_path": extras.pop("src_path", str(kard_path / cls.LOCAL_SRC))})
+            src_path = extras.pop("src_path", None)
+            if src_path is not None:
+                extras.update({"src_path": src_path})
 
             kard = cls(name, kard_path, extras)
 
@@ -228,9 +229,15 @@ class Kard(object):
         # Copy extra to meta
         kard.meta = copy.deepcopy(extra)
 
-        # Compute overall context in kard.meta
+        # Add env to overall context in kard.meta
         merge(kard.env.get_meta(extra), kard.meta)  # Extra receiving ask_input values
+
+        # Load driver an add it to overall context
+        kard.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
+        kard.driver = load_driver(kard.meta["driver"]["name"])
         merge(kard.driver.get_meta(extra, kard), kard.meta)  # Extra receiving ask_input values
+
+        # Copy overall context as diff base
         overall_context = copy.deepcopy(kard.meta)
 
         # Extensions (give them a copy of extra, ext should not interact with it)

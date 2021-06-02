@@ -26,9 +26,11 @@ class TestEnvironment(unittest.TestCase):
         expected_env = {
             "containers": {"backend": {"dockerfile": "backend.dockerfile"}},
             "default_features": ["auto-volume"],
-            "default_meta": {"from": "env"},
-            "driver": {
-                "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+            "default_meta": {
+                "from": "env",
+                "driver": {
+                    "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+                },
             },
             "import": ["common/env"],
             "use_volume": True,
@@ -38,14 +40,20 @@ class TestEnvironment(unittest.TestCase):
         self.assertEqual(env.features, ["first", "second", "auto-volume"])
 
     def test_load_prod_environment(self):
+        self.maxDiff = None
         env = Environment("prod")
 
         expected_env = {
             "containers": {"backend": {"dockerfile": "backend.dockerfile"}},
             "default_features": ["auto-volume"],
-            "default_meta": {"from": "import"},
-            "driver": {
-                "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+            "default_meta": {
+                "driver": {
+                    "docker_compose": {"compose_file": "templates/docker-compose.yml.template"},
+                    "k8s": {"k8s_files": ["templates/k8s.yml.template"]},
+                    "name": "k8s",
+                },
+                "from": "import",
+                "registry": False,
             },
             "import": ["common/env"],
             "use_volume": False,
@@ -59,9 +67,11 @@ class TestEnvironment(unittest.TestCase):
         expected_env = {
             "containers": {"backend": {"dockerfile": "backend.dockerfile"}},
             "default_features": ["auto-volume"],
-            "default_meta": {"from": "import"},
-            "driver": {
-                "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+            "default_meta": {
+                "driver": {
+                    "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+                },
+                "from": "import",
             },
             "import": ["common/env"],
             "required_meta": ["simple_meta", {"dict_meta": ["dict_meta_value"]}],
@@ -82,6 +92,9 @@ class TestEnvironment(unittest.TestCase):
                 self.assertIn(func_call, std_mock.call_args_list)
 
         expected_values = {
+            "driver": {
+                "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+            },
             "features": ["auto-volume"],
             "from": "import",
         }

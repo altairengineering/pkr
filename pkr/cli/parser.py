@@ -259,7 +259,7 @@ def configure_kard_parser(parser):
     create_kard_p.add_argument("name", help="The name of the kard")
     create_kard_p.add_argument("-e", "--env", default="dev", help="The environment (dev/prod)")
     create_kard_p.add_argument(
-        "-d", "--driver", default="compose", help="The pkr driver to use {}".format(list_drivers())
+        "-d", "--driver", default=None, help="The pkr driver to use {}".format(list_drivers())
     )
     create_kard_p.add_argument(
         "-m", "--meta", type=argparse.FileType("r"), help="A file to load meta from"

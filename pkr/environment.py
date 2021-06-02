@@ -74,6 +74,13 @@ class Environment(object):
         """Ensure that all metadata are present"""
         default = self.env.get("default_meta")
 
+        if "driver" in self.env:
+            write(
+                f"DEPRECATION: driver should be under default_meta in env {self.env_name}",
+                error=True,
+            )
+            merge(self.env["driver"], default.setdefault("driver", {}), overwrite=False)
+
         if not default:  # This prevent an empty value in the YAML
             default = {}
 
