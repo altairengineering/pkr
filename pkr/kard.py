@@ -15,7 +15,15 @@ from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
 from .cli.log import write
-from .utils import PkrException, TemplateEngine, get_kard_root_path, merge, diff, features_merge
+from .utils import (
+    PkrException,
+    TemplateEngine,
+    get_kard_root_path,
+    merge,
+    diff,
+    dedup_list,
+    merge_lists,
+)
 
 
 class KardNotFound(PkrException):
@@ -99,15 +107,16 @@ class Kard(object):
         if meta:
             extras.update(yaml.safe_load(meta))
         extras.update({a[0]: a[1] for a in [a.split("=", 1) for a in extra]})
-        for feature in features_merge(extras["features"]):
+        for feature in dedup_list(extras["features"]):
             write("WARNING: Feature {} is duplicated in passed meta".format(feature), error=True)
 
         try:
             extra_features = features
             if extra_features is not None:
                 extra_features = extra_features.split(",")
-                for feature in features_merge(extra_features, extras["features"], False):
+                for feature in dedup_list(extra_features):
                     write("WARNING: Feature {} is duplicated in args".format(feature), error=True)
+                merge_lists(extra_features, extras["features"], insert=False)
         except AttributeError:
             pass
 
@@ -250,8 +259,7 @@ class Kard(object):
         merge(extra, kard.meta)
 
         # Append features
-        for _ in features_merge(features, kard.meta["features"], False):
-            pass
+        merge_lists(features, kard.meta["features"], insert=False)
         extra["features"] = features
 
         return extra

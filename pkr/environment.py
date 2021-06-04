@@ -7,7 +7,14 @@ import yaml
 from builtins import object
 
 from pkr.cli.log import write
-from .utils import HashableDict, ensure_definition_matches, get_pkr_path, merge, features_merge
+from .utils import (
+    HashableDict,
+    ensure_definition_matches,
+    get_pkr_path,
+    merge,
+    dedup_list,
+    merge_lists,
+)
 
 ENV_FOLDER = "env"
 
@@ -30,20 +37,23 @@ class Environment(object):
         self.env = self._load_env_file(env_file_path)
 
         self.features = features or []
-        for feature in features_merge(self.env.get("default_features", []), self.features):
+        for feature in dedup_list(self.env.get("default_features", [])):
             write(
                 "WARNING: Feature {} is duplicated in env {}".format(feature, env_name), error=True
             )
+        merge_lists(self.env.get("default_features", []), self.features)
 
         for feature in self.features:
             f_path = env_path / (feature + ".yml")
             if f_path.is_file():
                 content = self._load_env_file(f_path)
-                for dup in features_merge(content.pop("default_features", []), self.features):
+                feature_features = content.pop("default_features", [])
+                for dup in dedup_list(feature_features):
                     write(
                         f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}",
                         error=True,
                     )
+                merge_lists(feature_features, self.features)
                 merge(content, self.env)
 
     def _load_env_file(self, path):
@@ -60,13 +70,13 @@ class Environment(object):
             imp_path = self.path / (imp_name + ".yml")
             imp_data = self._load_env_file(imp_path)
             imp_data.pop(self.IMPORT_KEY, None)
-            for dup in features_merge(
-                imp_data.pop("default_features", []), content["default_features"]
-            ):
+            imp_features = imp_data.pop("default_features", [])
+            for dup in dedup_list(imp_features):
                 write(
                     f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}",
                     error=True,
                 )
+            merge_lists(imp_features, content["default_features"])
             content = merge(content, imp_data)
         return content
 
