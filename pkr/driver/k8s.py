@@ -79,7 +79,7 @@ class KubernetesPkr(Pkr):
     def populate_kard(self):
         tpl_engine = self.kard.get_template_engine()
 
-        k8s_files = self.kard.env.env["driver"]["k8s"].get("k8s_files", [])
+        k8s_files = self.kard.meta["driver"].get("k8s", {}).get("k8s_files", [])
 
         if k8s_files is not None:
             for k8s_file in k8s_files:

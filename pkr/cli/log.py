@@ -11,15 +11,18 @@ def set_debug(debug=False):
     _DEBUG = debug
 
 
-def write(msg, add_return=True):
+def write(msg, add_return=True, error=False):
     """Print the `msg` to the stdout"""
     if add_return:
         msg = str(msg) + "\n"
-    sys.stdout.write(msg)
-    sys.stdout.flush()
+    fd = sys.stdout
+    if error:
+        fd = sys.stderr
+    fd.write(msg)
+    fd.flush()
 
 
 def debug(msg):
     """Print the `msg` to the stdout if debug mode is set"""
     if _DEBUG:
-        write(msg)
+        write(msg, error=True)

@@ -3,8 +3,8 @@
 
 """pkr Kard"""
 
-import os
 import shutil
+import copy
 
 import yaml
 from pathlib import Path
@@ -14,7 +14,16 @@ from .context import Context
 from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
-from .utils import PkrException, TemplateEngine, get_kard_root_path, merge
+from .cli.log import write
+from .utils import (
+    PkrException,
+    TemplateEngine,
+    get_kard_root_path,
+    merge,
+    diff,
+    dedup_list,
+    merge_lists,
+)
 
 
 class KardNotFound(PkrException):
@@ -38,19 +47,23 @@ class Kard(object):
 
         if meta is None:
             with self.meta_file.open() as meta_file:
-                self.meta = yaml.safe_load(meta_file)
+                self.clean_meta = yaml.safe_load(meta_file)
         else:
-            self.meta = meta
+            self.clean_meta = meta
 
-        if self.meta["env"] is None:
+        if self.clean_meta["env"] is None:
             return
 
-        self.env = Environment(env_name=self.meta["env"], features=self.meta["features"])
+        self.env = Environment(
+            env_name=self.clean_meta["env"], features=self.clean_meta["features"].copy()
+        )
 
+        self.compute_meta(self, self.clean_meta)
+
+        if "src_path" not in self.meta:
+            self.meta["src_path"] = str(self.path / self.LOCAL_SRC)
         if not Path(self.meta["src_path"]).is_absolute():
             self.meta["src_path"] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
-
-        self.driver = load_driver(self.meta["driver"]["name"])
 
         self.context = Context(self)
 
@@ -64,26 +77,11 @@ class Kard(object):
         """Return the Extension class loaded with the correct instance"""
         return Extensions(self.meta["features"])
 
-    def save_meta(self):
-        """Persist the kard to the meta file"""
-        with self.meta_file.open("w") as meta_file:
-            yaml.safe_dump(self.meta, meta_file, default_flow_style=False)
-
     def make(self, reset=True):
         """Make the kard"""
         self.context.populate_context(reset)
-        self.generate_configuration()
         self.extensions.populate_kard()
         self.docker_cli.populate_kard()
-
-    def generate_configuration(self):
-        """Generate configuration files for docker (outside the Docker context,
-        as they will be integrated as volumes).
-
-        Merges the file from the pclm directory, and merge them with the
-        default
-        in the default_config folder.
-        """
 
     @classmethod
     def list(cls, kubernetes=False):
@@ -103,33 +101,63 @@ class Kard(object):
         return kards
 
     @classmethod
-    def create(cls, kard_name, env_name, driver_name, extra):
+    def create(cls, name, env, driver, features, meta, extra, **kwargs):
         """Factory method to create a new kard"""
+        extras = {"features": []}
+        if meta:
+            extras.update(yaml.safe_load(meta))
+        extras.update({a[0]: a[1] for a in [a.split("=", 1) for a in extra]})
+        for feature in dedup_list(extras["features"]):
+            write("WARNING: Feature {} is duplicated in passed meta".format(feature), error=True)
+
+        try:
+            extra_features = features
+            if extra_features is not None:
+                extra_features = extra_features.split(",")
+                for feature in dedup_list(extra_features):
+                    write("WARNING: Feature {} is duplicated in args".format(feature), error=True)
+                merge_lists(extra_features, extras["features"], insert=False)
+        except AttributeError:
+            pass
+
+        # Sanitize input metas
+        for key, value in list(extras.items()):
+            if isinstance(value, str) and value.lower() in ("true", "false"):
+                extras[key] = value = value.lower() == "true"
+            if "." in key:
+                extras.pop(key)
+                dict_it = extras
+                sub_keys = key.split(".")
+                for sub_key in sub_keys[:-1]:
+                    dict_it = dict_it.setdefault(sub_key, {})
+                dict_it[sub_keys[-1]] = value
+
         # Create the folder
         get_kard_root_path().mkdir(exist_ok=True)
 
-        kard_path = cls._build_kard_path(kard_name)
+        kard_path = cls._build_kard_path(name)
         kard_path.mkdir(exist_ok=True)
 
         try:
-            features = extra.pop("features") if "features" in extra else []
-            meta = {"env": env_name, "driver": {"name": driver_name}, "features": features}
-
-            # PBS Cloud source code
+            if driver is not None:
+                extras.setdefault("driver", {})["name"] = driver
+            extras["env"] = env
             # If a path is provided, we take it. Otherwise, we use a src folder
             # in the kard folder.
-            meta.update({"src_path": extra.pop("src_path", str(kard_path / cls.LOCAL_SRC))})
+            src_path = extras.pop("src_path", None)
+            if src_path is not None:
+                extras.update({"src_path": src_path})
 
-            kard = cls(kard_name, kard_path, meta)
+            kard = cls(name, kard_path, extras)
 
-            if env_name is not None:
-                cls.set_meta(kard, extra)
-
+            if env is not None:
+                kard.update()
         except Exception:
             # If anything happened, we remove the folder
             shutil.rmtree(str(kard_path))
             raise
 
+        Kard.set_current(kard.name)
         return kard
 
     @classmethod
@@ -140,7 +168,8 @@ class Kard(object):
     def get_current(cls):
         """Return the current kard name"""
         current_kard_path = cls._build_kard_path(cls.CURRENT_NAME)
-        return current_kard_path.resolve().name
+        name = current_kard_path.resolve().name
+        return name
 
     @classmethod
     def load(cls, name):
@@ -174,30 +203,66 @@ class Kard(object):
         # Remove the link if it exists
         try:
             current_path = cls._build_kard_path(cls.CURRENT_NAME)
-            os.unlink(str(current_path))
+            current_path.unlink()
         except OSError:
             pass
 
         # Link the new context
         current_path.symlink_to(dst_path)
+        write("Current kard is now: {}".format(kard_name))
 
     def update(self):
         """Update the kard"""
-        self.set_meta(self, self.meta)
+        with self.meta_file.open("w") as meta_file:
+            yaml.safe_dump(self.clean_meta, meta_file, default_flow_style=False)
+
+    def dump(self, cleaned=True, **kwargs):
+        """Dump overall templating context meta"""
+        return yaml.safe_dump(self.clean_meta if cleaned else self.meta, default_flow_style=False)
 
     @staticmethod
-    def set_meta(kard, extra):
-        """Set/update the meta"""
-        merge(kard.env.get_meta(extra), kard.meta)
-        merge(kard.driver.get_meta(extra, kard), kard.meta)
+    def compute_meta(kard, extra):
+        """
+        Compute meta
 
-        # Extensions
-        kard.extensions.setup(extra, kard)
+        Process:
+         - Compute meta context (env + driver + kard specific)
+         - Save meta for later diff
+         - Call extensions `setup` which may alter meta
+         - Diff what has been changed by extensions
+         - Apply command line meta(s) on top
+        """
+        # Extract features to push them later (ensure precedence)
+        features = extra.pop("features", [])
 
-        # We add all remaining extra to the meta
+        # Copy extra to meta
+        kard.meta = copy.deepcopy(extra)
+
+        # Add env to overall context in kard.meta
+        merge(kard.env.get_meta(extra), kard.meta)  # Extra receiving ask_input values
+
+        # Load driver an add it to overall context
+        kard.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
+        kard.driver = load_driver(kard.meta["driver"]["name"])
+        merge(kard.driver.get_meta(extra, kard), kard.meta)  # Extra receiving ask_input values
+
+        # Copy overall context as diff base
+        overall_context = copy.deepcopy(kard.meta)
+
+        # Extensions (give them a copy of extra, ext should not interact with it)
+        kard.extensions.setup(copy.deepcopy(extra), kard)
+
+        # Making a diff and apply it to extra without overwrite (we want cli to superseed extensions)
+        merge(diff(overall_context, kard.meta), extra, overwrite=False)
+
+        # We add all remaining extra to the meta(s) (cli superseed all)
         merge(extra, kard.meta)
 
-        kard.save_meta()
+        # Append features
+        merge_lists(features, kard.meta["features"], insert=False)
+        extra["features"] = features
+
+        return extra
 
     def get_template_engine(self, extra_data=None):
         data = self.meta.copy()
@@ -232,3 +297,59 @@ class Kard(object):
         tpl_engine = TemplateEngine(data)
 
         return tpl_engine
+
+    def build_images(
+        self, services, tag, nocache, parallel, no_rebuild, rebuild_context, **kwargs
+    ):
+        """Build images"""
+        if rebuild_context:
+            self.make()
+
+        services = services or list(self.env.get_container().keys())
+        self.docker_cli.build_images(
+            services,
+            tag=tag,
+            nocache=nocache,
+            parallel=parallel,
+            no_rebuild=no_rebuild,
+        )
+
+    def push_images(
+        self, services, registry, username, password, tag, other_tags, parallel, **kwargs
+    ):
+        """Push images"""
+        services = services or list(self.env.get_container().keys())
+        registry = self.docker_cli.get_registry(url=registry, username=username, password=password)
+        self.docker_cli.push_images(
+            services, registry, tag=tag, other_tags=other_tags, parallel=parallel
+        )
+
+    def pull_images(self, services, registry, username, password, tag, parallel, **kwargs):
+        """Pull images"""
+        services = services or list(self.env.get_container().keys())
+        registry = self.docker_cli.get_registry(url=registry, username=username, password=password)
+        self.docker_cli.pull_images(services, registry, tag=tag, parallel=parallel)
+
+    def download_images(self, **args):
+        """Download images"""
+        services = args.services or list(self.env.get_container().keys())
+        registry = self.docker_cli.get_registry(
+            url=args.registry, username=args.username, password=args.password
+        )
+        self.docker_cli.download_images(services, registry, tag=args.tag, nopull=args.nopull)
+
+    def import_images(self, services, tag, **kwargs):
+        services = services or list(self.env.get_container().keys())
+        self.docker_cli.import_images(services, tag=tag)
+
+    def list_images(self, services, tag, **kwargs):
+        """List images"""
+        services = services or list(self.env.get_container().keys())
+        if tag is None:
+            tag = self.meta["tag"]
+        for service in services:
+            write(self.docker_cli.make_image_name(service, tag))
+
+    def purge_images(self, tag, except_tag, repository, **kwargs):
+        """Purge images"""
+        self.docker_cli.purge(except_tag, tag, repository)

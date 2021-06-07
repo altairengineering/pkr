@@ -92,7 +92,7 @@ class HashableDict(dict):
         return self.__key() == other.__key()  # pylint: disable=W0212
 
 
-def merge(source, destination):
+def merge(source, destination, overwrite=True):
     """Deep merge 2 dicts
 
     Warning: the source dict is merged INTO the destination one. Make a copy
@@ -102,7 +102,7 @@ def merge(source, destination):
         if isinstance(value, collections.abc.Mapping):
             # get node or create one
             node = destination.setdefault(key, {})
-            merge(value, node)
+            merge(value, node, overwrite)
         elif isinstance(value, list):
             if key in destination:
                 try:
@@ -112,10 +112,39 @@ def merge(source, destination):
                     destination[key].extend(value)
             else:
                 destination[key] = value
-        else:
+        elif overwrite or key not in destination:
             destination[key] = value
 
     return destination
+
+
+def diff(previous, current):
+    """Deep diff 2 dicts
+
+    Return a dict of new elements in the `current` dict.
+    Does not handle removed elements.
+    """
+    result = {}
+
+    for key in current.keys():
+        value = current[key]
+        p_value = previous.get(key, None)
+        if p_value is None:
+            result[key] = value
+            continue
+
+        if isinstance(value, dict):
+            difference = diff(previous.get(key, {}), value)
+            if difference:
+                result[key] = difference
+
+        elif isinstance(value, list):
+            result[key] = [x for x in value if x not in p_value]
+
+        elif value != p_value:
+            result[key] = value
+
+    return result
 
 
 def generate_password(pw_len=15):
@@ -332,16 +361,21 @@ def create_pkr_folder(pkr_path=None):
     (pkr_path / "kard").mkdir(parents=True)
 
 
-def features_merge(src, dest=None, reverse=True):
-    for feature in set(src):
-        if src.count(feature) != 1:
-            yield feature
-            src.remove(feature)
-    if dest is not None:
-        if reverse:
-            for x in reversed(src):
-                if x in dest:
-                    continue
-                dest.insert(0, x)
-        else:
-            dest.extend([x for x in src if x not in dest])
+def dedup_list(src):
+    """Dedup src list (in-place) and yield duplicates"""
+    for item in set(src):
+        if src.count(item) != 1:
+            yield item
+            src.remove(item)
+
+
+def merge_lists(src, dest, insert=True):
+    """Merge lists avoiding duplicates"""
+    if insert:
+        for x in reversed(src):
+            if x in dest:
+                continue
+            dest.insert(0, x)
+    else:
+        dest.extend([x for x in src if x not in dest])
+    return dest

@@ -62,8 +62,7 @@ class ComposePkr(Pkr):
     def __init__(self, *args, **kwargs):
         super(ComposePkr, self).__init__(*args, **kwargs)
         self._base_path = None
-        self.driver_meta = self.kard.env.env.get("driver", {}).get("docker_compose", {})
-        self.driver_meta.update(self.kard.meta["driver"])
+        self.driver_meta = self.kard.meta["driver"].get("docker_compose", {})
 
     @property
     def kard_folder_path(self):
