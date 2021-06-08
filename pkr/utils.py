@@ -304,9 +304,9 @@ def ensure_key_present(key, default, data, path=None):
     the user to input it."""
 
     if key in data:
-        return data.pop(key)
+        return data.get(key)
     if key in default:
-        return default.pop(key)
+        return default.get(key)
 
     return ask_input((path or "") + key)
 
