@@ -46,7 +46,9 @@ class Driver(AbstractDriver):
         default = kard.env.get("default_meta", {}).copy()
         merge(extras, default)
 
-        return ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
+        values = ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
+        merge(values, extras)
+        return values
 
 
 class KubernetesPkr(Pkr):

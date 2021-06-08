@@ -50,7 +50,9 @@ class Driver(AbstractDriver):
         default.setdefault("project_name", get_project_name(str(kard.path)))
         merge(extras, default)
 
-        return ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
+        values = ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
+        merge(values, extras)
+        return values
 
 
 class ComposePkr(Pkr):
