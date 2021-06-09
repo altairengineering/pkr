@@ -255,7 +255,12 @@ def configure_kard_parser(parser):
     make_context.set_defaults(func=lambda a: Kard.load_current().make(reset=a.update))
 
     create_kard_p = sub_p.add_parser("create", help="Create a new kard")
-    create_kard_p.set_defaults(func=lambda args: Kard.create(**args.__dict__))
+
+    def _create_kard_handler(args):
+        extra = {a[0]: a[1] for a in [a.split("=", 1) for a in args.__dict__.pop("extra")]}
+        return Kard.create(extra=extra, **args.__dict__)
+
+    create_kard_p.set_defaults(func=_create_kard_handler)
     create_kard_p.add_argument("name", help="The name of the kard")
     create_kard_p.add_argument("-e", "--env", default="dev", help="The environment (dev/prod)")
     create_kard_p.add_argument(
