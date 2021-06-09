@@ -148,6 +148,7 @@ class TestCLI(pkrTestCase):
         expected_meta = {
             "env": "dev",
             "features": [],
+            "project_name": "test",
             "tag": "123",
         }
 
@@ -183,6 +184,7 @@ class TestCLI(pkrTestCase):
         expected_meta = {
             "env": "dev",
             "features": ["b", "a", "d", "c"],
+            "project_name": "test",
             "tag": "123",
         }
 

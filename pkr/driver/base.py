@@ -78,18 +78,6 @@ class Pkr(object):
         container_pattern = self.kard.meta.get("container_pattern", self.SERVICE_VAR)
         return container_pattern.replace(self.SERVICE_VAR, name)
 
-    def rename_old_image(self, name_tag):
-        """If an image with the given name/tag already exists in Docker
-        and it has no other tag associated,
-        rename it by appending the current timestamp.
-        This helps to keep the name information for eventual cleanup"""
-        images = self.docker.images(name_tag)
-        if images and len(images[0]["RepoTags"]) == 1:
-            (name, _) = name_tag.split(":")
-            self.docker.tag(name_tag, name, "{}-{}".format(name, get_timestamp()))
-            # Remove the former tag, otherwise we cannot tag another image
-            self.docker.remove_image(name_tag)  # will only "untag" now
-
     def make_image_name(self, service, tag=None):
         """Return the image name formatted with the pattern in metas."""
         image_pattern = self.kard.meta.get("image_pattern", self.SERVICE_VAR)

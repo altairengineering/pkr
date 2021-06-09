@@ -1,0 +1,8 @@
+services: []
+paths:
+- {{ context_path('test') }}
+- {{ src_path('test') }}
+- {{ kard_path('test') }}
+- {{ data_path('test') }}
+- {{ make_container_name('test') }}
+- {{ make_image_name('test') }}

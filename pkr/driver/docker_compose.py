@@ -50,7 +50,9 @@ class Driver(AbstractDriver):
         default.setdefault("project_name", get_project_name(str(kard.path)))
         merge(extras, default)
 
-        return ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
+        values = ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
+        merge(values, extras)
+        return values
 
 
 class ComposePkr(Pkr):
@@ -90,9 +92,6 @@ class ComposePkr(Pkr):
             else:
                 self._base_path = Path(self.kard.path).parent
         return self._base_path
-
-    def expand_path(self, path, var="%KARD_PATH%"):
-        return path.replace(var, str(self.kard_folder_path))
 
     def _call_compose(self, *args):
         compose_file_path = self.kard.path / self.COMPOSE_FILE
