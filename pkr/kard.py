@@ -59,6 +59,7 @@ class Kard(object):
         )
 
         self.compute_meta(self, self.clean_meta)
+        self.template_meta(self.meta)
 
         if "src_path" not in self.meta:
             self.meta["src_path"] = str(self.path / self.LOCAL_SRC)
@@ -263,6 +264,22 @@ class Kard(object):
         extra["features"] = features
 
         return extra
+
+    @classmethod
+    def template_meta(cls, meta):
+        tpl_engine = TemplateEngine(meta)
+        for key, value in meta.items():
+            if isinstance(value, dict):
+                cls.template_meta(value)
+            elif isinstance(value, list):
+                tmp = []
+                for item in value:
+                    tmp.append(tpl_engine.process_string(item))
+                meta[key] = tmp
+            elif isinstance(value, str):
+                meta[key] = tpl_engine.process_string(value)
+                if meta[key].startswith("---\n"):
+                    meta[key] = yaml.safe_load(meta[key])
 
     def get_template_engine(self, extra_data=None):
         data = self.meta.copy()

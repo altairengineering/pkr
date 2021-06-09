@@ -139,7 +139,9 @@ def diff(previous, current):
                 result[key] = difference
 
         elif isinstance(value, list):
-            result[key] = [x for x in value if x not in p_value]
+            value = [x for x in value if x not in p_value]
+            if value != []:
+                result[key] = value
 
         elif value != p_value:
             result[key] = value
@@ -214,7 +216,19 @@ class TemplateEngine(object):
         rel_template_file = str(template_file.relative_to(self.pkr_path))
 
         template = self.tpl_env.get_template(rel_template_file)
-        out = template.render(self.tpl_context)  # .encode('utf-8')
+        out = template.render(self.tpl_context)
+        return out
+
+    def process_string(self, string):
+        """Process a string and render it in the context
+
+        Args:
+          - template_file: the string to template
+
+        Return the result of the processed string.
+        """
+        template = self.tpl_env.from_string(string)
+        out = template.render(self.tpl_context)
         return out
 
     def copy(self, path, origin, local_dst, excluded_paths, gen_template=False):

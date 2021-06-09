@@ -162,8 +162,9 @@ class TestCLI(pkrTestCase):
         )
 
         prc = self._run_cmd(cmd)
-
-        self.assertEqual(0, prc.returncode)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(0, prc.returncode, stderr)
 
         msg_err = (
             b"WARNING: Feature a is duplicated in passed meta\n"
@@ -173,8 +174,6 @@ class TestCLI(pkrTestCase):
             b"WARNING: Feature g is duplicated in feature e from env dev\n"
         )
         msg = b"Current kard is now: test\n"
-        stdout = prc.stdout.read()
-        stderr = prc.stderr.read()
         self.assertEqual(msg, stdout, stdout)
         self.assertEqual(msg_err, stderr, stderr)
 
@@ -197,6 +196,10 @@ class TestCLI(pkrTestCase):
         self.assertEqual(dump.get("features", []), ["h", "g", "f", "e", "b", "a", "d", "c"])
         self.assertEqual(dump.get("env_meta"), "dummy")
         self.assertEqual(dump.get("src_path"), "/tmp")
+        self.assertEqual(dump.get("templated_meta"), "MTIz")
+        self.assertEqual(dump.get("templated_hash").get("key"), "dHV0dQ==")
+        self.assertEqual(dump.get("templated_list"), ["tutu", "dHV0dQ=="])
+        self.assertEqual(dump.get("templated_inline"), ["tutu", "titi"])
 
     def test_kard_make(self):
         self.generate_kard()
