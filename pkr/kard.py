@@ -101,12 +101,12 @@ class Kard(object):
         return kards
 
     @classmethod
-    def create(cls, name, env, driver, features, meta, extra, **kwargs):
+    def create(cls, name, env, driver, extra, features=None, meta=None, **kwargs):
         """Factory method to create a new kard"""
         extras = {"features": []}
-        if meta:
+        if meta is not None:
             extras.update(yaml.safe_load(meta))
-        extras.update({a[0]: a[1] for a in [a.split("=", 1) for a in extra]})
+        extras.update(extra)
         for feature in dedup_list(extras["features"]):
             write("WARNING: Feature {} is duplicated in passed meta".format(feature), error=True)
 
