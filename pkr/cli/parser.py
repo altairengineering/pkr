@@ -31,21 +31,19 @@ def get_parser():
     stop_parser = sub_p.add_parser("stop", help="Stop pkr")
     add_service_argument(stop_parser)
 
-    stop_parser.set_defaults(func=lambda a: Kard.load_current().docker_cli.stop(a.services))
+    stop_parser.set_defaults(func=lambda a: Kard.load_current().driver.stop(a.services))
 
     # Restart parser
     restart_parser = sub_p.add_parser("restart", help="Restart pkr")
     add_service_argument(restart_parser)
 
-    restart_parser.set_defaults(func=lambda a: Kard.load_current().docker_cli.restart(a.services))
+    restart_parser.set_defaults(func=lambda a: Kard.load_current().driver.restart(a.services))
 
     # Start
     start_parser = sub_p.add_parser("start", help="Start pkr")
     add_service_argument(start_parser)
     start_parser.add_argument("-y", "--yes", action="store_true", help="Answer yes to questions")
-    start_parser.set_defaults(
-        func=lambda a: Kard.load_current().docker_cli.start(a.services, a.yes)
-    )
+    start_parser.set_defaults(func=lambda a: Kard.load_current().driver.start(a.services, a.yes))
 
     # Up parser
     up_parser = sub_p.add_parser("up", help="Rebuild context, images and start pkr")
@@ -57,19 +55,19 @@ def get_parser():
     up_parser.add_argument("--build-log", help="Log file for image building", default=None)
 
     up_parser.set_defaults(
-        func=lambda a: Kard.load_current().docker_cli.cmd_up(
+        func=lambda a: Kard.load_current().driver.cmd_up(
             a.services, verbose=a.verbose, build_log=a.build_log
         )
     )
 
     # Ps parser
     parser = sub_p.add_parser("ps", help="List containers defined in the current kard")
-    parser.set_defaults(func=lambda _: Kard.load_current().docker_cli.cmd_ps())
+    parser.set_defaults(func=lambda _: Kard.load_current().driver.cmd_ps())
 
     # Clean parser
     parser = sub_p.add_parser("clean", help="Stop and remove containers of current kard")
     parser.add_argument("-k", "--kill", action="store_true", help="Kill (SIGKILL) before clean")
-    parser.set_defaults(func=lambda a: Kard.load_current().docker_cli.clean(a.kill))
+    parser.set_defaults(func=lambda a: Kard.load_current().driver.clean(a.kill))
 
     # Kard parser
     configure_kard_parser(sub_p.add_parser("kard", help="CLI for kards manipulation"))
@@ -127,7 +125,9 @@ def configure_image_parser(parser):
         "-b", "--no-rebuild", action="store_true", help="Disable rebuild if image already exists"
     )
     add_service_argument(build_parser)
-    build_parser.set_defaults(func=lambda args: Kard.load_current().build_images(**args.__dict__))
+    build_parser.set_defaults(
+        func=lambda args: Kard.load_current().driver.build_images(**args.__dict__)
+    )
 
     # Push parser
     push_parser = sub_p.add_parser("push", help="Push docker images")
@@ -142,7 +142,9 @@ def configure_image_parser(parser):
     push_parser.add_argument(
         "--parallel", type=int, default=None, help="Number of parallel image push"
     )
-    push_parser.set_defaults(func=lambda args: Kard.load_current().push_images(**args.__dict__))
+    push_parser.set_defaults(
+        func=lambda args: Kard.load_current().driver.push_images(**args.__dict__)
+    )
 
     # Pull parser
     pull_parser = sub_p.add_parser("pull", help="Pull docker images")
@@ -154,7 +156,9 @@ def configure_image_parser(parser):
     pull_parser.add_argument(
         "--parallel", type=int, default=None, help="Number of parallel image pull"
     )
-    pull_parser.set_defaults(func=lambda args: Kard.load_current().pull_images(**args.__dict__))
+    pull_parser.set_defaults(
+        func=lambda args: Kard.load_current().driver.pull_images(**args.__dict__)
+    )
 
     # Purge parser
     purge_parser = sub_p.add_parser(
@@ -167,7 +171,9 @@ def configure_image_parser(parser):
     purge_parser.add_argument(
         "--repository", default=None, help="Delete image reference in a specified repository"
     )
-    purge_parser.set_defaults(func=lambda args: Kard.load_current().purge_images(**args.__dict__))
+    purge_parser.set_defaults(
+        func=lambda args: Kard.load_current().driver.purge_images(**args.__dict__)
+    )
 
     # List parser
     list_parser = sub_p.add_parser(
@@ -176,7 +182,9 @@ def configure_image_parser(parser):
     list_parser.add_argument("--tag", default=None, help="List images with the given tag")
     add_service_argument(list_parser)
 
-    list_parser.set_defaults(func=lambda args: Kard.load_current().list_images(**args.__dict__))
+    list_parser.set_defaults(
+        func=lambda args: Kard.load_current().driver.list_images(**args.__dict__)
+    )
 
     # Download parser
     download_parser = sub_p.add_parser(
@@ -195,7 +203,7 @@ def configure_image_parser(parser):
     )
     add_service_argument(download_parser)
     download_parser.set_defaults(
-        func=lambda args: Kard.load_current().download_images(**args.__dict__)
+        func=lambda args: Kard.load_current().driver.download_images(**args.__dict__)
     )
 
     # Import parser
@@ -203,7 +211,7 @@ def configure_image_parser(parser):
     import_parser.add_argument("--tag", default=None, help="Import images to the given tag")
     add_service_argument(import_parser)
     import_parser.set_defaults(
-        func=lambda args: Kard.load_current().import_images(**args.__dict__)
+        func=lambda args: Kard.load_current().driver.import_images(**args.__dict__)
     )
 
 

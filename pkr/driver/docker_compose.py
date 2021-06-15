@@ -11,148 +11,87 @@ import time
 import traceback
 
 from compose import config as docker_config
-from compose.cli.command import get_project_name
 import docker
 from pathlib import Path
 import yaml
 
-from .base import DOCKER_SOCK, AbstractDriver, Pkr
-from ..cli.log import write
-from ..utils import (
+from pkr.driver import docker
+from pkr.cli.log import write
+from pkr.utils import (
     PkrException,
-    get_kard_root_path,
-    get_pkr_path,
-    is_running_in_docker,
     merge,
-    ensure_definition_matches,
+    get_current_container,
 )
 
 
-class Driver(AbstractDriver):
-    """Abstract class for a driver"""
-
-    @staticmethod
-    def get_docker_client(kard):
-        """Return a driver instance"""
-        return ComposePkr(kard, DOCKER_SOCK)
-
-    @staticmethod
-    def get_meta(extras, kard):
-        """Ensure that the required meta are present.
-
-        Args:
-          * extras(dict): extra values
-          * kard: the current kard
-        """
-        metas = ["tag", "project_name"]
-
-        default = kard.env.get("default_meta", {}).copy()
-        default.setdefault("project_name", get_project_name(str(kard.path)))
-        merge(extras, default)
-
-        values = ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
-        merge(values, extras)
-        return values
-
-
-class ComposePkr(Pkr):
+class ComposePkr(docker.DockerDriver):
     """Implements pkr functions for docker-compose"""
 
     COMPOSE_BIN = "docker-compose"
     COMPOSE_FILE = "docker-compose.yml"
 
-    def __init__(self, *args, **kwargs):
-        super(ComposePkr, self).__init__(*args, **kwargs)
+    def __init__(self, kard, *args, **kwargs):
+        super().__init__(kard, *args, **kwargs)
+        self.metas.extend(["project_name"])
         self._base_path = None
-        self.driver_meta = self.kard.meta["driver"].get("docker_compose", {})
+        if self.kard is not None:
+            self.compose_file = self.kard.path / self.COMPOSE_FILE
+            self.driver_meta = self.kard.meta["driver"].get("docker_compose", {})
 
-    @property
-    def kard_folder_path(self):
-        """Property for getting the base path if running in a container"""
-        if self._base_path is None:
-            if is_running_in_docker():
-                container_id = (
-                    os.popen(
-                        "cat /proc/self/cgroup | grep docker | "
-                        'grep -o -E "[0-9a-f]{64}" | head -n 1'
-                    )
-                    .read()
-                    .rstrip()
-                )
-                cli = docker.DockerClient(version="auto")
-                cont = cli.containers.get(container_id)
-                mount = next(
-                    (
-                        c
-                        for c in cont.attrs["Mounts"]
-                        if c["Destination"] == str(get_kard_root_path())
-                    )
-                )
-                self._base_path = Path(mount["Source"])
-            else:
-                self._base_path = Path(self.kard.path).parent
-        return self._base_path
+    def get_meta(self, extras, kard):
+        values = super().get_meta(extras, kard)
+        # Retrieve the real_kard_path which is different if pkr run in container
+        kard.meta["real_kard_path"] = str(self.get_real_kard_path())
+        return values
 
     def _call_compose(self, *args):
-        compose_file_path = self.kard.path / self.COMPOSE_FILE
         compose_cmd = [
             self.COMPOSE_BIN,
             "-f",
-            str(compose_file_path),
+            str(self.compose_file),
             "-p",
             self.kard.meta["project_name"],
         ] + list(args)
         subprocess.call(compose_cmd)
 
+    def get_templates(self):
+        templates = super().get_templates()
+
+        # Cleanup merged file
+        if self.compose_file.exists():
+            self.compose_file.unlink()
+
+        if "compose_file" not in self.driver_meta:
+            write("Warning: No docker-compose file is provided with this environment.")
+            return []
+
+        for file in [self.driver_meta["compose_file"]] + self.driver_meta.get(
+            "compose_extension_files", []
+        ):
+            templates.append(
+                {
+                    "source": self.kard.env.pkr_path / file,
+                    "origin": (self.kard.env.pkr_path / file).parent,
+                    "destination": "",
+                    "subfolder": "compose",
+                }
+            )
+
+        return templates
+
     def populate_kard(self):
         """Populate context for compose"""
-
-        def get_data_path(path):
-            """Prefix the given path with the path to data volumes.
-
-            Resolves a (Kard-relative or absolute) given data_path
-            or goes with the default "<kard>/data"."""
-
-            data_path = Path(self.kard.meta.get("data_path", "data"))
-
-            if data_path.is_absolute():
-                return str(data_path / path)
-
-            return str(self.kard_folder_path / self.kard.name / data_path / path)
-
-        tpl_engine = self.kard.get_template_engine(
-            {
-                "context_path": lambda p: str(
-                    self.kard_folder_path / self.kard.name / self.kard.context.DOCKER_CONTEXT / p
-                ),
-                "kard_path": lambda p: str(self.kard_folder_path / self.kard.name / p),
-                "src_path": lambda p: str(Path(self.kard.meta["src_path"]) / p),
-                "make_container_name": self.make_container_name,
-                "make_image_name": lambda n, t=None: self.make_image_name(n, t),
-                "data_path": get_data_path,
-            }
-        )
-
-        files = self.driver_meta.get("compose_extension_files", [])
-        try:
-            compose_file = self.driver_meta["compose_file"]
-            files.insert(0, get_pkr_path() / compose_file)
-        except KeyError:
-            write("Warning: No docker-compose file is provided with this " "environment.")
-            return
-
-        compose_file = {}
-        for dfp in files:
-            # Render the template first
-            df_data = tpl_engine.process_template(get_pkr_path() / dfp)
+        merged_compose = {}
+        compose_path = self.kard.path / "compose"
+        for file in compose_path.iterdir():
             # Merge the compose_file
-            merge(yaml.safe_load(df_data), compose_file)
+            merge(yaml.safe_load(file.open("r")), merged_compose)
 
-        with (self.kard.path / self.COMPOSE_FILE).open("w") as dcf:
-            yaml.safe_dump(compose_file, dcf, default_flow_style=False)
+        with self.compose_file.open("w") as dcf:
+            yaml.safe_dump(merged_compose, dcf, default_flow_style=False)
 
     def _load_compose_config(self):
-        with (self.kard.path / self.COMPOSE_FILE).open("r") as cp_file:
+        with self.compose_file.open("r") as cp_file:
             compose_data = yaml.safe_load(cp_file)
 
         return docker_config.load(
@@ -161,6 +100,20 @@ class ComposePkr(Pkr):
                 [docker_config.config.ConfigFile(self.COMPOSE_FILE, compose_data)],
             )
         )
+
+    def get_real_kard_path(self):
+        """Get the matching host kard path if running in a container"""
+        container = get_current_container()
+        if container is None:
+            return self.kard.path
+
+        try:
+            mount = next(
+                (c for c in container.attrs["Mounts"] if c["Destination"] == str(self.kard.path))
+            )
+            return Path(mount["Source"])
+        except StopIteration:
+            return self.kard.path  # We are in container, but not a pkr one
 
     def _resolve_services(self, services=None):
         """Return a generator of actual services, or all if None is provided"""
@@ -179,33 +132,6 @@ class ComposePkr(Pkr):
 
         # Remove unexisting services
         return set(services) & set(all_services)
-
-    def build_images(
-        self,
-        services,
-        tag=None,
-        verbose=True,
-        logfile=None,
-        nocache=False,
-        parallel=None,
-        no_rebuild=False,
-    ):
-        def req_build(container):
-            """Return True if the container requires being built"""
-            try:
-                return "dockerfile" in self.kard.env.get_container(container)
-            except KeyError:
-                return False
-
-        super(ComposePkr, self).build_images(
-            [i for i in services if req_build(i)],
-            tag,
-            verbose,
-            logfile,
-            nocache,
-            parallel,
-            no_rebuild,
-        )
 
     def start(self, services=None, yes=False):
         self._call_compose("up", "-d", *(services or ()))
@@ -234,7 +160,7 @@ class ComposePkr(Pkr):
             if s["name"] in eff_modules
         )
 
-        self.build_images(images, verbose=verbose, logfile=build_log)
+        self.build_images(images, rebuild_context=False, verbose=verbose, logfile=build_log)
 
         self.start(services)
 

@@ -23,6 +23,7 @@ import shutil
 import time
 
 import jinja2
+import docker
 from pathlib import Path
 from passlib.apache import HtpasswdFile
 
@@ -166,17 +167,6 @@ def generate_password(pw_len=15):
     return "".join(pwlist)
 
 
-def ensure_dir_absent(path):
-    """Ensure a folder and its content are deleted"""
-    try:
-        shutil.rmtree(str(path))
-    except OSError as err:
-        if err.errno == errno.ENOENT:
-            pass
-        else:
-            raise
-
-
 def ask_input(name):
     return input("Missing meta({}):".format(name))
 
@@ -231,7 +221,7 @@ class TemplateEngine(object):
         out = template.render(self.tpl_context)
         return out
 
-    def copy(self, path, origin, local_dst, excluded_paths, gen_template=False):
+    def copy(self, path, origin, local_dst, excluded_paths, gen_template=True):
         """Copy a tree recursively, while excluding specified files
 
         Args:
@@ -308,9 +298,15 @@ class ConcatJSONDecoder(json.JSONDecoder):
         return objs
 
 
-def is_running_in_docker():
-    """Return True if running in a docker container, False otherwise"""
-    return os.path.exists("/.dockerenv")
+def get_current_container():
+    """Return container inspect if we run in docker, None otherwise"""
+    path = Path("/proc/self/cgroup")
+    for line in path.open():
+        if "docker" in line:
+            container_id = line[line.rindex("/") + 1 :].strip()
+            cli = docker.DockerClient(version="auto")  # Default to /var/run/docker.sock
+            return cli.containers.get(container_id)
+    return None
 
 
 def ensure_key_present(key, default, data, path=None):

@@ -10,7 +10,6 @@ import yaml
 from pathlib import Path
 from builtins import object
 
-from .context import Context
 from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
@@ -66,12 +65,7 @@ class Kard(object):
         if not Path(self.meta["src_path"]).is_absolute():
             self.meta["src_path"] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
 
-        self.context = Context(self)
-
-    @property
-    def docker_cli(self):
-        """Return the instance of docker client loaded"""
-        return self.driver.get_docker_client(self)
+        self.real_path = Path(self.meta.get("real_kard_path", self.path))
 
     @property
     def extensions(self):
@@ -80,9 +74,37 @@ class Kard(object):
 
     def make(self, reset=True):
         """Make the kard"""
-        self.context.populate_context(reset)
+        templates = self.driver.get_templates()
+
+        # Reset/create all subfolders
+        subfolder_list = list(map(lambda a: a.get("subfolder"), templates))
+        for subfolder in [i for n, i in enumerate(subfolder_list) if i not in subfolder_list[:n]]:
+            # set(map(lambda a: a.get("subfolder"), templates)):
+            folder = self.path / subfolder
+            if reset:
+                write(f"Removing {subfolder} ... ", add_return=False)
+                if folder.exists():
+                    shutil.rmtree(str(self.path / subfolder))
+                    write("Done !")
+                else:
+                    write("Ok !")
+            folder.mkdir(exist_ok=True)
+
+        # Copy_file / templating
+        tpl_engine = self.get_template_engine()
+        for template in templates:
+            source = Path(self.replace_var(str(template["source"])))
+            origin = Path(self.replace_var(str(template["origin"])))
+            tpl_engine.copy(
+                path=source,
+                origin=origin,
+                local_dst=self.path / template["subfolder"] / template["destination"],
+                excluded_paths=[self.replace_var(e) for e in template.get("excluded_paths", [])],
+                gen_template=template.get("gen_template", True),
+            )
+
         self.extensions.populate_kard()
-        self.docker_cli.populate_kard()
+        self.driver.populate_kard()
 
     @classmethod
     def list(cls, kubernetes=False):
@@ -97,7 +119,7 @@ class Kard(object):
             pass
 
         if kubernetes:
-            kards += load_driver("k8s").get_docker_client(None).list_kards()
+            kards += load_driver("k8s").list_kards()
 
         return kards
 
@@ -195,7 +217,7 @@ class Kard(object):
         if "/" in kard_name:
             driver, kard_name = kard_name.split("/")
             kard = cls.create(kard_name, None, driver, {})
-            load_driver(driver).get_docker_client(kard).load_kard()
+            load_driver(driver, kard).load_kard()
         dst_path = kard_name
 
         if not cls._build_kard_path(dst_path).exists():
@@ -244,7 +266,9 @@ class Kard(object):
 
         # Load driver an add it to overall context
         kard.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
-        kard.driver = load_driver(kard.meta["driver"]["name"])
+        driver_args = kard.meta.get("driver", {}).get("args", [])
+        driver_kwargs = kard.meta.get("driver", {}).get("kwargs", {})
+        kard.driver = load_driver(kard.meta["driver"]["name"], kard, *driver_args, **driver_kwargs)
         merge(kard.driver.get_meta(extra, kard), kard.meta)  # Extra receiving ask_input values
 
         # Copy overall context as diff base
@@ -295,11 +319,30 @@ class Kard(object):
                 return image
             return "{}/{}".format(registry, image)
 
+        def get_data_path(path):
+            """Prefix the given path with the path to data volumes.
+
+            Resolves a (Kard-relative or absolute) given data_path
+            or goes with the default "<kard>/data"."""
+
+            data_path = Path(self.meta.get("data_path", "data"))
+
+            if data_path.is_absolute():
+                return str(data_path / path)
+
+            return str(self.real_path / data_path / path)
+
         data.update(
             {
                 "env": self.env.env_name,
                 "kard_file_content": read_kard_file,
                 "format_image": format_image,
+                "context_path": lambda p, c=None: str(self.driver.context_path(p, c)),
+                "kard_path": lambda p: str(self.real_path / p),
+                "src_path": lambda p: str(Path(self.meta["src_path"]) / p),
+                "make_container_name": self.driver.make_container_name,
+                "make_image_name": lambda n, t=None: self.driver.make_image_name(n, t),
+                "data_path": get_data_path,
             }
         )
 
@@ -315,58 +358,12 @@ class Kard(object):
 
         return tpl_engine
 
-    def build_images(
-        self, services, tag, nocache, parallel, no_rebuild, rebuild_context, **kwargs
-    ):
-        """Build images"""
-        if rebuild_context:
-            self.make()
-
-        services = services or list(self.env.get_container().keys())
-        self.docker_cli.build_images(
-            services,
-            tag=tag,
-            nocache=nocache,
-            parallel=parallel,
-            no_rebuild=no_rebuild,
-        )
-
-    def push_images(
-        self, services, registry, username, password, tag, other_tags, parallel, **kwargs
-    ):
-        """Push images"""
-        services = services or list(self.env.get_container().keys())
-        registry = self.docker_cli.get_registry(url=registry, username=username, password=password)
-        self.docker_cli.push_images(
-            services, registry, tag=tag, other_tags=other_tags, parallel=parallel
-        )
-
-    def pull_images(self, services, registry, username, password, tag, parallel, **kwargs):
-        """Pull images"""
-        services = services or list(self.env.get_container().keys())
-        registry = self.docker_cli.get_registry(url=registry, username=username, password=password)
-        self.docker_cli.pull_images(services, registry, tag=tag, parallel=parallel)
-
-    def download_images(self, **args):
-        """Download images"""
-        services = args.services or list(self.env.get_container().keys())
-        registry = self.docker_cli.get_registry(
-            url=args.registry, username=args.username, password=args.password
-        )
-        self.docker_cli.download_images(services, registry, tag=args.tag, nopull=args.nopull)
-
-    def import_images(self, services, tag, **kwargs):
-        services = services or list(self.env.get_container().keys())
-        self.docker_cli.import_images(services, tag=tag)
-
-    def list_images(self, services, tag, **kwargs):
-        """List images"""
-        services = services or list(self.env.get_container().keys())
-        if tag is None:
-            tag = self.meta["tag"]
-        for service in services:
-            write(self.docker_cli.make_image_name(service, tag))
-
-    def purge_images(self, tag, except_tag, repository, **kwargs):
-        """Purge images"""
-        self.docker_cli.purge(except_tag, tag, repository)
+    def replace_var(self, path):
+        """Replace the Kard var if present, elsif return full path"""
+        kard_path_var = "$KARD_PATH"
+        src_path_var = "$SRC_PATH"
+        if kard_path_var in path:
+            return path.replace(kard_path_var, str(self.path))
+        if src_path_var in path:
+            return path.replace(src_path_var, self.meta["src_path"])
+        return Path(self.env.pkr_path / path)

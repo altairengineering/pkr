@@ -210,11 +210,7 @@ class TestCLI(pkrTestCase):
 
         self.assertEqual(0, prc.returncode, stdout)
 
-        msg = (
-            b"Removing docker-context... done !\n"
-            b"(Re)creating docker-context... done !\n"
-            b"Recreating sources in pkr context... done !\n"
-        )
+        msg = b"Removing docker-context ... Ok !\n" b"Removing compose ... Ok !\n"
 
         self.assertEqual(msg, stdout)
 

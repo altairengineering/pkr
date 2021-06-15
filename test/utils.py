@@ -85,6 +85,7 @@ class pkrTestCase(unittest.TestCase):
     kard_driver = None
     kard_features = ()
     kard_extra = {"tag": "test"}
+    test_clean = True
 
     @staticmethod
     def _run_cmd(cmd):
@@ -149,13 +150,15 @@ class pkrTestCase(unittest.TestCase):
         """
         Remove kard
         """
-        pass  # cls.env_test.disable()
+        if cls.test_clean:
+            cls.env_test.disable()
 
     def setUp(self):
         self.env_test.activate()
 
     def tearDown(self) -> None:
-        self.env_test.clean()
+        if self.test_clean:
+            self.env_test.clean()
 
 
 def get_test_files_path():
