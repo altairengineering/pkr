@@ -332,15 +332,18 @@ def configure_ext_parser(parser):
     parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(title="Extensions", metavar="<extension>", help="Extensions")
 
-    for name, ext in Extensions.list_all().items():
-        if (
-            hasattr(ext, "configure_parser")
-            and ext.configure_parser is not ExtMixin.configure_parser
-        ):
-            ext_parser = sub_p.add_parser(
-                name, help="{} extension features".format(name.capitalize())
-            )
-            ext.configure_parser(ext_parser)
+    try:
+        for name, ext in Extensions.list_all().items():
+            if (
+                hasattr(ext, "configure_parser")
+                and ext.configure_parser is not ExtMixin.configure_parser
+            ):
+                ext_parser = sub_p.add_parser(
+                    name, help="{} extension features".format(name.capitalize())
+                )
+                ext.configure_parser(ext_parser)
+    except PkrException:
+        pass
 
 
 def add_service_argument(parser):

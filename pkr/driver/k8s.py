@@ -62,7 +62,6 @@ class KubernetesPkr(docker.DockerDriver):
         templates = super().get_templates()
 
         for file in self.kard.meta["driver"].get("k8s", {}).get("k8s_files", []):
-            print(file)
             templates.append(
                 {
                     "source": self.kard.env.pkr_path / file,

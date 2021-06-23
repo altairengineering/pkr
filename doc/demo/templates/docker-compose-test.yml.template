@@ -1,0 +1,27 @@
+{%- import 'templates/macros.jinja' as macros with context -%}
+
+version: '2'
+
+services:
+  {{ macros.container_tpl('web')|indent(2, true) }}
+    volumes:
+      - {{ src_path('init_test.sh') }}:/opt/init_test.sh:ro
+    command:
+        bash /opt/init_test.sh
+    environment:
+      - DJANGO_USERNAME=admin
+      - DJANGO_PASSWORD=admin
+
+  {{ macros.container_tpl('test')|indent(2, true) }}
+    environment:
+      - SECRET_KEY={{ secret_key }}
+      - HOST_URL=http://frontend:8080
+      - DJANGO_USERNAME=admin
+      - DJANGO_PASSWORD=admin
+      - POSTGRES_PASSWORD={{ postgres_password }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_DB={{ postgres_db }}
+    depends_on:
+      - frontend
+    volumes:
+      - {{ src_path('.') }}:/usr/src/app:ro

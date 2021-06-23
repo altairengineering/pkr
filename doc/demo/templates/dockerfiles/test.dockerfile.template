@@ -1,0 +1,8 @@
+FROM bash:4.4
+
+RUN apk add --update curl && rm -rf /var/cache/apk/*
+
+COPY functional_test.sh ./
+RUN chmod a+x /functional_test.sh
+
+CMD [ "bash", "-c", "echo 'Waiting for initialization...' && sleep 10 && /functional_test.sh" ]

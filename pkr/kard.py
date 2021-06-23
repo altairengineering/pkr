@@ -60,11 +60,6 @@ class Kard(object):
         self.compute_meta(self, self.clean_meta)
         self.template_meta(self.meta)
 
-        if "src_path" not in self.meta:
-            self.meta["src_path"] = str(self.path / self.LOCAL_SRC)
-        if not Path(self.meta["src_path"]).is_absolute():
-            self.meta["src_path"] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
-
         self.real_path = Path(self.meta.get("real_kard_path", self.path))
 
     @property
@@ -271,6 +266,9 @@ class Kard(object):
         kard.driver = load_driver(kard.meta["driver"]["name"], kard, *driver_args, **driver_kwargs)
         merge(kard.driver.get_meta(extra, kard), kard.meta)  # Extra receiving ask_input values
 
+        # Populate src_path before extension call
+        Kard.process_src_path(kard)
+
         # Copy overall context as diff base
         overall_context = copy.deepcopy(kard.meta)
 
@@ -282,12 +280,20 @@ class Kard(object):
 
         # We add all remaining extra to the meta(s) (cli superseed all)
         merge(extra, kard.meta)
+        Kard.process_src_path(kard)
 
         # Append features
         merge_lists(features, kard.meta["features"], insert=False)
         extra["features"] = features
 
         return extra
+
+    @staticmethod
+    def process_src_path(kard):
+        if "src_path" not in kard.meta:
+            kard.meta["src_path"] = str(kard.path / kard.LOCAL_SRC)
+        if not Path(kard.meta["src_path"]).is_absolute():
+            kard.meta["src_path"] = str((kard.env.pkr_path / kard.meta["src_path"]).resolve())
 
     @classmethod
     def template_meta(cls, meta):

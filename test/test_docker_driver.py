@@ -14,12 +14,14 @@ class TestDockerDriver(pkrTestCase):
         self.make_kard()
 
         out_dir = self.pkr_path / "kard" / "test"
-        expected = [
-            out_dir / "docker-context" / "folder2_dst" / "copy",
-            out_dir / "docker-context" / "file1" / "file2",
-            out_dir / "docker-context" / "file1.dockerfile",
-            out_dir / "meta.yml",
-        ]
+        expected = sorted(
+            [
+                out_dir / "docker-context" / "folder2_dst" / "copy",
+                out_dir / "docker-context" / "file1" / "file2",
+                out_dir / "docker-context" / "file1.dockerfile",
+                out_dir / "meta.yml",
+            ]
+        )
 
         def walk(path):
             for p in path.iterdir():
@@ -28,4 +30,4 @@ class TestDockerDriver(pkrTestCase):
                     continue
                 yield p.resolve()
 
-        self.assertEqual(list(walk(out_dir)), expected)
+        self.assertEqual(sorted(list(walk(out_dir))), expected)

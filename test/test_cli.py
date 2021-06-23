@@ -344,6 +344,7 @@ class TestKardMakeWithRelativeSrcPath(pkrTestCase):
     kard_extra = {"tag": "test", "src_path": "dummy/.."}
     pkr_folder = "path1"
     kard_env = "dev"
+    # test_clean = False
 
     def test_docker_compose_present(self):
         self.generate_kard()

@@ -14,12 +14,14 @@ class TestBaseDriver(pkrTestCase):
         self.make_kard()
 
         out_dir = self.pkr_path / "kard" / "test"
-        expected = [
-            out_dir / "templated" / "folder2_dst" / "copy",
-            out_dir / "templated" / "folder1" / "file2",
-            out_dir / "templated" / "file1",
-            out_dir / "meta.yml",
-        ]
+        expected = sorted(
+            [
+                out_dir / "templated" / "folder2_dst" / "copy",
+                out_dir / "templated" / "folder1" / "file2",
+                out_dir / "templated" / "file1",
+                out_dir / "meta.yml",
+            ]
+        )
 
         def walk(path):
             for p in path.iterdir():
@@ -28,4 +30,4 @@ class TestBaseDriver(pkrTestCase):
                     continue
                 yield p.resolve()
 
-        self.assertEqual(list(walk(out_dir)), expected)
+        self.assertEqual(sorted(list(walk(out_dir))), expected)
