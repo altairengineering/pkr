@@ -45,7 +45,7 @@ def setup_pkr():
             "netifaces==0.10.5",
             "passlib>=1.7.1",
             "pyyaml>=4.2b1,<6",
-            "tenacity==5.0.3",
+            "tenacity==7.0.0",
             "urllib3<1.25",
             "jinja2-ansible-filters==1.3.0",
         ],
