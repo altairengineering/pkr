@@ -57,7 +57,7 @@ def setup_pkr():
             'pathlib2==2.3.0',
             'pyyaml>=4.2b1,<6',
             'stevedore==1.21.0',
-            'tenacity==5.0.3',
+            'tenacity==7.0.0',
             'urllib3<1.25'
         ],
         packages=find_packages(exclude=['test', 'docs']),

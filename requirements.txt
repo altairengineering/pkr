@@ -45,7 +45,7 @@ scandir==1.10.0
 six==1.12.0
 smmap2==2.0.5
 stevedore==1.21.0
-tenacity==5.0.3
+tenacity==7.0.0
 texttable==0.9.1
 urllib3==1.24.3
 websocket-client==0.56.0
