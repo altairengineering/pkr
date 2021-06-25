@@ -200,6 +200,7 @@ class TestCLI(pkrTestCase):
         self.assertEqual(dump.get("templated_hash").get("key"), "dHV0dQ==")
         self.assertEqual(dump.get("templated_list"), ["tutu", "dHV0dQ=="])
         self.assertEqual(dump.get("templated_inline"), ["tutu", "titi"])
+        self.assertEqual(dump.get("templated_dict_list"), ["tutu", {"a": "b", "c": "dHV0dQ=="}])
 
     def test_kard_make(self):
         self.generate_kard()

@@ -296,20 +296,25 @@ class Kard(object):
             kard.meta["src_path"] = str((kard.env.pkr_path / kard.meta["src_path"]).resolve())
 
     @classmethod
-    def template_meta(cls, meta):
-        tpl_engine = TemplateEngine(meta)
+    def template_meta(cls, meta, context=None):
+        context = context or meta
+        tpl_engine = TemplateEngine(context)
         for key, value in meta.items():
             if isinstance(value, dict):
-                cls.template_meta(value)
+                cls.template_meta(value, context)
             elif isinstance(value, list):
                 tmp = []
                 for item in value:
-                    tmp.append(tpl_engine.process_string(item))
+                    if isinstance(item, str):
+                        tmp.append(tpl_engine.process_string(item))
+                    elif isinstance(item, dict):
+                        tmp.append(cls.template_meta(item, context))
                 meta[key] = tmp
             elif isinstance(value, str):
                 meta[key] = tpl_engine.process_string(value)
                 if meta[key].startswith("---\n"):
                     meta[key] = yaml.safe_load(meta[key])
+        return meta
 
     def get_template_engine(self, extra_data=None):
         data = self.meta.copy()
