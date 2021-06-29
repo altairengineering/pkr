@@ -37,6 +37,8 @@ default_meta:
     get_url: '{{ deployment_url }}'
 ```
 
+> **WARNING**: When using templating over complex types (list, dict), deep merge is not handled.
+
 ## Features
 When creating a kard, you have several ways to provide `features`. Those will be loaded either as plugins (python code) or add-ins files from the environment.
 

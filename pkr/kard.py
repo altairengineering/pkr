@@ -314,6 +314,7 @@ class Kard(object):
                 meta[key] = tpl_engine.process_string(value)
                 if meta[key].startswith("---\n"):
                     meta[key] = yaml.safe_load(meta[key])
+
         return meta
 
     def get_template_engine(self, extra_data=None):

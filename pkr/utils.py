@@ -11,8 +11,6 @@ from builtins import input
 from builtins import object
 from builtins import range
 from builtins import str
-import collections
-import errno
 from fnmatch import fnmatch
 from glob import glob
 import json
@@ -100,12 +98,18 @@ def merge(source, destination, overwrite=True):
     before using it if you do not want to destroy the destination dict.
     """
     for key, value in list(source.items()):
-        if isinstance(value, collections.abc.Mapping):
+        if isinstance(value, dict):
+            # Handle type mismatch
+            if overwrite and not isinstance(destination.get(key), dict):
+                destination[key] = {}
             # get node or create one
             node = destination.setdefault(key, {})
             merge(value, node, overwrite)
         elif isinstance(value, list):
             if key in destination:
+                # Handle type mismatch
+                if overwrite and not isinstance(destination[key], list):
+                    destination[key] = []
                 try:
                     destination[key] = list(dict.fromkeys(destination[key] + value))
                 # Prevent errors when having unhashable dict types
