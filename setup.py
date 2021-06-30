@@ -51,7 +51,7 @@ def setup_pkr():
             'importlib-metadata>=0.12;python_version<"3.8"',
         ],
         packages=find_packages(exclude=["test", "docs"]),
-        python_requires=">=3.7, <4,",
+        python_requires=">=3.6, <4,",
     )
 
 
