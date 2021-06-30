@@ -1,0 +1,38 @@
+FROM python:3.6
+
+RUN pip install uwsgi
+RUN useradd -M uwsgi 
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+{% if env in ['test', 'prod'] %}
+
+COPY requirements_prod.txt ./
+RUN pip install --no-cache-dir -r requirements_prod.txt
+
+{% endif %}
+
+{{
+    add_file({
+        "common":{
+            "/usr/src/app": "app"
+        }
+    })
+}}
+
+WORKDIR /usr/src/app
+
+RUN chown -R uwsgi . 
+
+{% if env in ['test', 'prod'] %}
+ENV DJANGO_SETTINGS_MODULE=my_service.settings_prod
+{% else %}
+ENV DJANGO_SETTINGS_MODULE=my_service.settings
+{% endif %}
+
+EXPOSE 8080/tcp
+
+
+CMD [ "uwsgi", "--chdir", "/usr/src/app", "--uid", "uwsgi", "--http", "0.0.0.0:8080", "--wsgi", "my_service.wsgi:application" ]
+

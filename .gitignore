@@ -13,3 +13,5 @@ config/*
 /dist
 /build
 test/**/kard
+doc/demo/kard
+!doc/demo/env

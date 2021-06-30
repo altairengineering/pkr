@@ -1,0 +1,37 @@
+{%- import 'templates/macros.jinja' as macros with context -%}
+
+version: '2'
+
+services:
+  {{ macros.container_tpl('db', 'postgres')|indent(2, true) }}
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD={{ postgres_password }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_DB={{ postgres_db }}
+
+  {{ macros.container_tpl('web')|indent(2, true) }}
+    environment:
+      - SECRET_KEY={{ secret_key }}
+      - POSTGRES_PASSWORD={{ postgres_password }}
+      - POSTGRES_USER={{ postgres_user }}
+      - POSTGRES_DB={{ postgres_db }}
+    depends_on:
+      - db
+    volumes:
+      - static-content:/usr/share/static-content
+      {%- if use_volume %}
+      - {{ src_path('.') }}:/usr/src/app:rw
+      {%- endif %}
+
+  {{ macros.container_tpl('frontend', 'nginx')|indent(2, true) }}
+    ports:
+      - "80:8080"
+    depends_on:
+      - web
+    volumes:
+      - static-content:/usr/share/nginx/html:ro
+      - {{ src_path('nginx.conf') }}:/etc/nginx/nginx.conf:ro
+
+volumes:
+  static-content:

@@ -11,13 +11,11 @@ import yaml
 import zlib
 from tempfile import NamedTemporaryFile
 from time import sleep
-from pathlib import Path
 
 from kubernetes import client, config
 
-from .base import DOCKER_SOCK, AbstractDriver, Pkr
-from ..cli.log import write
-from ..utils import get_pkr_path, ensure_definition_matches, merge
+from pkr.driver import docker
+from pkr.cli.log import write
 
 CONFIGMAP = {
     "apiVersion": "v1",
@@ -32,36 +30,18 @@ CONFIGMAP = {
 }
 
 
-class Driver(AbstractDriver):
-    """Concrete class for k8s driver"""
-
-    @staticmethod
-    def get_docker_client(kard):
-        return KubernetesPkr(kard, DOCKER_SOCK)
-
-    @staticmethod
-    def get_meta(extras, kard):
-        metas = ["registry", "tag"]
-
-        default = kard.env.get("default_meta", {}).copy()
-        merge(extras, default)
-
-        values = ensure_definition_matches(definition=metas, defaults=default, data=kard.meta)
-        merge(values, extras)
-        return values
-
-
-class KubernetesPkr(Pkr):
+class KubernetesPkr(docker.DockerDriver):
     """K8s implementation"""
 
     K8S_FOLDER = "k8s"
     K8S_CONFIG = os.path.expandvars("$KUBECONFIG")
 
-    def __init__(self, *args, **kwargs):
-        super(KubernetesPkr, self).__init__(*args, **kwargs)
+    def __init__(self, kard, *args, **kwargs):
+        super(KubernetesPkr, self).__init__(kard, *args, **kwargs)
 
+        self.metas.extend(["registry"])
         self._client = None
-        self.namespace = "default"
+        self.namespace = self.kard.meta.get("k8s", {}).get("namespace", "default")
 
         self.env = {
             "KUBECONFIG": self.K8S_CONFIG,
@@ -78,21 +58,20 @@ class KubernetesPkr(Pkr):
     def _get_registry(self):
         return self.kard.meta.get("registry")
 
-    def populate_kard(self):
-        tpl_engine = self.kard.get_template_engine()
+    def get_templates(self):
+        templates = super().get_templates()
 
-        k8s_files = self.kard.meta["driver"].get("k8s", {}).get("k8s_files", [])
+        for file in self.kard.meta["driver"].get("k8s", {}).get("k8s_files", []):
+            templates.append(
+                {
+                    "source": self.kard.env.pkr_path / file,
+                    "origin": (self.kard.env.pkr_path / file).parent,
+                    "destination": "",
+                    "subfolder": "k8s",
+                }
+            )
 
-        if k8s_files is not None:
-            for k8s_file in k8s_files:
-                path = get_pkr_path() / k8s_file
-                tpl_engine.copy(
-                    path=path,
-                    origin=path.parent,
-                    local_dst=self.kard.path / self.K8S_FOLDER,
-                    excluded_paths=[],
-                    gen_template=True,
-                )
+        return templates
 
     def run_cmd(self, command, silent=False):
         kwargs = {}

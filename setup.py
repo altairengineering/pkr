@@ -48,9 +48,10 @@ def setup_pkr():
             "tenacity==5.0.3",
             "urllib3<1.25",
             "jinja2-ansible-filters==1.3.0",
+            'importlib-metadata>=0.12;python_version<"3.8"',
         ],
         packages=find_packages(exclude=["test", "docs"]),
-        python_requires=">=3.7, <4,",
+        python_requires=">=3.6, <4,",
     )
 
 

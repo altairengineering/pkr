@@ -42,3 +42,4 @@ tenacity==5.0.3
 texttable==0.9.1
 urllib3==1.24.3
 websocket-client==0.56.0
+importlib-metadata>=0.12;python_version<"3.8"

@@ -200,6 +200,7 @@ class TestCLI(pkrTestCase):
         self.assertEqual(dump.get("templated_hash").get("key"), "dHV0dQ==")
         self.assertEqual(dump.get("templated_list"), ["tutu", "dHV0dQ=="])
         self.assertEqual(dump.get("templated_inline"), ["tutu", "titi"])
+        self.assertEqual(dump.get("templated_dict_list"), ["tutu", {"a": "b", "c": "dHV0dQ=="}])
 
     def test_kard_make(self):
         self.generate_kard()
@@ -210,11 +211,7 @@ class TestCLI(pkrTestCase):
 
         self.assertEqual(0, prc.returncode, stdout)
 
-        msg = (
-            b"Removing docker-context... done !\n"
-            b"(Re)creating docker-context... done !\n"
-            b"Recreating sources in pkr context... done !\n"
-        )
+        msg = b"Removing docker-context ... Ok !\n" b"Removing compose ... Ok !\n"
 
         self.assertEqual(msg, stdout)
 
@@ -348,6 +345,7 @@ class TestKardMakeWithRelativeSrcPath(pkrTestCase):
     kard_extra = {"tag": "test", "src_path": "dummy/.."}
     pkr_folder = "path1"
     kard_env = "dev"
+    # test_clean = False
 
     def test_docker_compose_present(self):
         self.generate_kard()

@@ -1,0 +1,9 @@
+{%- macro container_tpl(name, image=None) %}
+{{ name }}:
+  container_name: {{ make_container_name(name) }}
+  hostname: {{ name }}
+  image: {{ image|default(make_image_name(name, tag), true) }}
+  {%- if container_restart %}
+  restart: {{ container_restart }}
+  {% endif %}
+{%- endmacro %}

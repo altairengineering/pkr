@@ -23,7 +23,7 @@ class Environment(object):
     """Class for loading and holding pkr environment"""
 
     IMPORT_KEY = "import"
-    DEFAULT_TEMPLATE_DIR = "templates/dockerfiles"
+    DEFAULT_TEMPLATE_DIR = "templates"
 
     def __init__(self, env_name, features=None, path=None):
         self.env_name = env_name
@@ -139,9 +139,9 @@ class Environment(object):
         return self.env["context_dir"]
 
     @property
-    def context_template_dir(self):
+    def template_dir(self):
         """Return the template folder name"""
-        return self.env.get("context_template_dir", self.DEFAULT_TEMPLATE_DIR)
+        return self.env.get("template_dir", self.DEFAULT_TEMPLATE_DIR)
 
     def get_container(self, name=None):
         """Return a compiled dictionary representing a container, or a list of
