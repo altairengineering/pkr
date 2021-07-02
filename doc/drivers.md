@@ -34,7 +34,8 @@ default_meta:
     name: docker
 containers:
   my_service:
-    dockerfile: my_service.dockerfile.template
+    dockerfile: my_service.dockerfile
+    context: my_service # Default to docker-context (warning: folder collision may happen)
     requires: # Copied without templating
       $SRC_PATH/folder:
         dst: output
@@ -42,7 +43,7 @@ containers:
         - some_files_to_exclude
 ```
 
-Output directory in kard folder is named `docker-context`
+Output directories in kard folder are named as contexts (default to `docker-context`).
 
 ## compose
 

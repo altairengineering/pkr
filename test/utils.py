@@ -94,12 +94,13 @@ class pkrTestCase(unittest.TestCase):
         return prc
 
     @classmethod
-    def generate_kard(cls):
+    def generate_kard(cls, env=None):
         """pkr kard create pkr-test ..."""
-        if cls.kard_env is None:
+        env = env or cls.kard_env
+        if env is None:
             raise ValueError("{} should define `kard_env` attribute".format(cls))
 
-        cmd_args = ["kard", "create", cls.kard_name, "-d", cls.kard_driver, "-e", cls.kard_env]
+        cmd_args = ["kard", "create", cls.kard_name, "-d", cls.kard_driver, "-e", env]
 
         if cls.kard_features:
             cmd_args.extend(["--features", ",".join(cls.kard_features)])
@@ -114,6 +115,7 @@ class pkrTestCase(unittest.TestCase):
         # set utilities variable.
         cls.kard = Path(pkr.utils.get_kard_root_path()) / "current"
         cls.src = cls.kard / "src"
+        Kard.CURRENT_KARD = None
 
     @classmethod
     def make_kard(cls):

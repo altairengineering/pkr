@@ -31,3 +31,28 @@ class TestDockerDriver(pkrTestCase):
                 yield p.resolve()
 
         self.assertEqual(sorted(list(walk(out_dir))), expected)
+
+    def test_docker_multiple_contexts(self):
+        self.kard_extra["src_path"] = self.src_path
+        self.generate_kard(env="contexts")
+        self.make_kard()
+
+        out_dir = self.pkr_path / "kard" / "test"
+        self.assertTrue((out_dir / "docker-context" / "folder2_dst" / "copy").exists())
+        self.assertTrue((out_dir / "context1" / "folder2_dst" / "copy").exists())
+
+        self.assertTrue((out_dir / "docker-context" / "file1.dockerfile").exists())
+        self.assertTrue((out_dir / "context1" / "file1.dockerfile").exists())
+
+        cmd = "{} image build -s container1".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+
+        expected = (
+            b"Removing context1 ... Done !\n"
+            b"Removing docker-context ... Done !\n"
+            b"Building container1:123 image...\n"
+        )
+        self.assertEqual(stdout, expected)
+        self.assertTrue("unknown instruction: FLAG_VALUE" in stderr.decode("utf-8"))
