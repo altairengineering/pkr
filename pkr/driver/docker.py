@@ -75,6 +75,9 @@ class DockerDriver(AbstractDriver):
             except KeyError:
                 # In this case, we use an image provided by the hub
                 continue
+
+            context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+
             # Automatically add dockerfile name matching folder to the context
             dockerfile = Path(dockerfile).stem
             templates.append(
@@ -82,28 +85,30 @@ class DockerDriver(AbstractDriver):
                     "source": templates_path / f"{dockerfile}*",  # Match template
                     "origin": templates_path,
                     "destination": "",
-                    "subfolder": self.DOCKER_CONTEXT,
+                    "subfolder": context,
                 }
             )
 
-        # Process requirements
-        for src in self.kard.env.get_requires():
-            templates.append(
-                {
+            # Process requirements
+            for src in self.kard.env.get_requires([container]):
+                template = {
                     "source": src["origin"],
                     "origin": src["origin"],
                     "destination": src["dst"],
-                    "subfolder": self.DOCKER_CONTEXT,
+                    "subfolder": context,
                     "excluded_paths": src.get("exclude", []),
                     "gen_template": False,
                 }
-            )
+                if template not in templates:
+                    # Dedup templates to avoid multi-copy
+                    templates.append(template)
 
         return templates
 
     def context_path(self, subpath, container):
         """Return absolute path for subpath relative to container context"""
-        context_path = self.kard.real_path / self.DOCKER_CONTEXT
+        context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+        context_path = self.kard.real_path / context
         return context_path / subpath
 
     def get_registry(self, **kwargs):
@@ -206,11 +211,10 @@ class DockerDriver(AbstractDriver):
                 image = len(self.docker.images(image_name)) == 1
 
             if not no_rebuild or image is False:
+                context = self.kard.env.get_container(service).get("context", self.DOCKER_CONTEXT)
                 stream = self.docker.build(
-                    path=str(self.kard.path / self.DOCKER_CONTEXT),
-                    dockerfile=str(
-                        Path(self.kard.path / self.DOCKER_CONTEXT, dockerfile)
-                    ),  # Relative Path
+                    path=str(self.kard.path / context),
+                    dockerfile=str(Path(self.kard.path / context, dockerfile)),  # Relative Path
                     tag=image_name,
                     decode=True,
                     nocache=nocache,

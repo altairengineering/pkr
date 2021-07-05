@@ -184,7 +184,7 @@ class ComposePkr(docker.DockerDriver):
         containers = [
             container
             for container in self.docker.containers(filters={"name": container_name})
-            if container["Labels"]["com.docker.compose.service"] == container_name
+            if container["Labels"].get("com.docker.compose.service") == container_name
         ]
 
         if len(containers) != 1:
@@ -201,7 +201,7 @@ class ComposePkr(docker.DockerDriver):
         services = self._load_compose_config().services
         for service in [s["name"] for s in services]:
             try:
-                container_ip = self.get_ip(service)
+                container_ip = self.get_ip(self.make_container_name(service))
             except ValueError:
                 container_ip = "stopped"
             write(" - {}: {}".format(service, container_ip))
