@@ -124,6 +124,12 @@ def configure_image_parser(parser):
     build_parser.add_argument(
         "-b", "--no-rebuild", action="store_true", help="Disable rebuild if image already exists"
     )
+    build_parser.add_argument(
+        "-c",
+        "--clean-builder",
+        action="store_true",
+        help="Clean builder before build (buildx driver)",
+    )
     add_service_argument(build_parser)
     build_parser.set_defaults(
         func=lambda args: Kard.load_current().driver.build_images(**args.__dict__)

@@ -170,7 +170,7 @@ class DockerDriver(AbstractDriver):
                             )
                         )
                 for future in futures:
-                    future.result(timeout=300)
+                    future.result(timeout=1800)
             else:
                 if len(services) > 1:
                     logfh.write("Building docker images...\n")
