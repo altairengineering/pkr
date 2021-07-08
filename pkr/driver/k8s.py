@@ -30,7 +30,7 @@ CONFIGMAP = {
 }
 
 
-class KubernetesPkr(docker.DockerDriver):
+class KubernetesPkr:
     """K8s implementation"""
 
     K8S_FOLDER = "k8s"
@@ -39,7 +39,7 @@ class KubernetesPkr(docker.DockerDriver):
     def __init__(self, kard, *args, **kwargs):
         super(KubernetesPkr, self).__init__(kard, *args, **kwargs)
 
-        self.metas.extend(["registry"])
+        self.metas["registry"] = None
         self._client = None
         self.namespace = self.kard.meta.get("k8s", {}).get("namespace", "default")
 
@@ -235,3 +235,7 @@ class KubernetesPkr(docker.DockerDriver):
         cm = self.get_configmap()
         with self.kard.meta_file.open("w+") as meta_file:
             meta_file.write(cm["meta.yml"])
+
+
+class KubernetesDriver(KubernetesPkr, docker.DockerDriver):
+    pass

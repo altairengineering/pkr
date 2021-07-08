@@ -6,19 +6,22 @@ from .utils import pkrTestCase
 
 class TestDriver(unittest.TestCase):
     def test_list_drivers(self):
-        self.assertEqual(driver.list_drivers(), ("base", "docker", "docker_compose", "k8s"))
+        self.assertEqual(
+            driver.list_drivers(),
+            ("base", "buildx", "buildx_compose", "buildx_k8s", "docker", "docker_compose", "k8s"),
+        )
 
     def test_load_driver(self):
         self.assertTrue(
             repr(driver.load_driver("compose")).startswith(
-                "<pkr.driver.docker_compose.ComposePkr object"
+                "<pkr.driver.docker_compose.ComposeDriver object"
             )
         )
 
     def test_load_driver_by_alias(self):
         self.assertTrue(
             repr(driver.load_driver("compose")).startswith(
-                "<pkr.driver.docker_compose.ComposePkr object"
+                "<pkr.driver.docker_compose.ComposeDriver object"
             )
         )
 

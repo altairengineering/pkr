@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright© 1986-2020 Altair Engineering Inc.
+# Copyright© 1986-2021 Altair Engineering Inc.
 
 import sys
 import os
@@ -7,7 +7,11 @@ import tempfile
 import copy
 from concurrent.futures import ProcessPoolExecutor
 
-from python_on_whales import docker, DockerException
+try:
+    from python_on_whales import docker, DockerException
+except:
+    docker = None
+    DockerException = None
 
 from pkr.driver.docker import DockerDriver
 from pkr.cli.log import write
@@ -76,12 +80,13 @@ class BuildxDriver(DockerDriver):
             },
         }
         self.buildx_options = kard.meta.get("buildx", {}).get("options", self.buildx_options)
-        merge(builded_options, self.buildx_options, overwrite=False)
 
         # Handle null cache_registry
         if extras["buildx"]["cache_registry"] is None:
             del builded_options["cache_from"]
             del builded_options["cache_to"]
+
+        merge(builded_options, self.buildx_options, overwrite=False)
 
         return values
 
@@ -129,24 +134,29 @@ class BuildxDriver(DockerDriver):
           * parallel: (int|None) Number of concurrent build
           * no_rebuild: do not build if destination image exists
         """
+        if docker is None:
+            # Handle python 3.6 here, to not impact child drivers
+            raise Exception("buildx is not supported for python < 3.6")
+
         services = services or list(self.kard.env.get_container().keys())
         if rebuild_context:
             self.kard.make()
 
         buildx_meta = self.kard.meta.get("buildx", {})
-        if "cache_registry_username" in buildx_meta:
-            registry = self.get_registry(
-                url=buildx_meta["cache_registry"],
+        if "cache_registry_username" in buildx_meta and buildx_meta["cache_registry"] is not None:
+            registry_url = buildx_meta["cache_registry"].split("/")[0]
+            print(f"Logging to {registry_url}")
+            docker.login(
+                server=registry_url,
                 username=buildx_meta.get("cache_registry_username", None),
                 password=buildx_meta.get("cache_registry_password", None),
             )
-            self._logon_remote_registry(registry)
         self._create_builder(purge=clean_builder)
 
         tag = tag or self.kard.meta["tag"]
 
         if parallel:
-            if len(services) > 1:
+            if len(services) >= 1:
                 write("Building docker images using {} threads ...\n".format(parallel))
             futures = []
             with ProcessPoolExecutor(max_workers=parallel) as executor:
@@ -161,7 +171,7 @@ class BuildxDriver(DockerDriver):
             for future in futures:
                 future.result(timeout=1800)
         else:
-            if len(services) > 1:
+            if len(services) >= 1:
                 write("Building docker images...\n")
             for service in services:
                 exec = self._build_image(

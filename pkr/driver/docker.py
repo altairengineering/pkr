@@ -47,7 +47,7 @@ class DockerDriver(AbstractDriver):
 
     def __init__(self, kard, *args, **kwargs):
         super().__init__(*args, kard=kard, **kwargs)
-        self.metas = ["tag"]
+        self.metas = {"tag": None}
         kwargs.setdefault("timeout", DOCKER_CLIENT_TIMEOUT)
         kwargs.setdefault("version", "auto")
         self.docker = docker.APIClient(*args, **kwargs)
@@ -70,24 +70,7 @@ class DockerDriver(AbstractDriver):
 
         # Process dockerfiles
         for container in self.kard.env.get_container():
-            try:
-                dockerfile = self.kard.env.get_container(container)["dockerfile"]
-            except KeyError:
-                # In this case, we use an image provided by the hub
-                continue
-
             context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
-
-            # Automatically add dockerfile name matching folder to the context
-            dockerfile = Path(dockerfile).stem
-            templates.append(
-                {
-                    "source": templates_path / f"{dockerfile}*",  # Match template
-                    "origin": templates_path,
-                    "destination": "",
-                    "subfolder": context,
-                }
-            )
 
             # Process requirements
             for src in self.kard.env.get_requires([container]):
@@ -102,6 +85,23 @@ class DockerDriver(AbstractDriver):
                 if template not in templates:
                     # Dedup templates to avoid multi-copy
                     templates.append(template)
+
+            try:
+                dockerfile = self.kard.env.get_container(container)["dockerfile"]
+            except KeyError:
+                # In this case, we use an image provided by the hub
+                continue
+
+            # Automatically add dockerfile name matching folder to the context
+            dockerfile = Path(dockerfile).stem
+            templates.append(
+                {
+                    "source": templates_path / f"{dockerfile}*",  # Match template
+                    "origin": templates_path,
+                    "destination": "",
+                    "subfolder": context,
+                }
+            )
 
         return templates
 

@@ -48,7 +48,7 @@ def setup_pkr():
             "tenacity==7.0.0",
             "jinja2-ansible-filters==1.3.0",
             'importlib-metadata>=0.12;python_version<"3.8"',
-            "python-on-whales==0.20.2",
+            'python-on-whales==0.20.2;python_version>="3.7"',
         ],
         packages=find_packages(exclude=["test", "docs"]),
         python_requires=">=3.6, <4,",
