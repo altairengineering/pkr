@@ -340,7 +340,15 @@ def ensure_definition_matches(definition, defaults, data, path=None):
                 path=path + k + "/",
             )
             for k, v in definition.items()
+            if v is not None
         }
+        values.update(
+            {
+                k: ensure_key_present(k, defaults, data, path)
+                for k, v in definition.items()
+                if v is None
+            }
+        )
         return values
 
     elif isinstance(definition, list):

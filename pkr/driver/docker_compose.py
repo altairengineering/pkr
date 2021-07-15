@@ -24,7 +24,7 @@ from pkr.utils import (
 )
 
 
-class ComposePkr(docker.DockerDriver):
+class ComposePkr:
     """Implements pkr functions for docker-compose"""
 
     COMPOSE_BIN = "docker-compose"
@@ -32,7 +32,7 @@ class ComposePkr(docker.DockerDriver):
 
     def __init__(self, kard, *args, **kwargs):
         super().__init__(kard, *args, **kwargs)
-        self.metas.extend(["project_name"])
+        self.metas["project_name"] = None
         self._base_path = None
         if self.kard is not None:
             self.compose_file = self.kard.path / self.COMPOSE_FILE
@@ -63,7 +63,7 @@ class ComposePkr(docker.DockerDriver):
 
         if "compose_file" not in self.driver_meta:
             write("Warning: No docker-compose file is provided with this environment.")
-            return []
+            return templates
 
         for file in [self.driver_meta["compose_file"]] + self.driver_meta.get(
             "compose_extension_files", []
@@ -81,6 +81,8 @@ class ComposePkr(docker.DockerDriver):
 
     def populate_kard(self):
         """Populate context for compose"""
+        if "compose_file" not in self.driver_meta:
+            return
         merged_compose = {}
         compose_path = self.kard.path / "compose"
         for file in compose_path.iterdir():
@@ -276,3 +278,7 @@ class ComposePkr(docker.DockerDriver):
 
         if ret["StatusCode"] != 0:
             raise PkrException("Container exited with non-zero status code {}".format(ret))
+
+
+class ComposeDriver(ComposePkr, docker.DockerDriver):
+    pass

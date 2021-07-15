@@ -2,6 +2,7 @@
 # Copyright© 1986-2018 Altair Engineering Inc.
 
 import sys
+import os
 
 _DEBUG = False
 
@@ -20,6 +21,10 @@ def write(msg, add_return=True, error=False):
         fd = sys.stderr
     fd.write(msg)
     fd.flush()
+
+
+def write_fn(fn, msg):
+    os.write(fn, msg.encode("utf-8"))
 
 
 def debug(msg):
