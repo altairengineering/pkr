@@ -19,6 +19,7 @@ import random
 import re
 import shutil
 import time
+import platform
 
 import jinja2
 import docker
@@ -304,6 +305,8 @@ class ConcatJSONDecoder(json.JSONDecoder):
 
 def get_current_container():
     """Return container inspect if we run in docker, None otherwise"""
+    if platform.system() != "Linux":
+        return None
     path = Path("/proc/self/cgroup")
     for line in path.open():
         if "docker" in line:

@@ -71,7 +71,7 @@ class TestBuildxDriver(pkrTestCase):
             b"Building docker images...\n\n"
             b"Building container1:123 image...\n\n"
         )
-        self.assertTrue("unknown instruction: FLAG_VALUE" in stderr.decode("utf-8"), stderr)
+        self.assertTrue("unknown instruction: flag_value" in stderr.decode("utf-8"), stderr)
         self.assertEqual(stdout, expected, stdout)
         self.assertRegex(
             stderr.decode("utf-8"),
