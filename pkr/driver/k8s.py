@@ -168,14 +168,6 @@ class KubernetesPkr:
                 return
 
         write("\nApplying manifests ...")
-        for k8s_file in saved_files[1:]:
-            if services and k8s_file.name[:-4] not in services:
-                continue
-            write("Processing {}".format(k8s_file.name))
-            out, _ = self.run_kubectl("apply -f {}".format(k8s_file))
-            write(out)
-            sleep(0.1)
-
         for name in old_cm:
             if name not in new_cm:
                 write("Removing {}".format(name))
@@ -184,6 +176,14 @@ class KubernetesPkr:
                     f.seek(0)
                     out, _ = self.run_kubectl("delete -f {}".format(f.name))
                     write(out)
+
+        for k8s_file in saved_files[1:]:
+            if services and k8s_file.name[:-4] not in services:
+                continue
+            write("Processing {}".format(k8s_file.name))
+            out, _ = self.run_kubectl("apply -f {}".format(k8s_file))
+            write(out)
+            sleep(0.1)
 
         self.write_configmap(new_cm)
 
