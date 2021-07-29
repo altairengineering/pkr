@@ -149,6 +149,10 @@ class AbstractDriver(object):
         """Hook for drivers to provide a listing process feature"""
         raise NotImplementedError()
 
+    def cmd_status(self):
+        """Hook for drivers to provide a check process feature"""
+        raise NotImplementedError()
+
     def clean(self, kill=False):
         """Hook for drivers to provide a clean/stop process feature"""
         NotImplementedError()

@@ -64,6 +64,10 @@ def get_parser():
     parser = sub_p.add_parser("ps", help="List containers defined in the current kard")
     parser.set_defaults(func=lambda _: Kard.load_current().driver.cmd_ps())
 
+    # Status parser
+    parser = sub_p.add_parser("status", help="Check all containers of the kard are healthy")
+    parser.set_defaults(func=lambda _: Kard.load_current().driver.cmd_status())
+
     # Clean parser
     parser = sub_p.add_parser("clean", help="Stop and remove containers of current kard")
     parser.add_argument("-k", "--kill", action="store_true", help="Kill (SIGKILL) before clean")
