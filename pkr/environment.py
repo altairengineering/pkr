@@ -54,17 +54,17 @@ class Environment(object):
                         error=True,
                     )
                 merge_lists(feature_features, self.features)
+                content["default_features"] = feature_features
                 merge(content, self.env)
 
     def _load_env_file(self, path):
         """Load an environment with its dependencies recursively"""
         with path.open() as env_file:
             content = yaml.safe_load(env_file)
+            if content is None:
+                content = {}
             if "default_features" not in content:
                 content["default_features"] = []
-
-        if content is None:
-            return {}
 
         for imp_name in content.get(self.IMPORT_KEY, ()):
             imp_path = self.path / (imp_name + ".yml")

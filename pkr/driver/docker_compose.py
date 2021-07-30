@@ -4,7 +4,7 @@
 """pkr functions for managing containers lifecycle with compose"""
 
 from builtins import next
-import os
+import sys
 import re
 import subprocess
 import time
@@ -181,32 +181,78 @@ class ComposePkr:
         """Restart containers"""
         self._call_compose("restart", *(services or ()))
 
-    def get_ip(self, container_name):
-        """Return the first IP of a container"""
+    def get_container(self, container_name):
+        """Get infos for a container"""
         containers = [
             container
             for container in self.docker.containers(filters={"name": container_name})
             if container["Labels"].get("com.docker.compose.service") == container_name
         ]
 
+        if len(containers) == 0:
+            return None
         if len(containers) != 1:
             raise ValueError(
                 'ERROR: {} containers named "{}"'.format(len(containers), container_name)
             )
 
-        container_info = self.docker.inspect_container(containers.pop().get("Id"))
-        networks = container_info["NetworkSettings"]["Networks"]
+        return self.docker.inspect_container(containers.pop().get("Id"))
+
+    def get_ip(self, container):
+        """Return the first IP of a container"""
+        networks = container["NetworkSettings"]["Networks"]
         return next(iter(networks.values()))["IPAddress"]
+
+    def get_status(self, container):
+        """Return status of a container"""
+        state = container["State"]["Status"]
+        health = container["State"].get("Health", {}).get("Status")
+        if health is None:
+            if state == "running":
+                return 0, "started"
+            else:
+                return 2, "stopped"
+        elif health == "healthy":
+            return 0, "started"
+        else:
+            if state == "running":
+                return 1, "starting"
+            else:
+                return 2, "stopped"
 
     def cmd_ps(self):
         """List containers with ips"""
         services = self._load_compose_config().services
+
         for service in [s["name"] for s in services]:
-            try:
-                container_ip = self.get_ip(self.make_container_name(service))
-            except ValueError:
+            container = self.get_container(self.make_container_name(service))
+            if container is None:
                 container_ip = "stopped"
+            else:
+                container_ip = self.get_ip(container)
             write(" - {}: {}".format(service, container_ip))
+
+    def cmd_status(self):
+        """Check all containers are up and healthy"""
+        services = self._load_compose_config().services
+        status = []
+        for service in [s["name"] for s in services]:
+            container = self.get_container(self.make_container_name(service))
+            if container is None:
+                status.append(2)
+                write(" - {}: {}".format(service, "stopped"))
+            else:
+                container_status = self.get_status(container)
+                status.append(container_status[0])
+                write(" - {}: {}".format(service, container_status[1]))
+        if 1 in status:
+            status = (1, "starting")
+        elif 2 in status:
+            status = (2, "down")
+        else:
+            status = (0, "started")
+        write("Global status: {}".format(status[1]))
+        sys.exit(status[0])
 
     def clean(self, kill=False):
         """Remove the containers and the build data file.
