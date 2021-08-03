@@ -184,9 +184,7 @@ class ComposePkr:
     def get_container(self, container_name):
         """Get infos for a container"""
         containers = [
-            container
-            for container in self.docker.containers(filters={"name": container_name})
-            if container["Labels"].get("com.docker.compose.service") == container_name
+            container for container in self.docker.containers(filters={"name": container_name})
         ]
 
         if len(containers) == 0:
