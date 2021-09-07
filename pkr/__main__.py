@@ -12,6 +12,7 @@ import traceback
 
 from pkr.cli import log
 from pkr.cli.parser import get_parser
+from pkr.driver import set_use_env_var
 
 
 def main():
@@ -20,6 +21,7 @@ def main():
         parser = get_parser()
         cli_args = parser.parse_args()
         log.set_debug(cli_args.debug)
+        set_use_env_var(not cli_args.no_env_var)
         cli_args.func(cli_args)
     except Exception as exc:  # pylint: disable=W0703
         # Here we do exception catching on parser as our parser

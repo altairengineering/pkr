@@ -17,7 +17,7 @@ class AbstractDriver(object):
 
     SERVICE_VAR = "%SERVICE%"
 
-    def __init__(self, kard, *args, **kwargs):
+    def __init__(self, kard, **kwargs):
         """Save the kard to driver
 
         args and kwargs passed to driver

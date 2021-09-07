@@ -45,8 +45,8 @@ class BuildxDriver(DockerDriver):
 
     DOCKER_CONTEXT = "buildx"
 
-    def __init__(self, kard, *args, **kwargs):
-        super().__init__(*args, kard=kard, **kwargs)
+    def __init__(self, kard, **kwargs):
+        super().__init__(kard=kard, **kwargs)
         self.metas = {"tag": None, "buildx": ["cache_registry"]}
         self.buildkit_env = BUILDKIT_ENV
         self.buildx_options = BUILDX_OPTIONS
@@ -164,7 +164,13 @@ class BuildxDriver(DockerDriver):
                     futures.append(
                         executor.submit(
                             *self._build_image(
-                                service, tag, verbose, logfile, nocache, no_rebuild, True
+                                service,
+                                tag,
+                                verbose,
+                                logfile,
+                                nocache,
+                                no_rebuild,
+                                True,
                             )
                         )
                     )

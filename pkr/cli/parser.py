@@ -24,6 +24,7 @@ def get_parser():
     pkr_parser.add_argument("-v", "--version", action="version", version="%(prog)s " + __version__)
 
     pkr_parser.add_argument("-d", "--debug", action="store_true")
+    pkr_parser.add_argument("--no-env-var", action="store_true")
 
     sub_p = pkr_parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
 
