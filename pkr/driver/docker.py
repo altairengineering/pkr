@@ -57,7 +57,7 @@ class DockerDriver(AbstractDriver):
         if not use_from_env:
             self.docker = docker.APIClient(*args, **kwargs)
         else:
-            self.docker = docker.from_env(**kwargs)
+            self.docker = docker.from_env(**kwargs).api
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
