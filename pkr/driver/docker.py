@@ -48,9 +48,16 @@ class DockerDriver(AbstractDriver):
     def __init__(self, kard, *args, **kwargs):
         super().__init__(*args, kard=kard, **kwargs)
         self.metas = {"tag": None}
+        # If we have no overriding arugments use the configuration
+        # from the environment.
+        use_from_env = len(args) == 0 and len(kwargs) == 0
+        # Both of these options work with APIClient and from_env
         kwargs.setdefault("timeout", DOCKER_CLIENT_TIMEOUT)
         kwargs.setdefault("version", "auto")
-        self.docker = docker.APIClient(*args, **kwargs)
+        if not use_from_env:
+            self.docker = docker.APIClient(*args, **kwargs)
+        else:
+            self.docker = docker.from_env(**kwargs)
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
