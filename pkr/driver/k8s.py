@@ -36,8 +36,8 @@ class KubernetesPkr:
     K8S_FOLDER = "k8s"
     K8S_CONFIG = os.path.expandvars("$KUBECONFIG")
 
-    def __init__(self, kard, *args, **kwargs):
-        super(KubernetesPkr, self).__init__(kard, *args, **kwargs)
+    def __init__(self, kard, **kwargs):
+        super(KubernetesPkr, self).__init__(kard, **kwargs)
 
         self.metas["registry"] = None
         self._client = None

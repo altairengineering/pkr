@@ -13,6 +13,7 @@ import tenacity
 from concurrent.futures import ThreadPoolExecutor
 
 from collections import namedtuple
+from pkr.driver import _USE_ENV_VAR
 from pkr.driver.base import AbstractDriver
 from pathlib import Path
 
@@ -45,12 +46,16 @@ class DockerDriver(AbstractDriver):
     DOCKER_CONTEXT = "docker-context"
     DOCKER_CONTEXT_SOURCE = "dockerfiles"
 
-    def __init__(self, kard, *args, **kwargs):
-        super().__init__(*args, kard=kard, **kwargs)
+    def __init__(self, kard, **kwargs):
+        super().__init__(kard=kard, **kwargs)
         self.metas = {"tag": None}
+        # Both of these options work with APIClient and from_env
         kwargs.setdefault("timeout", DOCKER_CLIENT_TIMEOUT)
         kwargs.setdefault("version", "auto")
-        self.docker = docker.APIClient(*args, **kwargs)
+        if _USE_ENV_VAR:
+            self.docker = docker.from_env(**kwargs).api
+        else:
+            self.docker = docker.APIClient(**kwargs)
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)

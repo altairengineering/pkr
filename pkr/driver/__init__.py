@@ -9,10 +9,17 @@ import os
 
 from .base import AbstractDriver
 
+_USE_ENV_VAR = True
+
 DRIVER_MAPPING = {
     "compose": "docker_compose",
     "kubernetes": "k8s",
 }
+
+
+def set_use_env_var(use_env_var=True):
+    global _USE_ENV_VAR
+    _USE_ENV_VAR = use_env_var
 
 
 def _get_driver_class(module):

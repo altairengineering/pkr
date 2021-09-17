@@ -57,7 +57,7 @@ class Kard(object):
             env_name=self.clean_meta["env"], features=self.clean_meta["features"].copy()
         )
 
-        self.compute_meta(self, self.clean_meta)
+        self._compute_meta(self.clean_meta)
         self.template_meta(self.meta)
 
         self.real_path = Path(self.meta.get("real_kard_path", self.path))
@@ -238,8 +238,7 @@ class Kard(object):
         """Dump overall templating context meta"""
         return yaml.safe_dump(self.clean_meta if cleaned else self.meta, default_flow_style=False)
 
-    @staticmethod
-    def compute_meta(kard, extra):
+    def _compute_meta(self, extra):
         """
         Compute meta
 
@@ -254,46 +253,45 @@ class Kard(object):
         features = extra.pop("features", [])
 
         # Copy extra to meta
-        kard.meta = copy.deepcopy(extra)
+        self.meta = copy.deepcopy(extra)
 
         # Add env to overall context in kard.meta
-        merge(kard.env.get_meta(extra), kard.meta)  # Extra receiving ask_input values
+        merge(self.env.get_meta(extra), self.meta)  # Extra receiving ask_input values
 
         # Load driver an add it to overall context
-        kard.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
-        driver_args = kard.meta.get("driver", {}).get("args", [])
-        driver_kwargs = kard.meta.get("driver", {}).get("kwargs", {})
-        kard.driver = load_driver(kard.meta["driver"]["name"], kard, *driver_args, **driver_kwargs)
-        merge(kard.driver.get_meta(extra, kard), kard.meta)  # Extra receiving ask_input values
+        self.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
+        driver_args = self.meta.get("driver", {}).get("args", [])
+        driver_kwargs = self.meta.get("driver", {}).get("kwargs", {})
+        self.driver = load_driver(self.meta["driver"]["name"], self, *driver_args, **driver_kwargs)
+        merge(self.driver.get_meta(extra, self), self.meta)  # Extra receiving ask_input values
 
         # Populate src_path before extension call
-        Kard.process_src_path(kard)
+        self._process_src_path()
 
         # Copy overall context as diff base
-        overall_context = copy.deepcopy(kard.meta)
+        overall_context = copy.deepcopy(self.meta)
 
         # Extensions (give them a copy of extra, ext should not interact with it)
-        kard.extensions.setup(copy.deepcopy(extra), kard)
+        self.extensions.setup(copy.deepcopy(extra), self)
 
         # Making a diff and apply it to extra without overwrite (we want cli to superseed extensions)
-        merge(diff(overall_context, kard.meta), extra, overwrite=False)
+        merge(diff(overall_context, self.meta), extra, overwrite=False)
 
         # We add all remaining extra to the meta(s) (cli superseed all)
-        merge(extra, kard.meta)
-        Kard.process_src_path(kard)
+        merge(extra, self.meta)
+        self._process_src_path()
 
         # Append features
-        merge_lists(features, kard.meta["features"], insert=False)
+        merge_lists(features, self.meta["features"], insert=False)
         extra["features"] = features
 
         return extra
 
-    @staticmethod
-    def process_src_path(kard):
-        if "src_path" not in kard.meta:
-            kard.meta["src_path"] = str(kard.path / kard.LOCAL_SRC)
-        if not Path(kard.meta["src_path"]).is_absolute():
-            kard.meta["src_path"] = str((kard.env.pkr_path / kard.meta["src_path"]).resolve())
+    def _process_src_path(self):
+        if "src_path" not in self.meta:
+            self.meta["src_path"] = str(self.path / self.LOCAL_SRC)
+        if not Path(self.meta["src_path"]).is_absolute():
+            self.meta["src_path"] = str((self.env.pkr_path / self.meta["src_path"]).resolve())
 
     @classmethod
     def template_meta(cls, meta, context=None):

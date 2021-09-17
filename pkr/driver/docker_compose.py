@@ -30,8 +30,8 @@ class ComposePkr:
     COMPOSE_BIN = "docker-compose"
     COMPOSE_FILE = "docker-compose.yml"
 
-    def __init__(self, kard, *args, **kwargs):
-        super().__init__(kard, *args, **kwargs)
+    def __init__(self, kard, **kwargs):
+        super().__init__(kard, **kwargs)
         self.metas["project_name"] = None
         self._base_path = None
         if self.kard is not None:
