@@ -1,0 +1,6 @@
+version: '2.4'
+
+services:
+  backend:
+    container_name: backend
+    image: {{ make_image_name('backend', tag) }}
