@@ -311,6 +311,9 @@ def get_current_container():
     for line in path.open():
         if "docker" in line:
             container_id = line[line.rindex("/") + 1 :].strip()
+            md = re.match(r"docker-(.+)\.scope$", container_id)
+            if md:
+                container_id = md.group(1)
             cli = docker.DockerClient(version="auto")  # Default to /var/run/docker.sock
             return cli.containers.get(container_id)
     return None
