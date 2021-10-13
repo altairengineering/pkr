@@ -106,15 +106,19 @@ class ComposePkr:
     def get_real_kard_path(self):
         """Get the matching host kard path if running in a container"""
         container = get_current_container()
+        kard_path = str(self.kard.path)
         if container is None:
             return self.kard.path
 
-        try:
-            mount = next(
-                (c for c in container.attrs["Mounts"] if c["Destination"] == str(self.kard.path))
-            )
-            return Path(mount["Source"])
-        except StopIteration:
+        mount = None
+        for c in container.attrs["Mounts"]:
+            if kard_path.startswith(c["Destination"]):
+                if mount is None or len(c["Destination"]) > len(mount["Destination"]):
+                    mount = c
+
+        if mount is not None:
+            return Path(mount["Source"]) / self.kard.path.relative_to(mount["Destination"])
+        else:
             return self.kard.path  # We are in container, but not a pkr one
 
     def _resolve_services(self, services=None):
