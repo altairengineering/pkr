@@ -41,7 +41,8 @@ class KubernetesPkr:
 
         self.metas["registry"] = None
         self._client = None
-        self.namespace = self.kard.meta.get("k8s", {}).get("namespace", "default")
+        if hasattr(self.kard, "meta"):
+            self.namespace = self.kard.meta.get("k8s", {}).get("namespace", "default")
 
         self.env = {
             "KUBECONFIG": self.K8S_CONFIG,
@@ -107,7 +108,7 @@ class KubernetesPkr:
                 return {}
             raise Exception("Failed to get configmap pkr-{} with : {}".format(self.kard.name, err))
         out_hash = {}
-        for key, value in yaml.load(out).get("data", {}).items():
+        for key, value in yaml.safe_load(out).get("data", {}).items():
             out_hash[key] = zlib.decompress(base64.b64decode(value)).decode("utf-8")
         return out_hash
 
