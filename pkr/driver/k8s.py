@@ -152,10 +152,12 @@ class KubernetesPkr:
                     f.seek(0)
                     self.run_cmd("diff -u {} {}".format(f.name, k8s_file))
             else:
-                write("Added file {}".format(k8s_file))
+                if not k8s_file.name.startswith("."):
+                    write("Added file {}".format(k8s_file))
 
-            with open(str(k8s_file), "r") as f:
-                new_cm[k8s_file.name] = f.read()
+            if not k8s_file.name.startswith("."):
+                with open(str(k8s_file), "r") as f:
+                    new_cm[k8s_file.name] = f.read()
 
         for name in old_cm:
             if name not in new_cm:
