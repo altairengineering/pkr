@@ -117,7 +117,7 @@ class Kard(object):
         if kubernetes:
             kards += load_driver("k8s").list_kards()
 
-        return kards
+        return sorted(kards)
 
     @classmethod
     def create(cls, name, env, driver, extra, features=None, meta=None, **kwargs):
