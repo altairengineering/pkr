@@ -53,6 +53,6 @@ class TestCompose(pkrTestCase):
             "image-test",
         ]
         with open((out_dir / "docker-compose.yml"), "r") as f:
-            dump = yaml.load(f)
+            dump = yaml.load(f, Loader=yaml.FullLoader)
 
         self.assertEqual(dump["paths"], expected)

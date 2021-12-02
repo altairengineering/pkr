@@ -148,11 +148,18 @@ class Extensions(object):
             module = importer.find_module(package_name).load_module(package_name)
             extensions[package_name] = cls._get_extension_class(module)
         # Load from pkr_extensions entrypoints (and TO BE DEPRECATED extensions group)
-        for entry in entry_points().get("pkr_extensions", ()) + entry_points().get(
-            "extensions", ()
-        ):
+        eps = entry_points()
+        if hasattr(eps, "select"):
+            extension_eps = list(eps.select(group="pkr_extensions")) + list(
+                eps.select(group="extensions")
+            )
+        else:
+            extension_eps = eps.get("pkr_extensions", ()) + eps.get("extensions", ())
+
+        for entry in extension_eps:
             if entry.name not in extensions:
                 extensions[entry.name] = entry.load()
+
         return extensions
 
     def __contains__(self, ext_name):
