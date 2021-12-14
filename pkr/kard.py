@@ -3,8 +3,9 @@
 
 """pkr Kard"""
 
-import shutil
 import copy
+import os
+import shutil
 
 import yaml
 from pathlib import Path
@@ -116,7 +117,7 @@ class Kard(object):
         if kubernetes:
             kards += load_driver("k8s").list_kards()
 
-        return kards
+        return sorted(kards)
 
     @classmethod
     def create(cls, name, env, driver, extra, features=None, meta=None, **kwargs):
@@ -175,7 +176,8 @@ class Kard(object):
             shutil.rmtree(str(kard_path))
             raise
 
-        Kard.set_current(kard.name)
+        if not kwargs.get("do_not_set_current"):
+            Kard.set_current(kard.name)
         return kard
 
     @classmethod
@@ -198,10 +200,15 @@ class Kard(object):
             raise KardNotFound('Kard "{}" not found: {}'.format(name, ioe))
 
     @classmethod
-    def load_current(cls):
-        """Load the last used kard"""
+    def load_current(cls, kard=None):
+        """Load the last used Kard, or a specific one if given."""
         if cls.CURRENT_KARD is None:
-            cls.CURRENT_KARD = cls.load(cls.get_current())
+            if not kard:
+                kard = os.getenv("PKR_KARD")
+            if not kard:
+                kard = cls.get_current()
+
+            cls.CURRENT_KARD = cls.load(kard)
         return cls.CURRENT_KARD
 
     @classmethod

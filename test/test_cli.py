@@ -269,6 +269,52 @@ class TestCLI(pkrTestCase):
         self.assertEqual(stdout, expected_cmd_output)
         assert re.match(expected_cmd_output_2, error_outputs[3])
 
+    def test_explicit_kard_option(self):
+        self.generate_kard()
+
+        cmd = "{} kard create test2 --do-not-set-current --extra tag=test2".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(0, prc.returncode, stdout)
+
+        cmd = "{} kard list".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        self.assertEqual(0, prc.returncode)
+        msg = b"Kards:\n" b" - test\n" b" - test2\n"
+        stdout = prc.stdout.read()
+        self.assertEqual(msg, stdout)
+
+        cmd = "{} kard get".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        self.assertEqual(b"Current Kard: test\n", stdout)
+
+        tag_test2 = b"tag: test2"
+
+        # Use Kard directly through command-line argument
+        cmd = "{} kard dump -k test2".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        self.assertEqual(0, prc.returncode)
+        stdout = prc.stdout.read()
+        self.assertTrue(tag_test2 in stdout)
+
+        # Use Kard directly through environment variable
+        cmd = "{} kard dump".format(self.PKR)
+        pkr_env = os.environ.copy()
+        pkr_env["PKR_KARD"] = "test2"
+        prc = self._run_cmd(cmd, env=pkr_env)
+        self.assertEqual(0, prc.returncode)
+        stdout = prc.stdout.read()
+        self.assertTrue(tag_test2 in stdout)
+
+        # Use default ("current") Kard.
+        cmd = "{} kard dump".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        self.assertEqual(0, prc.returncode)
+        stdout = prc.stdout.read()
+        self.assertTrue(tag_test2 not in stdout)
+
 
 class TestCLIProd(pkrTestCase):
     PKR = "pkr"

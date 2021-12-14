@@ -88,8 +88,10 @@ class pkrTestCase(unittest.TestCase):
     test_clean = True
 
     @staticmethod
-    def _run_cmd(cmd):
-        prc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def _run_cmd(cmd, env=None):
+        prc = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+        )
         prc.wait()
         return prc
 
