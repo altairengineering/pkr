@@ -82,7 +82,7 @@ class KubernetesPkr:
         proc = subprocess.Popen(shlex.split(command), env=self.env, close_fds=True, **kwargs)
         stdout, stderr = proc.communicate()
 
-        return stdout or "", stderr or ""
+        return stdout or "", stderr or "", proc.returncode
 
     def run_kubectl(self, cmd, silent=False):
         """Run kubectl tool with the provided command"""
@@ -100,12 +100,10 @@ class KubernetesPkr:
         """
         Retrieve previously stored content for this kard
         """
-        out, err = self.run_kubectl(
+        out, err, returncode = self.run_kubectl(
             "get cm -n kube-system pkr-{} -o yaml".format(self.kard.name), silent=True
         )
-        if err != "":
-            if b"NotFound" in err:
-                return {}
+        if returncode and err != "":
             raise Exception("Failed to get configmap pkr-{} with : {}".format(self.kard.name, err))
         out_hash = {}
         for key, value in yaml.safe_load(out).get("data", {}).items():
@@ -177,14 +175,14 @@ class KubernetesPkr:
                 with NamedTemporaryFile() as f:
                     f.write(old_cm[name].encode("utf-8"))
                     f.seek(0)
-                    out, _ = self.run_kubectl("delete -f {}".format(f.name))
+                    out, _, _ = self.run_kubectl("delete -f {}".format(f.name))
                     write(out)
 
         for k8s_file in saved_files[1:]:
             if services and k8s_file.name[:-4] not in services:
                 continue
             write("Processing {}".format(k8s_file.name))
-            out, _ = self.run_kubectl("apply -f {}".format(k8s_file))
+            out, _, _ = self.run_kubectl("apply -f {}".format(k8s_file))
             write(out)
             sleep(0.1)
 
@@ -198,7 +196,7 @@ class KubernetesPkr:
             if services and k8s_file.name[:-4] not in services:
                 continue
             write("Processing {}".format(k8s_file))
-            out, _ = self.run_kubectl("delete -f {}".format(k8s_file))
+            out, _, _ = self.run_kubectl("delete -f {}".format(k8s_file))
             write(out)
             sleep(0.5)
 
@@ -223,8 +221,8 @@ class KubernetesPkr:
         self.stop()
 
     def list_kards(self):
-        out, err = self.run_kubectl("get cm -n kube-system -l pkr=kard -o name", True)
-        if err != "":
+        out, err, returncode = self.run_kubectl("get cm -n kube-system -l pkr=kard -o name", True)
+        if returncode and err != "":
             raise Exception("Error getting kards from k8s: {}".format(err))
 
         kards = []
