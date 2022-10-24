@@ -22,7 +22,7 @@ jobs:
       env: TOXENV=format DEPLOY=true
       stage: deploy
       if: tag IS present
-install: pip install tox-travis
+install: pip install -U importlib_metadata tox-travis
 script: tox
 
 deploy:
