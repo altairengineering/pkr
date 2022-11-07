@@ -159,14 +159,35 @@ class ComposePkr:
 
         eff_modules = self._resolve_services(services)
 
+        # This pattern is used to detect the remote image
+        pattern = re.compile("^\S+\/\S+$")
+
         # Image names may be different from service names (e.g. image re-use)
-        images = set(
+        build_images = set(
             s["image"].partition(":")[0]  # without ":tag" suffix
             for s in self._load_compose_config().services
-            if s["name"] in eff_modules
+            if s["name"] in eff_modules and not pattern.match(s["image"])
         )
 
-        self.build_images(images, rebuild_context=False, verbose=verbose, logfile=build_log)
+        pull_images = []
+        for s in self._load_compose_config().services:
+            if s["name"] in eff_modules and pattern.match(s["image"]):
+                image = s["image"].split("/")[1]
+                registry = self.get_registry(
+                    url=s["image"].split("/")[0], username=None, password=None
+                )
+                image_name = image.split(":")[0]
+                remote_tag = image.split(":")[1]
+                pull_images.append((image, image_name, registry, remote_tag))
+
+        tag = self.kard.meta["tag"]
+
+        if len(pull_images) != 0:
+            self.pull_images(pull_images, tag=tag)
+        if len(build_images) != 0:
+            self.build_images(
+                build_images, rebuild_context=False, verbose=verbose, logfile=build_log
+            )
 
         self.start(services)
 

@@ -168,6 +168,22 @@ def configure_image_parser(parser):
         func=lambda args: Kard.load_current(args.kard).driver.push_images(**args.__dict__)
     )
 
+    # Login parser
+    login_parser = sub_p.add_parser("pull", help="Login docker registry")
+    add_service_argument(login_parser)
+    login_parser.add_argument("-r", "--registry", default=None, help="The docker registry")
+    login_parser.add_argument(
+        "-u", "--username", default=None, help="The docker registry username"
+    )
+    login_parser.add_argument(
+        "-p", "--password", default=None, help="The docker registry password"
+    )
+    login_parser.set_defaults(
+        func=lambda args: Kard.load_current(args.kard).driver.logon_remote_registry(
+            **args.__dict__
+        )
+    )
+
     # Pull parser
     pull_parser = sub_p.add_parser("pull", help="Pull docker images")
     add_service_argument(pull_parser)

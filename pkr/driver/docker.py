@@ -238,6 +238,8 @@ class DockerDriver(AbstractDriver):
         Args:
           * registry: a DockerRegistry instance
         """
+        if registry.username is None:
+            return
         write("Logging to {}...".format(registry.url))
         self.docker.login(
             username=registry.username, password=registry.password, registry=registry.url
@@ -321,35 +323,54 @@ class DockerDriver(AbstractDriver):
                 error_msg = "\nError while pushing the image {}: {}\n".format(dest_tag, error)
                 raise error
 
+    def logon_remote_registry(self, registry, username=None, password=None):
+        """Login to a remote registry
+
+        Args:
+          * registry: a DockerRegistry instance
+          * username: username
+          * password: password
+        """
+        registry = self.get_registry(url=registry, username=username, password=password)
+        self._logon_remote_registry(registry)
+
     def pull_images(
-        self, services, registry, username, password, tag=None, parallel=None, **kwargs
+        self,
+        services,
+        registry=None,
+        username=None,
+        password=None,
+        tag=None,
+        parallel=None,
+        **kwargs,
     ):
         """Pull images from a remote registry
 
         Args:
           * services: the name of the images to pull
-          * registry: a DockerRegistry instance
-          * remote_tag: the tag of the version to pull
+          * registry: a docker registry url
+          * tag: the tag of the version to pull
           * parallel: pull parallelism
         """
-        services = services or list(self.kard.env.get_container().keys())
-        remote_tag = tag or self.kard.meta["tag"]
-        tag = self.kard.meta["tag"]
+        if registry is not None:
+            services = services or list(self.kard.env.get_container().keys())
+            remote_tag = tag or self.kard.meta["tag"]
+            tag = self.kard.meta["tag"]
 
-        registry = self.get_registry(url=registry, username=username, password=password)
-        if registry.username is not None:
-            self._logon_remote_registry(registry)
+            dockerRegistry = self.get_registry(url=registry, username=username, password=password)
+            self._logon_remote_registry(dockerRegistry)
 
-        todos = []
-        for service in services:
-            image_name = self.make_image_name(service)
-            image = self.make_image_name(service, tag)
-            todos.append((image, image_name))
-
+            todos = []
+            for service in services:
+                image_name = self.make_image_name(service)
+                image = self.make_image_name(service, tag)
+                todos.append((image, image_name, dockerRegistry, remote_tag))
+        else:
+            todos = services
         if parallel:
             futures = []
             with ThreadPoolExecutor(max_workers=parallel) as executor:
-                for image, image_name in todos:
+                for image, image_name, registry, remote_tag in todos:
                     futures.append(
                         (
                             image,
@@ -368,7 +389,7 @@ class DockerDriver(AbstractDriver):
                 write(" Done !" + "\n")
                 sys.stdout.flush()
         else:
-            for image, image_name in todos:
+            for image, image_name, registry, remote_tag in todos:
                 write(
                     "Pulling {} from {}/{}:{}...".format(
                         image, registry.url, image_name, remote_tag
