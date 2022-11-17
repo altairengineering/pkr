@@ -84,7 +84,7 @@ class Kard(object):
                     write("Done !")
                 else:
                     write("Ok !")
-            folder.mkdir(exist_ok=True)
+            folder.mkdir(parents=True, exist_ok=True)
 
         # Copy_file / templating
         tpl_engine = self.get_template_engine()
