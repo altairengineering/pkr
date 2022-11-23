@@ -126,6 +126,7 @@ def configure_image_parser(parser):
     # Build parser
     build_parser = sub_p.add_parser("build", help="Build docker images")
     build_parser.add_argument("-t", "--tag", default=None, help="The tag for images")
+    build_parser.add_argument("-T", "--target", default=None, help="The targeted stage")
     build_parser.add_argument(
         "-r", "--rebuild-context", action="store_true", default=True, help="Rebuild the context"
     )

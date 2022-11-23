@@ -121,6 +121,7 @@ class BuildxDriver(DockerDriver):
         parallel=None,
         no_rebuild=False,
         clean_builder=False,
+        target=None,
         **kwargs,
     ):
         """Build docker images with buildx.
@@ -133,6 +134,7 @@ class BuildxDriver(DockerDriver):
           * nocache: disable docker cache
           * parallel: (int|None) Number of concurrent build
           * no_rebuild: do not build if destination image exists
+          * target: name of the build-stage to build in a multi-stage Dockerfile
         """
         if docker is None:
             # Handle python 3.6 here, to not impact child drivers
@@ -171,6 +173,7 @@ class BuildxDriver(DockerDriver):
                                 nocache,
                                 no_rebuild,
                                 True,
+                                target,
                             )
                         )
                     )
@@ -181,7 +184,14 @@ class BuildxDriver(DockerDriver):
                 write("Building docker images...\n")
             for service in services:
                 exec = self._build_image(
-                    service, tag, verbose, logfile, nocache, no_rebuild, False
+                    service,
+                    tag,
+                    verbose,
+                    logfile,
+                    nocache,
+                    no_rebuild,
+                    False,
+                    target,
                 )
                 if exec is not None:
                     exec[0](*exec[1:])
@@ -195,6 +205,7 @@ class BuildxDriver(DockerDriver):
         nocache=False,
         no_rebuild=False,
         bufferize=None,
+        target=None,
     ):
         """Build docker image.
 
@@ -206,12 +217,15 @@ class BuildxDriver(DockerDriver):
           * nocache: disable docker cache
           * no_rebuild: do not build if destination image exists
           * bufferize: keep log to print when ended
+          * target: name of the build-stage to build in a multi-stage Dockerfile
         """
         image_name = self.make_image_name(service, tag)
 
         dockerfile = self.kard.env.get_container(service).get("dockerfile")
         if not dockerfile:
             return
+        if not target:
+            target = self.kard.env.get_container(service).get("target")
 
         if no_rebuild:
             image = len(self.docker.images(image_name)) == 1
@@ -225,6 +239,7 @@ class BuildxDriver(DockerDriver):
                     "load": True,  # load to docker repository
                     "push": False,  # push to registry
                     "tags": image_name,
+                    "target": target,
                 }
             )
 
@@ -264,7 +279,12 @@ class BuildxDriver(DockerDriver):
             os.dup2(out_file.fileno(), sys.stdout.fileno())
             os.dup2(out_file.fileno(), sys.stderr.fileno())
 
-        write("Building {} image...\n".format(buildx_options["tags"]))
+        write(
+            "Building {}{} image...\n".format(
+                buildx_options["tags"],
+                "({})".format(buildx_options["target"]) if buildx_options.get("target") else "",
+            )
+        )
 
         error = None
         try:

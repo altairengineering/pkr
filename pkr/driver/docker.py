@@ -136,6 +136,7 @@ class DockerDriver(AbstractDriver):
         nocache=False,
         parallel=None,
         no_rebuild=False,
+        target=None,
         **kwargs,
     ):
         """Build docker images.
@@ -148,6 +149,7 @@ class DockerDriver(AbstractDriver):
           * nocache: disable docker cache
           * parallel: (int|None) Number of concurrent build
           * no_rebuild: do not build if destination image exists
+          * target: name of the build-stage to build in a multi-stage Dockerfile
         """
         services = services or list(self.kard.env.get_container().keys())
         if rebuild_context:
@@ -172,6 +174,7 @@ class DockerDriver(AbstractDriver):
                                 nocache,
                                 no_rebuild,
                                 True,
+                                target,
                             )
                         )
                 for future in futures:
@@ -180,7 +183,9 @@ class DockerDriver(AbstractDriver):
                 if len(services) > 1:
                     logfh.write("Building docker images...\n")
                 for service in services:
-                    self._build_image(service, tag, verbose, logfile, nocache, no_rebuild, False)
+                    self._build_image(
+                        service, tag, verbose, logfile, nocache, no_rebuild, False, target
+                    )
 
     def _build_image(
         self,
@@ -191,6 +196,7 @@ class DockerDriver(AbstractDriver):
         nocache=False,
         no_rebuild=False,
         bufferize=None,
+        target=None,
     ):
         """Build docker image.
 
@@ -202,6 +208,7 @@ class DockerDriver(AbstractDriver):
           * nocache: disable docker cache
           * parallel: (int|None) Number of concurrent build
           * no_rebuild: do not build if destination image exists
+          * target: name of the build-stage to build in a multi-stage Dockerfile
         """
         image_name = self.make_image_name(service, tag)
 
@@ -209,8 +216,14 @@ class DockerDriver(AbstractDriver):
             dockerfile = self.kard.env.get_container(service).get("dockerfile")
             if not dockerfile:
                 return
+            if not target:
+                target = self.kard.env.get_container(service).get("target")
 
-            logfh.write("Building {} image...\n".format(image_name))
+            logfh.write(
+                "Building {}{} image...\n".format(
+                    image_name, "({})".format(target) if target else ""
+                )
+            )
 
             if no_rebuild:
                 image = len(self.docker.images(image_name)) == 1
@@ -224,6 +237,7 @@ class DockerDriver(AbstractDriver):
                     decode=True,
                     nocache=nocache,
                     forcerm=True,
+                    target=target,
                 )
 
                 self.print_docker_stream(
