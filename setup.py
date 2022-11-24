@@ -51,7 +51,7 @@ def setup_pkr():
             'python-on-whales==0.20.2;python_version>="3.7"',
         ],
         packages=find_packages(exclude=["test", "docs"]),
-        python_requires=">=3.6, <4,",
+        python_requires=">=3.7, <4,",
     )
 
 
