@@ -170,7 +170,7 @@ def configure_image_parser(parser):
     )
 
     # Login parser
-    login_parser = sub_p.add_parser("pull", help="Login docker registry")
+    login_parser = sub_p.add_parser("login", help="Login docker registry")
     add_service_argument(login_parser)
     login_parser.add_argument("-r", "--registry", default=None, help="The docker registry")
     login_parser.add_argument(
