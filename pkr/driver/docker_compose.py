@@ -169,6 +169,16 @@ class ComposePkr:
             if s["name"] in eff_modules and not pattern.match(s["image"])
         )
 
+        # Revert the image name if possible
+        image_pattern = self.kard.meta.get("image_pattern", self.SERVICE_VAR)
+        if image_pattern:
+            pattern_regex = image_pattern.replace(self.SERVICE_VAR, "(.*)")
+            images_renamed = set()
+            for image in build_images:
+                match = re.search(pattern_regex, image)
+                images_renamed.add(image if not match else match.group(1))
+            build_images = images_renamed
+
         pull_images = []
         for s in self._load_compose_config().services:
             if s["name"] in eff_modules and pattern.match(s["image"]):

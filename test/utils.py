@@ -12,7 +12,6 @@ import os
 import shutil
 import subprocess
 
-
 from pathlib import Path
 
 from pkr.cli.parser import get_parser
@@ -123,6 +122,15 @@ class pkrTestCase(unittest.TestCase):
     def make_kard(cls):
         """pkr kard make"""
         cmd_args = ["kard", "make"]
+
+        pkr_args = get_parser().parse_args(cmd_args)
+        func = vars(pkr_args).pop("func")
+        func(pkr_args)
+
+    @classmethod
+    def up(cls):
+        """pkr kard make"""
+        cmd_args = ["up"]
 
         pkr_args = get_parser().parse_args(cmd_args)
         func = vars(pkr_args).pop("func")
