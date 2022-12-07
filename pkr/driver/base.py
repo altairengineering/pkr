@@ -156,38 +156,3 @@ class AbstractDriver(object):
     def clean(self, kill=False):
         """Hook for drivers to provide a clean/stop process feature"""
         NotImplementedError()
-
-
-class BaseDriver(AbstractDriver):
-    metas = []
-
-    def get_templates(self):
-        templates = []
-        templates_path = self.kard.env.pkr_path / self.kard.env.template_dir
-
-        # Process templates
-        for container in self.kard.env.get_container():
-            for template in self.kard.env.get_container(container)["templates"]:
-                templates.append(
-                    {
-                        "source": templates_path / template,
-                        "origin": templates_path,
-                        "destination": "",
-                        "subfolder": "templated",
-                    }
-                )
-
-        # Process requirements
-        for src in self.kard.env.get_requires():
-            templates.append(
-                {
-                    "source": src["origin"],
-                    "origin": src["origin"],
-                    "destination": src["dst"],
-                    "subfolder": "templated",
-                    "excluded_paths": src.get("exclude", []),
-                    "gen_template": False,
-                }
-            )
-
-        return templates

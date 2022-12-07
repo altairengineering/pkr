@@ -13,7 +13,7 @@ except:
     docker = None
     DockerException = None
 
-from pkr.driver.docker import DockerDriver
+from pkr.driver.docker_base import DockerBaseDriver
 from pkr.cli.log import write
 from pkr.utils import merge
 from pathlib import Path
@@ -35,7 +35,7 @@ BUILDX_OPTIONS = {
 BUILDX_BUILDER_NAME = "pkrbuilder"
 
 
-class BuildxDriver(DockerDriver):
+class BuildxDriver(DockerBaseDriver):
     """Driver using `docker buildx` subcommands (included in docker CE 19.03 and newer) to build images.
     Inherited from docker driver (for get_templates/pull/push/download/import/list)
 
@@ -47,42 +47,92 @@ class BuildxDriver(DockerDriver):
 
     def __init__(self, kard, **kwargs):
         super().__init__(kard=kard, **kwargs)
-        self.metas = {"tag": None, "buildx": ["cache_registry"]}
+        self.metas = {"tag": None, "driver": {"buildx": ["cache_registry"]}}
         self.buildkit_env = BUILDKIT_ENV
         self.buildx_options = BUILDX_OPTIONS
+
+    def get_templates(self):
+        """Use the environment information to return files and folder to template
+        or copy to templated directory according to the 'requires' section of the
+        containers description
+        """
+        templates = super().get_templates()
+
+        templates_path = (
+            self.kard.env.pkr_path / self.kard.env.template_dir / self.DOCKER_CONTEXT_SOURCE
+        )
+
+        # Process dockerfiles
+        for container in self.kard.env.get_container():
+            context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+
+            # Process requirements
+            for src in self.kard.env.get_requires([container]):
+                template = {
+                    "source": src["origin"],
+                    "origin": src["origin"],
+                    "destination": src["dst"],
+                    "subfolder": context,
+                    "excluded_paths": src.get("exclude", []),
+                    "gen_template": False,
+                }
+                if template not in templates:
+                    # Dedup templates to avoid multi-copy
+                    templates.append(template)
+
+            try:
+                dockerfile = self.kard.env.get_container(container)["dockerfile"]
+            except KeyError:
+                # In this case, we use an image provided by the hub
+                continue
+
+            # Automatically add dockerfile name matching folder to the context
+            dockerfile = Path(dockerfile).stem
+            templates.append(
+                {
+                    "source": templates_path / f"{dockerfile}*",  # Match template
+                    "origin": templates_path,
+                    "destination": "",
+                    "subfolder": context,
+                }
+            )
+
+        return templates
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
         if "tag" in extras:
             extras["tag"] = str(values["tag"])
 
+        driver_meta = kard.meta["driver"].get("buildx", {})
+
         # Get values from meta if defined
-        self.buildkit_env.update(kard.meta.get("buildx", {}).get("buildkit_env", {}))
-        self.builder_name = kard.meta.get("buildx", {}).get("builder_name", BUILDX_BUILDER_NAME)
+        self.buildkit_env.update(driver_meta.get("buildkit_env", {}))
+        self.builder_name = driver_meta.get("builder_name", BUILDX_BUILDER_NAME)
 
         # Force cache_registry to be a sub-repo (saved in metafile)
-        if extras["buildx"]["cache_registry"] == "None":
-            extras["buildx"]["cache_registry"] = None
+        if extras["driver"]["buildx"]["cache_registry"] == "None":
+            extras["driver"]["buildx"]["cache_registry"] = None
         if (
-            extras["buildx"]["cache_registry"] is not None
-            and "/" not in extras["buildx"]["cache_registry"]
+            extras["driver"]["buildx"]["cache_registry"] is not None
+            and "/" not in extras["driver"]["buildx"]["cache_registry"]
         ):
-            extras["buildx"]["cache_registry"] += "/cache"
+            extras["driver"]["buildx"]["cache_registry"] += "/cache"
 
         # Compute options
         builded_options = {
             "builder": self.builder_name,
             "cache_to": {
-                "ref": extras["buildx"]["cache_registry"],
+                "ref": extras["driver"]["buildx"]["cache_registry"],
             },
             "cache_from": {
-                "ref": extras["buildx"]["cache_registry"],
+                "ref": extras["driver"]["buildx"]["cache_registry"],
             },
         }
-        self.buildx_options = kard.meta.get("buildx", {}).get("options", self.buildx_options)
+        self.buildx_options = driver_meta.get("options", self.buildx_options)
 
         # Handle null cache_registry
-        if extras["buildx"]["cache_registry"] is None:
+        if extras["driver"]["buildx"]["cache_registry"] is None:
             del builded_options["cache_from"]
             del builded_options["cache_to"]
 
@@ -144,7 +194,7 @@ class BuildxDriver(DockerDriver):
         if rebuild_context:
             self.kard.make()
 
-        buildx_meta = self.kard.meta.get("buildx", {})
+        buildx_meta = self.kard.meta["driver"].get("buildx", {})
         if "cache_registry_username" in buildx_meta and buildx_meta["cache_registry"] is not None:
             registry_url = buildx_meta["cache_registry"].split("/")[0]
             print(f"Logging to {registry_url}")

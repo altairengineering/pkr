@@ -23,6 +23,7 @@ from .utils import (
     diff,
     dedup_list,
     merge_lists,
+    common_keys,
 )
 
 
@@ -39,6 +40,7 @@ class Kard(object):
     CURRENT_NAME = "current"
     LOCAL_SRC = "./src"
     CURRENT_KARD = None
+    driver = []
 
     def __init__(self, name, path, meta=None):
         self.path = path
@@ -70,37 +72,38 @@ class Kard(object):
 
     def make(self, reset=True):
         """Make the kard"""
-        templates = self.driver.get_templates()
+        for driver in self.driver:
+            templates = driver.get_templates()
 
-        # Reset/create all subfolders
-        subfolder_list = list(map(lambda a: a.get("subfolder"), templates))
-        for subfolder in [i for n, i in enumerate(subfolder_list) if i not in subfolder_list[:n]]:
-            # set(map(lambda a: a.get("subfolder"), templates)):
-            folder = self.path / subfolder
-            if reset:
-                write(f"Removing {subfolder} ... ", add_return=False)
-                if folder.exists():
-                    shutil.rmtree(str(self.path / subfolder))
-                    write("Done !")
-                else:
-                    write("Ok !")
-            folder.mkdir(parents=True, exist_ok=True)
+            # Reset/create all subfolders
+            subfolder_list = list(map(lambda a: a.get("subfolder"), templates))
+            for subfolder in [i for n, i in enumerate(subfolder_list) if i not in subfolder_list[:n]]:
+                # set(map(lambda a: a.get("subfolder"), templates)):
+                folder = self.path / subfolder
+                if reset:
+                    write(f"Removing {subfolder} ... ", add_return=False)
+                    if folder.exists():
+                        shutil.rmtree(str(self.path / subfolder))
+                        write("Done !")
+                    else:
+                        write("Ok !")
+                folder.mkdir(parents=True, exist_ok=True)
 
-        # Copy_file / templating
-        tpl_engine = self.get_template_engine()
-        for template in templates:
-            source = Path(self.replace_var(str(template["source"])))
-            origin = Path(self.replace_var(str(template["origin"])))
-            tpl_engine.copy(
-                path=source,
-                origin=origin,
-                local_dst=self.path / template["subfolder"] / template["destination"],
-                excluded_paths=[self.replace_var(e) for e in template.get("excluded_paths", [])],
-                gen_template=template.get("gen_template", True),
-            )
+            # Copy_file / templating
+            tpl_engine = self.get_template_engine()
+            for template in templates:
+                source = Path(self.replace_var(str(template["source"])))
+                origin = Path(self.replace_var(str(template["origin"])))
+                tpl_engine.copy(
+                    path=source,
+                    origin=origin,
+                    local_dst=self.path / template["subfolder"] / template["destination"],
+                    excluded_paths=[self.replace_var(e) for e in template.get("excluded_paths", [])],
+                    gen_template=template.get("gen_template", True),
+                )
 
-        self.extensions.populate_kard()
-        self.driver.populate_kard()
+            self.extensions.populate_kard()
+            driver.populate_kard()
 
     @classmethod
     def list(cls, kubernetes=False):
@@ -159,7 +162,13 @@ class Kard(object):
 
         try:
             if driver is not None:
-                extras.setdefault("driver", {})["name"] = driver
+                driver = driver.split(",")
+                drivers = {}
+                for d in dedup_list(driver):
+                    write("WARNING: Driver {} is duplicated in args".format(d), error=True)
+                for d in driver:
+                    drivers.setdefault(d, {})
+                extras.setdefault("driver", drivers)
             extras["env"] = env
             # If a path is provided, we take it. Otherwise, we use a src folder
             # in the kard folder.
@@ -266,31 +275,36 @@ class Kard(object):
         merge(self.env.get_meta(extra), self.meta)  # Extra receiving ask_input values
 
         # Load driver an add it to overall context
-        self.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
-        driver_args = self.meta.get("driver", {}).get("args", [])
-        driver_kwargs = self.meta.get("driver", {}).get("kwargs", {})
-        self.driver = load_driver(self.meta["driver"]["name"], self, *driver_args, **driver_kwargs)
-        merge(self.driver.get_meta(extra, self), self.meta)  # Extra receiving ask_input values
+        self.meta.setdefault("driver", {"compose": {}})  # Default value
+        if extra.setdefault("driver", {}) is None:
+            drivers = self.meta.get("driver")
+        else:
+            drivers = common_keys(extra.get("driver"), self.meta.get("driver"))
+        for key, value in drivers.items():
+            driver_args = value.get("args", [])
+            driver_kwargs = value.get("kwargs", {})
+            driver = load_driver(key, self, *driver_args, **driver_kwargs)
+            self.driver.append(driver)
+            merge(driver.get_meta(extra, self), self.meta)  # Extra receiving ask_input values
+            # Populate src_path before extension call
+            self._process_src_path()
 
-        # Populate src_path before extension call
-        self._process_src_path()
+            # Copy overall context as diff base
+            overall_context = copy.deepcopy(self.meta)
 
-        # Copy overall context as diff base
-        overall_context = copy.deepcopy(self.meta)
+            # Extensions (give them a copy of extra, ext should not interact with it)
+            self.extensions.setup(copy.deepcopy(extra), self)
 
-        # Extensions (give them a copy of extra, ext should not interact with it)
-        self.extensions.setup(copy.deepcopy(extra), self)
+            # Making a diff and apply it to extra without overwrite (we want cli to superseed extensions)
+            merge(diff(overall_context, self.meta), extra, overwrite=False)
 
-        # Making a diff and apply it to extra without overwrite (we want cli to superseed extensions)
-        merge(diff(overall_context, self.meta), extra, overwrite=False)
+            # We add all remaining extra to the meta(s) (cli superseed all)
+            merge(extra, self.meta)
+            self._process_src_path()
 
-        # We add all remaining extra to the meta(s) (cli superseed all)
-        merge(extra, self.meta)
-        self._process_src_path()
-
-        # Append features
-        merge_lists(features, self.meta["features"], insert=False)
-        extra["features"] = features
+            # Append features
+            merge_lists(features, self.meta["features"], insert=False)
+            extra["features"] = features
 
         return extra
 
@@ -349,19 +363,20 @@ class Kard(object):
 
             return str(self.real_path / data_path / path)
 
-        data.update(
-            {
-                "env": self.env.env_name,
-                "kard_file_content": read_kard_file,
-                "format_image": format_image,
-                "context_path": lambda p="", c=None: str(self.driver.context_path(p, c)),
-                "kard_path": lambda p="": str(self.real_path / p),
-                "src_path": lambda p="": str(Path(self.meta["src_path"]) / p),
-                "make_container_name": self.driver.make_container_name,
-                "make_image_name": lambda n, t=None: self.driver.make_image_name(n, t),
-                "data_path": get_data_path,
-            }
-        )
+        for driver in self.driver:
+            data.update(
+                {
+                    "env": self.env.env_name,
+                    "kard_file_content": read_kard_file,
+                    "format_image": format_image,
+                    "context_path": lambda p="", c=None: str(driver.context_path(p, c)),
+                    "kard_path": lambda p="": str(self.real_path / p),
+                    "src_path": lambda p="": str(Path(self.meta["src_path"]) / p),
+                    "make_container_name": driver.make_container_name,
+                    "make_image_name": lambda n, t=None: driver.make_image_name(n, t),
+                    "data_path": get_data_path,
+                }
+            )
 
         # Get custom template data from extensions
         for custom_data in self.extensions.get_context_template_data():
