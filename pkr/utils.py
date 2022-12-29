@@ -407,3 +407,13 @@ def merge_lists(src, dest, insert=True):
     else:
         dest.extend([x for x in src if x not in dest])
     return dest
+
+
+def common_keys(current, previous):
+    """return common keys of two dictionaries"""
+    currentSet = set(current)
+    previousSet = set(previous)
+    res = {}
+    for name in currentSet.intersection(previousSet):
+        res.setdefault(name, previous.get(name, {}))
+    return res

@@ -15,7 +15,7 @@ import docker
 from pathlib import Path
 import yaml
 
-from pkr.driver import docker
+from pkr.driver import docker_base
 from pkr.cli.log import write
 from pkr.utils import (
     PkrException,
@@ -361,5 +361,6 @@ class ComposePkr:
             raise PkrException("Container exited with non-zero status code {}".format(ret))
 
 
-class ComposeDriver(ComposePkr, docker.DockerDriver):
-    pass
+class ComposeDriver(ComposePkr, docker_base.DockerBaseDriver):
+    def get_templates(self):
+        return ComposePkr.get_templates(self)
