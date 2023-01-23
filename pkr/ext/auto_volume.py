@@ -22,7 +22,7 @@ class AutoVolume(ExtMixin):
         return {"add_file": add_file, "use_volume": kard.env.get("use_volume", False)}
 
 
-@jinja2.contextfunction
+@jinja2.pass_context
 def add_file(context, paths):
     """This function is used inside the dockerfiles templates to
     render them by using either the ADD or VOLUME instruction."""
