@@ -80,8 +80,13 @@ class Kard(object):
             if reset:
                 write(f"Removing {subfolder} ... ", add_return=False)
                 if folder.exists():
-                    shutil.rmtree(str(self.path / subfolder))
-                    write("Done !")
+                    try:
+                        shutil.rmtree(str(self.path / subfolder))
+                    except Exception as exc:
+                        write(f"Cannot delete subtree {self.path / subfolder}: {exc}")
+                        raise
+                    else:
+                        write("Done !")
                 else:
                     write("Ok !")
             folder.mkdir(parents=True, exist_ok=True)
