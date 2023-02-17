@@ -56,6 +56,7 @@ class DockerDriver(AbstractDriver):
             self.docker = docker.from_env(**kwargs).api
         else:
             self.docker = docker.APIClient(**kwargs)
+        self.platform = os.environ.get("DOCKER_DEFAULT_PLATFORM")
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
@@ -238,6 +239,7 @@ class DockerDriver(AbstractDriver):
                     nocache=nocache,
                     forcerm=True,
                     target=target,
+                    platform=self.platform,
                 )
 
                 self.print_docker_stream(

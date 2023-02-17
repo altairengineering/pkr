@@ -50,6 +50,7 @@ class BuildxDriver(DockerDriver):
         self.metas = {"tag": None, "buildx": ["cache_registry"]}
         self.buildkit_env = BUILDKIT_ENV
         self.buildx_options = BUILDX_OPTIONS
+        self.platform = os.environ.get("DOCKER_DEFAULT_PLATFORM")
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
@@ -242,6 +243,9 @@ class BuildxDriver(DockerDriver):
                     "target": target,
                 }
             )
+
+            if self.platform is not None:
+                self.buildx_options.update({"platforms": [self.platform]})
 
             # Handle args
             if nocache and "cache_from" in self.buildx_options:
