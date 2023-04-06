@@ -336,7 +336,9 @@ def configure_kard_parser(parser):
         help='Do not change the "current" symbolic link after creating the Kard.',
         action="store_true",
     )
-    create_kard_p.add_argument("--extra", nargs="*", default=[], help="Extra args")
+    create_kard_p.add_argument(
+        "--extra", nargs="*", default=[], action="extend", help="Extra args",
+    )
 
     list_kard = sub_p.add_parser("list", help="List kards")
     list_kard.add_argument(
