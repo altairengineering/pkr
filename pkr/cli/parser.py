@@ -9,6 +9,7 @@ import argparse
 from pathlib import Path
 import yaml
 
+from .action import ExtendAction
 from .log import write
 from ..driver import list_drivers
 from ..ext import ExtMixin, Extensions
@@ -337,7 +338,11 @@ def configure_kard_parser(parser):
         action="store_true",
     )
     create_kard_p.add_argument(
-        "--extra", nargs="*", default=[], action="extend", help="Extra args",
+        "--extra",
+        nargs="*",
+        default=[],
+        action=ExtendAction,
+        help="Extra args",
     )
 
     list_kard = sub_p.add_parser("list", help="List kards")
