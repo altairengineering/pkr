@@ -195,6 +195,9 @@ def configure_image_parser(parser):
     pull_parser.add_argument(
         "--parallel", type=int, default=None, help="Number of parallel image pull"
     )
+    pull_parser.add_argument(
+        "--ignore-errors", action="store_true", help="Ignore image pull errors"
+    )
     add_kard_argument(pull_parser)
     pull_parser.set_defaults(
         func=lambda args: Kard.load_current(args.kard).driver.pull_images(**args.__dict__)

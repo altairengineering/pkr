@@ -246,6 +246,29 @@ class TestCLI(pkrTestCase):
         # error type
         self.assertRegex(stderr, expected_final_print_prefix)
 
+    def test_image_pull_properly_ignore_error(self):
+        self.generate_kard()
+        # We want to test that the command `pkr image pull` get an error
+        # of the non-existence image, and continue the job and finally success with code 0
+        cmd = "{} image pull -r dummyregistry -t remote_tag --ignore-errors".format(self.PKR)
+
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        self.assertEqual(0, prc.returncode, stdout)
+
+        expected_cmd_output = b"Pulling backend:test from dummyregistry/backend:remote_tag..."
+        expected_error_regex = b"Error while pulling the image test:"
+        expected_final_print_prefix = b"Done !"
+
+        outputs = stdout.split(b"\n")[:-1]
+        # 6 lines of output
+        self.assertEqual(len(outputs), 6, stdout)
+        self.assertEqual(outputs[0], expected_cmd_output)
+
+        self.assertRegex(outputs[1], expected_error_regex)
+        # Check that the last line is the final Done message print with the proper
+        self.assertRegex(outputs[2], expected_final_print_prefix)
+
     def test_image_push(self):
         self.generate_kard()
 
