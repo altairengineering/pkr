@@ -358,6 +358,7 @@ class DockerDriver(AbstractDriver):
         password=None,
         tag=None,
         parallel=None,
+        ignore_errors=False,
         **kwargs,
     ):
         """Pull images from a remote registry
@@ -391,7 +392,12 @@ class DockerDriver(AbstractDriver):
                         (
                             image,
                             executor.submit(
-                                self._pull_image, image_name, registry.url, tag, remote_tag
+                                self._pull_image,
+                                image_name,
+                                registry.url,
+                                tag,
+                                remote_tag,
+                                ignore_errors,
                             ),
                         )
                     )
@@ -412,7 +418,7 @@ class DockerDriver(AbstractDriver):
                     )
                 )
                 sys.stdout.flush()
-                self._pull_image(image_name, registry.url, tag, remote_tag)
+                self._pull_image(image_name, registry.url, tag, remote_tag, ignore_errors)
                 write(" Done !" + "\n")
 
         write("All images has been pulled successfully !" + "\n")
@@ -481,7 +487,7 @@ class DockerDriver(AbstractDriver):
         reraise=True,
         retry=tenacity.retry_if_exception_type(ImagePullError),
     )
-    def _pull_image(self, image_name, registry_url, tag, remote_tag):
+    def _pull_image(self, image_name, registry_url, tag, remote_tag, ignore_errors):
         """
         Pull one image, retry few times to be robust to registry or network
         related issues.
@@ -506,7 +512,8 @@ class DockerDriver(AbstractDriver):
         except docker.errors.APIError as error:
             error_msg = "Error while pulling the image {}: {}".format(tag, error)
             write(error_msg)
-            raise ImagePullError(error_msg)
+            if not ignore_errors:
+                raise ImagePullError(error_msg)
 
     @staticmethod
     def print_docker_stream(stream, verbose=True, logfile=None, bufferize=False):
