@@ -32,14 +32,16 @@ def get_parser():
     stop_parser = sub_p.add_parser("stop", help="Stop pkr")
     add_service_argument(stop_parser)
     add_kard_argument(stop_parser)
-    stop_parser.set_defaults(func=lambda a: Kard.load_current(a.kard).driver.stop(a.services))
+    stop_parser.set_defaults(
+        func=lambda a: Kard.load_current(a.kard).driver.stop(a.services, exclude_services=a.exclude_services)
+    )
 
     # Restart parser
     restart_parser = sub_p.add_parser("restart", help="Restart pkr")
     add_service_argument(restart_parser)
     add_kard_argument(restart_parser)
     restart_parser.set_defaults(
-        func=lambda a: Kard.load_current(a.kard).driver.restart(a.services)
+        func=lambda a: Kard.load_current(a.kard).driver.restart(a.services, exclude_services=a.exclude_services)
     )
 
     # Start
@@ -48,7 +50,7 @@ def get_parser():
     add_kard_argument(start_parser)
     start_parser.add_argument("-y", "--yes", action="store_true", help="Answer yes to questions")
     start_parser.set_defaults(
-        func=lambda a: Kard.load_current(a.kard).driver.start(a.services, a.yes)
+        func=lambda a: Kard.load_current(a.kard).driver.start(a.services, a.yes, exclude_services=a.exclude_services)
     )
 
     # Up parser
@@ -61,7 +63,7 @@ def get_parser():
     add_kard_argument(up_parser)
     up_parser.set_defaults(
         func=lambda a: Kard.load_current(a.kard).driver.cmd_up(
-            a.services, verbose=a.verbose, build_log=a.build_log
+            a.services, verbose=a.verbose, build_log=a.build_log, exclude_services=a.exclude_services
         )
     )
 
@@ -405,6 +407,9 @@ def configure_ext_parser(parser):
 def add_service_argument(parser):
     parser.add_argument(
         "-s", "--services", nargs="+", default=None, help="List of services (default to all)"
+    )
+    parser.add_argument(
+        "-x", "--exclude-services", nargs="+", default=None, help="List of services to exclude"
     )
 
 

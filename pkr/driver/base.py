@@ -109,7 +109,7 @@ class AbstractDriver(object):
         container_pattern = self.kard.meta.get("container_pattern", self.SERVICE_VAR)
         return container_pattern.replace(self.SERVICE_VAR, name)
 
-    def start(self, services, yes):
+    def start(self, services, yes, exclude_services=None):
         """Starts services
 
         Args:
@@ -117,7 +117,7 @@ class AbstractDriver(object):
         """
         raise NotImplementedError()
 
-    def stop(self, services=None):
+    def stop(self, services=None, exclude_services=None):
         """Starts services
 
         Args:
@@ -125,7 +125,7 @@ class AbstractDriver(object):
         """
         raise NotImplementedError()
 
-    def restart(self, services, yes):
+    def restart(self, services, yes, exclude_services=None):
         """Starts services
 
         Args:
@@ -142,7 +142,7 @@ class AbstractDriver(object):
         """
         raise NotImplementedError()
 
-    def cmd_up(self, services=None, verbose=False, build_log=None):
+    def cmd_up(self, services=None, verbose=False, build_log=None, exclude_services=None):
         raise NotImplementedError()
 
     def cmd_ps(self):

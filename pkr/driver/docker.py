@@ -152,7 +152,7 @@ class DockerDriver(AbstractDriver):
           * no_rebuild: do not build if destination image exists
           * target: name of the build-stage to build in a multi-stage Dockerfile
         """
-        services = services or list(self.kard.env.get_container().keys())
+        services = self._get_services(services, kwargs)
         if rebuild_context:
             self.kard.make()
 
@@ -187,6 +187,16 @@ class DockerDriver(AbstractDriver):
                     self._build_image(
                         service, tag, verbose, logfile, nocache, no_rebuild, False, target
                     )
+
+    def _get_services(self, services, kwargs, default_from_kard=True):
+        if default_from_kard:
+            services = services or list(self.kard.env.get_container().keys())
+
+        exclude_services = kwargs.get("exclude_services", [])
+        if exclude_services:
+            services = [svc for svc in services if svc not in exclude_services]
+
+        return services
 
     def _build_image(
         self,
@@ -280,7 +290,7 @@ class DockerDriver(AbstractDriver):
           * tag: the tag of the version to push
           * parallel: push parallelism
         """
-        services = services or list(self.kard.env.get_container().keys())
+        services = self._get_services(services, **kwargs)
         tag = tag or self.kard.meta["tag"]
 
         registry = self.get_registry(url=registry, username=username, password=password)
@@ -370,7 +380,7 @@ class DockerDriver(AbstractDriver):
           * parallel: pull parallelism
         """
         if registry is not None:
-            services = services or list(self.kard.env.get_container().keys())
+            services = self._get_services(services, kwargs)
             remote_tag = tag or self.kard.meta["tag"]
             tag = self.kard.meta["tag"]
 
@@ -383,7 +393,8 @@ class DockerDriver(AbstractDriver):
                 image = self.make_image_name(service, tag)
                 todos.append((image, image_name, dockerRegistry, remote_tag))
         else:
-            todos = services
+            todos = self._get_services(services, kwargs, default_from_kard=False)
+
         if parallel:
             futures = []
             with ThreadPoolExecutor(max_workers=parallel) as executor:
@@ -433,7 +444,7 @@ class DockerDriver(AbstractDriver):
           * registry: a DockerRegistry instance
           * tag: the tag of the version to download
         """
-        services = services or list(self.kard.env.get_container().keys())
+        services = self._get_services(services, kwargs)
         tag = tag or self.kard.meta["tag"]
 
         save_path = Path(self.kard.path) / "images"
@@ -465,7 +476,7 @@ class DockerDriver(AbstractDriver):
           * services: the name of the images to load
           * tag: the tag of the version to load
         """
-        services = services or list(self.kard.env.get_container().keys())
+        services = self._get_services(services, kwargs)
         tag = tag or self.kard.meta["tag"]
 
         save_path = Path(self.kard.path) / "images"
@@ -605,7 +616,7 @@ class DockerDriver(AbstractDriver):
 
     def list_images(self, services, tag, **kwargs):
         """List images"""
-        services = services or list(self.kard.env.get_container().keys())
+        services = self._get_services(services, kwargs)
         if tag is None:
             tag = self.kard.meta["tag"]
         for service in services:

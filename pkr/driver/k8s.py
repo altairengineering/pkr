@@ -125,7 +125,7 @@ class KubernetesPkr:
             f.write(yaml.dump(cm_compressed).encode("utf-8"))
             self.run_kubectl("apply -f {}".format(f.name))
 
-    def start(self, services=None, yes=False):
+    def start(self, services=None, yes=False, exclude_services=None):
         """Starts services
 
         Args:
@@ -134,6 +134,10 @@ class KubernetesPkr:
         k8s_files_path = self.kard.path / "k8s"
         meta_file = self.kard.path / "meta.yml"
         saved_files = [meta_file] + sorted(k8s_files_path.glob("*.yml"))
+
+        exclude_services = [] if not exclude_services else exclude_services
+        services = [] if not services else services
+        services = [svc for svc in services if svc not in exclude_services]
 
         old_cm = self.get_configmap()
         new_cm = {}
@@ -188,9 +192,13 @@ class KubernetesPkr:
 
         self.write_configmap(new_cm)
 
-    def stop(self, services=None):
+    def stop(self, services=None, exclude_services=None):
         """Stops services"""
         k8s_files_path = self.kard.path / "k8s"
+
+        exclude_services = [] if not exclude_services else exclude_services
+        services = [] if not services else services
+        services = [svc for svc in services if svc not in exclude_services]
 
         for k8s_file in sorted(k8s_files_path.glob("*.yml"), reverse=True):
             if services and k8s_file.name[:-4] not in services:
@@ -202,7 +210,7 @@ class KubernetesPkr:
 
         self.write_configmap({})
 
-    def restart(self, services=None):
+    def restart(self, services=None, exclude_services=None):
         """Restart services"""
         raise NotImplementedError()
 
