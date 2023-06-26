@@ -11,7 +11,6 @@ import time
 import traceback
 
 from compose import config as docker_config
-import docker
 from pathlib import Path
 import yaml
 
@@ -52,7 +51,8 @@ class ComposePkr:
             "-p",
             self.kard.meta["project_name"],
         ] + list(args)
-        subprocess.call(compose_cmd)
+
+        return subprocess.call(compose_cmd)
 
     def get_templates(self):
         templates = super().get_templates()
@@ -271,15 +271,20 @@ class ComposePkr:
         """Check all containers are up and healthy"""
         services = self._load_compose_config().services
         status = []
-        for service in [s["name"] for s in services]:
-            container = self.get_container(self.make_container_name(service))
+
+        for service in services:
+            service_name = service["name"]
+            container = self.get_container(self.make_container_name(service_name))
             if container is None:
+                if service.get("scale", 1) == 0:
+                    # Ignore services that are not started by the `up` command (scale=0)
+                    continue
                 status.append(2)
-                write(" - {}: {}".format(service, "stopped"))
+                write(" - {}: {}".format(service_name, "stopped"))
             else:
                 container_status = self.get_status(container)
                 status.append(container_status[0])
-                write(" - {}: {}".format(service, container_status[1]))
+                write(" - {}: {}".format(service_name, container_status[1]))
         if 1 in status:
             status = (1, "starting")
         elif 2 in status:
@@ -291,7 +296,7 @@ class ComposePkr:
 
     def clean(self, kill=False):
         """Remove the containers and the build data file.
-        If -w option set, also remove all environement files
+        If -w option set, also remove all environment files
         """
         if kill:
             self._call_compose("kill")
