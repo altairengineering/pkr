@@ -10,11 +10,10 @@ before_install:
   - mkdir -vp ~/.docker/cli-plugins/
   - curl --silent -L "https://github.com/docker/buildx/releases/download/v0.11.0/buildx-v0.11.0.linux-amd64" > ~/.docker/cli-plugins/docker-buildx
   - chmod a+x ~/.docker/cli-plugins/docker-buildx
-#  - sudo apt-get -y install build-essential
-#  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install build-essential docker-ce
+
 jobs:
   include:
-    - python: 3.8
+    - python: 3.11
       env: TOXENV=format
       stage: test
     - python: 3.8
