@@ -27,10 +27,10 @@ def setup_pkr():
         license="AGPLv3 (See LICENSE file for terms)",
         classifiers=[
             "Intended Audience :: Developers",
-            "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
             "Topic :: Software Development :: Build Tools",
             "Topic :: Software Development :: Testing",
             "License :: OSI Approved :: Apache Software License",
@@ -48,10 +48,10 @@ def setup_pkr():
             "tenacity==7.0.0",
             "jinja2-ansible-filters==1.3.2",
             'importlib-metadata>=0.12;python_version<"3.8"',
-            'python-on-whales==0.20.2;python_version>="3.7"',
+            'python-on-whales==0.20.2;python_version>="3.8"',
         ],
         packages=find_packages(exclude=["test", "docs"]),
-        python_requires=">=3.7, <4,",
+        python_requires=">=3.8, <4,",
     )
 
 
