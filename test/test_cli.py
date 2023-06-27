@@ -125,7 +125,7 @@ class TestCLI(pkrTestCase):
         self.assertEqual(msg, stdout)
 
     def test_kard_create_with_extra(self):
-        cmd = "{} kard create test --extra tag=123".format(self.PKR)
+        cmd = "{} kard create test --extra tag=123 --extra tag2=456".format(self.PKR)
 
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
@@ -150,6 +150,7 @@ class TestCLI(pkrTestCase):
             "features": [],
             "project_name": "test",
             "tag": "123",
+            "tag2": "456",
         }
 
         self.assertEqual(expected_meta, yaml.safe_load(meta_file.open("r")))
