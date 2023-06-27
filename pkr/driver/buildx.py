@@ -141,7 +141,7 @@ class BuildxDriver(DockerDriver):
             # Handle python 3.6 here, to not impact child drivers
             raise Exception("buildx is not supported for python < 3.6")
 
-        services = services or list(self.kard.env.get_container().keys())
+        services = self._get_services(services, kwargs)
         if rebuild_context:
             self.kard.make()
 

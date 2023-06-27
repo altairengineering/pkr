@@ -121,13 +121,15 @@ class ComposePkr:
         else:
             return self.kard.path  # We are in container, but not a pkr one
 
-    def _resolve_services(self, services=None):
+    def _resolve_services(self, services=None, exclude_services=None):
         """Return a generator of actual services, or all if None is provided"""
+
+        exclude_services = [] if not exclude_services else exclude_services
 
         compose_config = self._load_compose_config()
         all_services = [c["name"] for c in compose_config.services]
         if services is None:
-            return all_services
+            return [svc for svc in all_services if svc not in exclude_services]
 
         # Resolve * regexp based service names
         for service in set(services):
@@ -137,12 +139,19 @@ class ComposePkr:
                 services.remove(service)
 
         # Remove unexisting services
-        return set(services) & set(all_services)
+        result = set(services) & set(all_services)
+        # Remove excluded services
+        return [svc for svc in result if svc not in exclude_services]
 
-    def start(self, services=None, yes=False):
-        self._call_compose("up", "-d", *(services or ()))
+    def start(self, services=None, yes=False, exclude_services=None):
+        exclude_services = [] if not exclude_services else exclude_services
+        services = [] if not services else services
+        # Remove excluded services
+        services = [svc for svc in services if svc not in exclude_services]
 
-    def cmd_up(self, services=None, verbose=False, build_log=None):
+        self._call_compose("up", "-d", *services)
+
+    def cmd_up(self, services=None, verbose=False, build_log=None, exclude_services=None):
         """Start PCLM in a the docker environement.
 
         Use parameters stored in meta.yml to generate the
@@ -157,7 +166,7 @@ class ComposePkr:
         # Re-populating the context...
         self.kard.make()
 
-        eff_modules = self._resolve_services(services)
+        eff_modules = self._resolve_services(services, exclude_services=exclude_services)
 
         # This pattern is used to detect the remote image
         pattern = re.compile("^\S+\/\S+$")
@@ -208,13 +217,23 @@ class ComposePkr:
         # Call post run handlers on extensions
         self.kard.extensions.post_up(eff_modules)
 
-    def stop(self, services=None):
+    def stop(self, services=None, exclude_services=None):
         """Stop the containers"""
-        self._call_compose("stop", *(services or ()))
+        exclude_services = [] if not exclude_services else exclude_services
+        services = [] if not services else services
+        # Remove excluded services
+        services = [svc for svc in services if svc not in exclude_services]
 
-    def restart(self, services=None):
+        self._call_compose("stop", *services)
+
+    def restart(self, services=None, exclude_services=None):
         """Restart containers"""
-        self._call_compose("restart", *(services or ()))
+        exclude_services = [] if not exclude_services else exclude_services
+        services = [] if not services else services
+        # Remove excluded services
+        services = [svc for svc in services if svc not in exclude_services]
+
+        self._call_compose("restart", *services)
 
     def get_container(self, container_name):
         """Get infos for a container"""
