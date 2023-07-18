@@ -10,7 +10,6 @@ import subprocess
 import time
 import traceback
 
-from compose import config as docker_config
 from pathlib import Path
 import yaml
 
@@ -21,6 +20,19 @@ from pkr.utils import (
     merge,
     get_current_container,
 )
+
+
+class ComposeConfig:
+    """
+    Replacement for compose.Config object.
+    """
+
+    def __init__(self, compose_config: dict):
+        self.compose_config = compose_config
+        self.services = [
+            {"name": name, **service}
+            for name, service in self.compose_config.get("services", {}).items()
+        ]
 
 
 class ComposePkr:
@@ -95,13 +107,7 @@ class ComposePkr:
     def _load_compose_config(self):
         with self.compose_file.open("r") as cp_file:
             compose_data = yaml.safe_load(cp_file)
-
-        return docker_config.load(
-            docker_config.config.ConfigDetails(
-                str(self.kard.path),
-                [docker_config.config.ConfigFile(self.COMPOSE_FILE, compose_data)],
-            )
-        )
+        return ComposeConfig(compose_data)
 
     def get_real_kard_path(self):
         """Get the matching host kard path if running in a container"""
