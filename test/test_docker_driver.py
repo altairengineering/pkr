@@ -55,4 +55,9 @@ class TestDockerDriver(pkrTestCase):
             b"Building container1:123 image...\n"
         )
         self.assertEqual(stdout, expected)
-        self.assertTrue("unknown instruction: FLAG_VALUE" in stderr.decode("utf-8"))
+        expected_err = "unknown instruction: flag_value"
+        received_err = stderr.decode("utf-8")
+        self.assertTrue(
+            expected_err in received_err,
+            "Did not find the string {} inside {}".format(expected_err, received_err),
+        )
