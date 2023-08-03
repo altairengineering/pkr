@@ -465,7 +465,7 @@ class TestKardMake(pkrTestCase):
         self.make_kard()
 
         gen_file = self.context_path / "backend.dockerfile"
-        expected_content = """FROM python:alpine3.7\n"""
+        expected_content = """FROM python:alpine3.7\n\n"""
 
         self.assertTrue(gen_file.exists())
 
@@ -481,7 +481,7 @@ class TestKardMake(pkrTestCase):
             "foo=bar\n"
             "tag_b64=dGVzdA==\n"
             "tag_sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n"
-            "htpassword=a:"
+            "htpassword=a:\n"
         )
 
         self.assertTrue(gen_file.exists())
@@ -534,7 +534,7 @@ class TestKardMakeWithRelativeSrcPath(pkrTestCase):
         self.make_kard()
 
         gen_file = self.context_path / "backend" / "exec.sh"
-        expected_content = "echo test"
+        expected_content = "echo test\n"
 
         self.assertTrue(gen_file.exists())
 
@@ -572,7 +572,7 @@ class TestKardMakeWithExtensionDev(TestKardMake):
         self.make_kard()
 
         gen_file = self.context_path / "backend.dockerfile"
-        expected_content = "FROM python:alpine3.7\n\n" 'VOLUME ["/usr/src/app"]'
+        expected_content = "FROM python:alpine3.7\n\n" 'VOLUME ["/usr/src/app"]\n'
 
         self.assertTrue(gen_file.exists())
 
@@ -607,7 +607,7 @@ class TestKardMakeWithExtensionProd(TestKardMake):
         self.make_kard()
 
         gen_file = self.context_path / "backend.dockerfile"
-        expected_content = "FROM python:alpine3.7\n\n" 'ADD "app" "/usr/src/app"'
+        expected_content = 'FROM python:alpine3.7\n\nADD "app" "/usr/src/app"\n'
 
         self.assertTrue(gen_file.exists())
 

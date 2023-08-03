@@ -53,8 +53,16 @@ class TestDockerDriver(pkrTestCase):
 
         expected = b"Building container1:123 image...\n"
         self.assertEqual(stdout, expected)
+
         expected = re.compile(b".*: unknown instruction: [Ff][Ll][Aa][Gg]_[Vv][Aa][Ll][Uu][Ee]")
         assert re.match(expected, stderr)
+
+        expected_err = "unknown instruction: flag_value"
+        received_err = stderr.decode("utf-8")
+        self.assertTrue(
+            expected_err in received_err,
+            "Did not find the string {} inside {}".format(expected_err, received_err),
+        )
 
 
 class TestDockerDriverV2(pkrTestCase):
