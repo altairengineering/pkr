@@ -37,7 +37,7 @@ def setup_pkr():
         ],
         install_requires=[
             "docker==4.4.4",
-            "GitPython==3.1.30",
+            "GitPython==3.1.37",
             "ipaddress==1.0.17",
             "jinja2",
             "kubernetes>=9.0.0",
