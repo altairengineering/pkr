@@ -21,6 +21,12 @@ import shutil
 import time
 import platform
 
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto import Random
+
+from enum import Enum
+
 import jinja2
 import docker
 from pathlib import Path
@@ -30,12 +36,25 @@ KARD_FOLDER = "kard"
 PATH_ENV_VAR = "PKR_PATH"
 
 
+class Cmd(Enum):
+    OTHER = 0
+    ENCRYPT = 1
+    DECRYPT = 2
+
+
 class PkrException(Exception):
     """pkr Exception"""
 
 
 class KardInitializationException(PkrException):
     """pkr Exception"""
+
+
+class PasswordException(PkrException):
+    def __init__(
+        self, message="Encryption password is not specified (use global -p <password> option)"
+    ):
+        super().__init__(message)
 
 
 def is_pkr_path(path):
@@ -272,6 +291,7 @@ class TemplateEngine(object):
                 out = self.process_template(path)
                 dst_path.write_text(out)
                 shutil.copystat(path_str, str(dst_path))
+                # os.chmod(str(dst_path), 0o600) # make invisible to the world
             else:
                 shutil.copy2(path_str, str(dst_path))
         else:
@@ -407,3 +427,57 @@ def merge_lists(src, dest, insert=True):
     else:
         dest.extend([x for x in src if x not in dest])
     return dest
+
+
+def encrypt_swap(file, file_enc, password):
+    enc = encrypt_file(file, password)
+    with file_enc.open("wb") as fe:
+        os.chmod(file_enc, 0o600)
+        fe.write(enc)
+        file.unlink()
+
+
+def encrypt_file(file, password=None):
+    if password is None:
+        raise PasswordException()
+    with file.open("rb") as fl:
+        data = fl.read()
+        data_enc = encrypt_with_key(password.encode("utf-8"), data)
+        return data_enc
+
+
+def decrypt_swap(file, file_enc, password):
+    data = decrypt_file(file_enc, password)
+    file.write_text(data.decode("utf-8"))
+    os.chmod(file, 0o600)
+    file_enc.unlink()
+
+
+def decrypt_file(file, password=None):
+    if password is None:
+        raise PasswordException()
+    with file.open("rb") as fl:
+        data_enc = fl.read()
+        data = decrypt_with_key(password.encode("utf-8"), data_enc)
+        return data
+
+
+def encrypt_with_key(key: bytes, source: bytes) -> bytes:
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = Random.new().read(AES.block_size)  # generate IV
+    encryptor = AES.new(key, AES.MODE_CBC, IV)
+    padding = AES.block_size - len(source) % AES.block_size  # calculate needed padding
+    src = b"".join([source, bytes([padding]) * padding])
+    data = IV + encryptor.encrypt(src)  # store the IV at the beginning and encrypt
+    return data
+
+
+def decrypt_with_key(key: bytes, source: bytes) -> bytes:
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = source[: AES.block_size]  # extract the IV from the beginning
+    decryptor = AES.new(key, AES.MODE_CBC, IV)
+    data = decryptor.decrypt(source[AES.block_size :])  # decrypt
+    padding = data[-1]  # pick the padding value from the end
+    if data[-padding:] != bytes([padding]) * padding:
+        raise Exception("Incorrect decryption password")
+    return data[:-padding]  # remove the padding

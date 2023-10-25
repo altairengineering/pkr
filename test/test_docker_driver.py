@@ -1,4 +1,5 @@
 from .utils import pkrTestCase
+import re
 
 
 class TestDockerDriver(pkrTestCase):
@@ -55,4 +56,5 @@ class TestDockerDriver(pkrTestCase):
             b"Building container1:123 image...\n"
         )
         self.assertEqual(stdout, expected)
-        self.assertTrue("unknown instruction: FLAG_VALUE" in stderr.decode("utf-8"))
+        expected = re.compile(b".*: unknown instruction: [Ff][Ll][Aa][Gg]_[Vv][Aa][Ll][Uu][Ee]")
+        assert re.match(expected, stderr)

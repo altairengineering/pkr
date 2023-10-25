@@ -5,6 +5,7 @@
 """pkr CLI parser"""
 
 import argparse
+from getpass import getpass
 
 from pathlib import Path
 import yaml
@@ -14,7 +15,7 @@ from .log import write
 from ..driver import list_drivers
 from ..ext import ExtMixin, Extensions
 from ..kard import Kard
-from ..utils import PkrException, create_pkr_folder
+from ..utils import PkrException, create_pkr_folder, Cmd
 from ..version import __version__
 
 
@@ -26,6 +27,12 @@ def get_parser():
 
     pkr_parser.add_argument("-d", "--debug", action="store_true")
     pkr_parser.add_argument("--no-env-var", action="store_true")
+    pkr_parser.add_argument(
+        "-p",
+        "--password",
+        dest="crypt_password",
+        help="password to encrypt/decrypt kard metadata with or '-' to input password from terminal",
+    )
 
     sub_p = pkr_parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
 
@@ -33,14 +40,20 @@ def get_parser():
     stop_parser = sub_p.add_parser("stop", help="Stop pkr")
     add_service_argument(stop_parser)
     add_kard_argument(stop_parser)
-    stop_parser.set_defaults(func=lambda a: Kard.load_current(a.kard).driver.stop(a.services))
+    stop_parser.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.stop(
+            args.services
+        )
+    )
 
     # Restart parser
     restart_parser = sub_p.add_parser("restart", help="Restart pkr")
     add_service_argument(restart_parser)
     add_kard_argument(restart_parser)
     restart_parser.set_defaults(
-        func=lambda a: Kard.load_current(a.kard).driver.restart(a.services)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.restart(
+            args.services
+        )
     )
 
     # Start
@@ -49,7 +62,9 @@ def get_parser():
     add_kard_argument(start_parser)
     start_parser.add_argument("-y", "--yes", action="store_true", help="Answer yes to questions")
     start_parser.set_defaults(
-        func=lambda a: Kard.load_current(a.kard).driver.start(a.services, a.yes)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.start(
+            args.services, args.yes
+        )
     )
 
     # Up parser
@@ -61,26 +76,34 @@ def get_parser():
     up_parser.add_argument("--build-log", help="Log file for image building", default=None)
     add_kard_argument(up_parser)
     up_parser.set_defaults(
-        func=lambda a: Kard.load_current(a.kard).driver.cmd_up(
-            a.services, verbose=a.verbose, build_log=a.build_log
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.cmd_up(
+            args.services, verbose=args.verbose, build_log=args.build_log
         )
     )
 
     # Ps parser
     parser = sub_p.add_parser("ps", help="List containers defined in the current kard")
     add_kard_argument(parser)
-    parser.set_defaults(func=lambda a: Kard.load_current(a.kard).driver.cmd_ps())
+    parser.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.cmd_ps()
+    )
 
     # Status parser
     parser = sub_p.add_parser("status", help="Check all containers of the kard are healthy")
     add_kard_argument(parser)
-    parser.set_defaults(func=lambda a: Kard.load_current(a.kard).driver.cmd_status())
+    parser.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.cmd_status(
+            args.crypt_password
+        )
+    )
 
     # Clean parser
     parser = sub_p.add_parser("clean", help="Stop and remove containers of current kard")
     parser.add_argument("-k", "--kill", action="store_true", help="Kill (SIGKILL) before clean")
     add_kard_argument(parser, add_short_option=False)
-    parser.set_defaults(func=lambda a: Kard.load_current(a.kard).driver.clean(a.kill))
+    parser.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.clean(args.kill)
+    )
 
     # Kard parser
     configure_kard_parser(sub_p.add_parser("kard", help="CLI for kards manipulation"))
@@ -95,8 +118,12 @@ def get_parser():
     )
     add_kard_argument(list_extension_parser)
     list_extension_parser.set_defaults(
-        func=lambda a: print(
-            *(Extensions().list() if a.all else Kard.load_current(a.kard).extensions.list()),
+        func=lambda args: print(
+            *(
+                Extensions().list()
+                if args.all
+                else Kard.load_current(args.kard, args.crypt_password).extensions.list()
+            ),
             sep="\n",
         )
     )
@@ -149,7 +176,9 @@ def configure_image_parser(parser):
     add_service_argument(build_parser)
     add_kard_argument(build_parser)
     build_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.build_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.build_images(
+            **args.__dict__
+        )
     )
 
     # Push parser
@@ -167,7 +196,9 @@ def configure_image_parser(parser):
     )
     add_kard_argument(push_parser)
     push_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.push_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.push_images(
+            **args.__dict__
+        )
     )
 
     # Login parser
@@ -181,9 +212,9 @@ def configure_image_parser(parser):
         "-p", "--password", default=None, help="The docker registry password"
     )
     login_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.logon_remote_registry(
-            **args.__dict__
-        )
+        func=lambda args: Kard.load_current(
+            args.kard, args.crypt_password
+        ).driver.logon_remote_registry(**args.__dict__)
     )
 
     # Pull parser
@@ -201,7 +232,9 @@ def configure_image_parser(parser):
     )
     add_kard_argument(pull_parser)
     pull_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.pull_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.pull_images(
+            **args.__dict__
+        )
     )
 
     # Purge parser
@@ -217,7 +250,9 @@ def configure_image_parser(parser):
     )
     add_kard_argument(purge_parser)
     purge_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.purge_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.purge_images(
+            **args.__dict__
+        )
     )
 
     # List parser
@@ -228,7 +263,9 @@ def configure_image_parser(parser):
     add_service_argument(list_parser)
     add_kard_argument(list_parser)
     list_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.list_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.list_images(
+            **args.__dict__
+        )
     )
 
     # Download parser
@@ -249,7 +286,9 @@ def configure_image_parser(parser):
     add_service_argument(download_parser)
     add_kard_argument(download_parser)
     download_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.download_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.download_images(
+            **args.__dict__
+        )
     )
 
     # Import parser
@@ -258,7 +297,9 @@ def configure_image_parser(parser):
     add_service_argument(import_parser)
     add_kard_argument(import_parser)
     import_parser.set_defaults(
-        func=lambda args: Kard.load_current(args.kard).driver.import_images(**args.__dict__)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.import_images(
+            **args.__dict__
+        )
     )
 
 
@@ -308,7 +349,9 @@ def configure_kard_parser(parser):
         "be removed",
     )
     add_kard_argument(make_context)
-    make_context.set_defaults(func=lambda a: Kard.load_current(a.kard).make(reset=a.update))
+    make_context.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(reset=args.update)
+    )
 
     create_kard_p = sub_p.add_parser("create", help="Create a new kard")
 
@@ -379,16 +422,40 @@ def configure_kard_parser(parser):
     )
     add_kard_argument(dump_kard)
     dump_kard.set_defaults(
-        func=lambda args: write(Kard.load_current(args.kard).dump(**args.__dict__))
+        func=lambda args: write(
+            Kard.load_current(args.kard, args.crypt_password).dump(**args.__dict__)
+        )
     )
 
     load_kard = sub_p.add_parser("load", help="Load a kard")
-    load_kard.set_defaults(func=lambda a: Kard.set_current(a.name))
+    load_kard.set_defaults(func=lambda args: Kard.set_current(args.name, args.crypt_password))
     load_kard.add_argument("name", help="The name of the kard")
 
     update_kard_p = sub_p.add_parser("update", help="Update the current kard")
     add_kard_argument(update_kard_p)
-    update_kard_p.set_defaults(func=lambda args: Kard.load_current(args.kard).update())
+    update_kard_p.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).update()
+    )
+
+    encrypt_kard_p = sub_p.add_parser("encrypt", help="Encrypt metadata for the current kard")
+    add_kard_argument(encrypt_kard_p)
+
+    def _encrypt_kard_handler(args):
+        kard = Kard.load_current(args.kard, args.crypt_password, Cmd.ENCRYPT)
+        kard.encrypt(kard.password)
+        kard.driver.encrypt(kard.password)
+
+    encrypt_kard_p.set_defaults(func=lambda args: _encrypt_kard_handler(args))
+
+    decrypt_kard_p = sub_p.add_parser("decrypt", help="Decrypt metadata for the current kard")
+    add_kard_argument(decrypt_kard_p)
+
+    def _decrypt_kard_handler(args):
+        kard = Kard.load_current(args.kard, args.crypt_password, Cmd.DECRYPT)
+        kard.decrypt(kard.password)
+        kard.driver.decrypt(kard.password)
+
+    decrypt_kard_p.set_defaults(func=lambda args: _decrypt_kard_handler(args))
 
 
 def configure_ext_parser(parser):
@@ -424,3 +491,10 @@ def add_kard_argument(parser, add_short_option=True):
         parser.add_argument("-k", "--kard", **options)
     else:
         parser.add_argument("--kard", **options)
+
+
+def input_password(pw):
+    if pw == "-":
+        return getpass()
+    else:
+        return pw

@@ -10,6 +10,7 @@ import shutil
 import yaml
 from pathlib import Path
 from builtins import object
+from getpass import getpass
 
 from .driver import load_driver
 from .environment import Environment
@@ -17,12 +18,18 @@ from .ext import Extensions
 from .cli.log import write
 from .utils import (
     PkrException,
+    PasswordException,
     TemplateEngine,
     get_kard_root_path,
     merge,
     diff,
     dedup_list,
     merge_lists,
+    encrypt_swap,
+    decrypt_swap,
+    decrypt_file,
+    encrypt_with_key,
+    Cmd,
 )
 
 
@@ -36,18 +43,33 @@ class Kard(object):
     """Object representing the kard"""
 
     META_FILE = "meta.yml"
+    META_FILE_ENC = "meta.enc"
     CURRENT_NAME = "current"
     LOCAL_SRC = "./src"
     CURRENT_KARD = None
 
-    def __init__(self, name, path, meta=None):
+    def __init__(self, name, path, password=None, enc=Cmd.OTHER, meta=None):
         self.path = path
         self.name = name
         self.meta_file = path / self.META_FILE
-
+        self.meta_file_enc = path / self.META_FILE_ENC
+        self.password = None
         if meta is None:
-            with self.meta_file.open() as meta_file:
-                self.clean_meta = yaml.safe_load(meta_file)
+            if password == "-":
+                self.password = getpass()
+            else:
+                self.password = password
+
+            if self.meta_file_enc.is_file():
+                if enc == Cmd.ENCRYPT:
+                    raise PkrException('Metafile for Kard "{}" is already encrypted'.format(name))
+                meta_data = decrypt_file(self.meta_file_enc, self.password)
+                self.clean_meta = yaml.load(meta_data, Loader=yaml.Loader)
+            else:
+                if enc == Cmd.DECRYPT:
+                    raise PkrException('Metafile for Kard "{}" is already decrypted'.format(name))
+                with self.meta_file.open() as meta_file:
+                    self.clean_meta = yaml.safe_load(meta_file)
         else:
             self.clean_meta = meta
 
@@ -105,7 +127,7 @@ class Kard(object):
             )
 
         self.extensions.populate_kard()
-        self.driver.populate_kard()
+        self.driver.populate_kard(self.meta_file.exists())
 
     @classmethod
     def list(cls, kubernetes=False):
@@ -125,7 +147,7 @@ class Kard(object):
         return sorted(kards)
 
     @classmethod
-    def create(cls, name, env, driver, extra, features=None, meta=None, **kwargs):
+    def create(cls, name, env, driver, extra, features=None, meta=None, password=None, **kwargs):
         """Factory method to create a new kard"""
         extras = {"features": []}
         if meta is not None:
@@ -172,7 +194,7 @@ class Kard(object):
             if src_path is not None:
                 extras.update({"src_path": src_path})
 
-            kard = cls(name, kard_path, extras)
+            kard = cls(name, kard_path, password, Cmd.OTHER, extras)
 
             if env is not None:
                 kard.update()
@@ -197,15 +219,15 @@ class Kard(object):
         return name
 
     @classmethod
-    def load(cls, name):
+    def load(cls, name, password=None, enc=Cmd.OTHER):
         """Return a loaded context"""
         try:
-            return cls(name, cls._build_kard_path(name))
+            return cls(name, cls._build_kard_path(name), password, enc)
         except IOError as ioe:
             raise KardNotFound('Kard "{}" not found: {}'.format(name, ioe))
 
     @classmethod
-    def load_current(cls, kard=None):
+    def load_current(cls, kard=None, password=None, enc=Cmd.OTHER):
         """Load the last used Kard, or a specific one if given."""
         if cls.CURRENT_KARD is None:
             if not kard:
@@ -213,18 +235,18 @@ class Kard(object):
             if not kard:
                 kard = cls.get_current()
 
-            cls.CURRENT_KARD = cls.load(kard)
+            cls.CURRENT_KARD = cls.load(kard, password, enc)
         return cls.CURRENT_KARD
 
     @classmethod
-    def set_current(cls, kard_name):
+    def set_current(cls, kard_name, password=None):
         """Set the current kard by making the symlink pointing to the correct
         folder.
         """
         if "/" in kard_name:
             driver, kard_name = kard_name.split("/")
-            kard = cls.create(kard_name, None, driver, {})
-            load_driver(driver, kard).load_kard()
+            kard = cls.create(kard_name, None, driver, {}, None, None, password)
+            load_driver(driver, kard, password).load_kard()
         dst_path = kard_name
 
         if not cls._build_kard_path(dst_path).exists():
@@ -243,8 +265,17 @@ class Kard(object):
 
     def update(self):
         """Update the kard"""
-        with self.meta_file.open("w") as meta_file:
-            yaml.safe_dump(self.clean_meta, meta_file, default_flow_style=False)
+        if self.meta_file_enc.is_file():
+            yaml_str = yaml.dump(self.clean_meta)
+            with self.meta_file_enc.open("wb") as meta_file_enc:
+                meta_enc = encrypt_with_key(
+                    self.password.encode("utf-8"), yaml_str.encode("utf-8")
+                )
+                meta_file_enc.write(meta_enc)
+        else:
+            with self.meta_file.open("w") as meta_file:
+                os.chmod(self.meta_file, 0o600)
+                yaml.safe_dump(self.clean_meta, meta_file, default_flow_style=False)
 
     def dump(self, cleaned=True, **kwargs):
         """Dump overall templating context meta"""
@@ -274,7 +305,9 @@ class Kard(object):
         self.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
         driver_args = self.meta.get("driver", {}).get("args", [])
         driver_kwargs = self.meta.get("driver", {}).get("kwargs", {})
-        self.driver = load_driver(self.meta["driver"]["name"], self, *driver_args, **driver_kwargs)
+        self.driver = load_driver(
+            self.meta["driver"]["name"], self, self.password, *driver_args, **driver_kwargs
+        )
         merge(self.driver.get_meta(extra, self), self.meta)  # Extra receiving ask_input values
 
         # Populate src_path before extension call
@@ -369,7 +402,7 @@ class Kard(object):
         )
 
         # Get custom template data from extensions
-        for custom_data in self.extensions.get_context_template_data():
+        for custom_data in self.extensions.get_context_template_data(self.password):
             if custom_data:
                 data.update(custom_data)
 
@@ -389,3 +422,9 @@ class Kard(object):
         if src_path_var in path:
             return path.replace(src_path_var, self.meta["src_path"])
         return Path(self.env.pkr_path / path)
+
+    def encrypt(self, password):
+        encrypt_swap(self.meta_file, self.meta_file_enc, password)
+
+    def decrypt(self, password):
+        decrypt_swap(self.meta_file, self.meta_file_enc, password)
