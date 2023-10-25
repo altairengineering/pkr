@@ -11,7 +11,7 @@ import yaml
 from pkr.kard import Kard
 from pkr.utils import PATH_ENV_VAR
 from pkr.version import __version__
-from .utils import pkrTestCase
+from .utils import pkrTestCase, msg_hlp
 
 
 class TestCLI(pkrTestCase):
@@ -209,8 +209,9 @@ class TestCLI(pkrTestCase):
 
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
 
-        self.assertEqual(0, prc.returncode, stdout)
+        self.assertEqual(0, prc.returncode, msg_hlp(stdout, stderr))
 
         msg = b"Removing docker-context ... Ok !\n" b"Removing compose ... Ok !\n"
 
@@ -338,6 +339,71 @@ class TestCLI(pkrTestCase):
         self.assertEqual(0, prc.returncode)
         stdout = prc.stdout.read()
         self.assertTrue(tag_test2 not in stdout)
+
+    def test_encrypt_kard(self):
+        self.generate_kard()
+        password = "password"
+
+        cmd = "{} --password {} kard encrypt".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
+        expected = re.compile(
+            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '/tmp/.*/kard/test/docker-compose.yml'"
+        )
+        assert re.match(expected, stderr.split(b"\n")[-2])
+
+        # fail to encrypt again
+        cmd = "{} -p {} kard encrypt".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
+        expected = b'ERROR: (PkrException) Metafile for Kard "test" is already encrypted\n'
+        self.assertEqual(stderr, expected)
+
+        # fail to decrypt with wrong password
+        cmd = "{} -p wrong kard decrypt".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
+        expected = b"ERROR: (Exception) Incorrect decryption password\n"
+        self.assertEqual(stderr, expected)
+
+        # decrypt
+        cmd = "{} -p {} kard decrypt".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
+        expected = re.compile(
+            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '/tmp/.*/kard/test/docker-compose.enc'"
+        )
+        assert re.match(expected, stderr.split(b"\n")[-2])
+
+        # succeed in some regular operations
+        cmd = "{} kard dump".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(0, prc.returncode)
+
+        cmd = "{} kard list".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(0, prc.returncode, msg_hlp(stdout, stderr))
+
+        # fail to decrypt again
+        cmd = "{} --password {} kard decrypt".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
+        expected = b'ERROR: (PkrException) Metafile for Kard "test" is already decrypted'
+        self.assertEqual(stderr.split(b"\n")[-2], expected)
 
 
 class TestCLIProd(pkrTestCase):

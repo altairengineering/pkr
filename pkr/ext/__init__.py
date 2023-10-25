@@ -37,7 +37,7 @@ class ExtMixin(metaclass=abc.ABCMeta):
         """
 
     @staticmethod
-    def get_context_template_data():
+    def get_context_template_data(password=None):
         """ """
 
     @staticmethod

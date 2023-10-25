@@ -127,4 +127,31 @@ Copy the IP address of the nginx container, and try to curl its http ort.
 curl http://<the nginx ip>
 ```
 
+## Encrypt your kard (optional)
+
+Depending on your project `pkr` meta.yaml file might contain some sensitive information like passwords, api keys, etc. in plain text. This file (and docker-compose.yaml) can be encrypted with password using following command:
+
+```
+pkr -p <password> kard encrypt
+```
+
+or to input password from the command line
+
+```
+pkr -p - kard encrypt
+```
+
+After ecryption is performed `pkr` commands expect the password to be provided with `-p` global option, for example:
+
+```
+pkr -p - start
+```
+
+If some manual modifications of metafile are required, decryption can be performed with:
+
+```
+pkr -p - kard decrypt
+```
+
+
 Congratulations ! Your first stack is up !
