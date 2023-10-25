@@ -272,6 +272,7 @@ class TemplateEngine(object):
                 out = self.process_template(path)
                 dst_path.write_text(out)
                 shutil.copystat(path_str, str(dst_path))
+                # os.chmod(str(dst_path), 0o600) # make invisible to the world
             else:
                 shutil.copy2(path_str, str(dst_path))
         else:

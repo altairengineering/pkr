@@ -5,6 +5,7 @@
 
 from builtins import next
 import sys
+import os
 import re
 import subprocess
 import time
@@ -102,6 +103,7 @@ class ComposePkr:
             merge(yaml.safe_load(file.open("r")), merged_compose)
 
         with self.compose_file.open("w") as dcf:
+            os.chmod(self.compose_file, 0o600)
             yaml.safe_dump(merged_compose, dcf, default_flow_style=False)
 
     def _load_compose_config(self):
