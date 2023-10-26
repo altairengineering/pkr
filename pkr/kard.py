@@ -11,6 +11,11 @@ import yaml
 from pathlib import Path
 from builtins import object
 
+import base64
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto import Random
+
 from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
@@ -32,22 +37,45 @@ class KardNotFound(PkrException):
     pass
 
 
+class KardEncrypted(PkrException):
+    """Exception raised if operation attempted on ecrypted metafile"""
+
+    pass
+
+
+class IncorrectPassword(PkrException):
+    """Exception raised if operation attempted on ecrypted metafile"""
+
+    pass
+
+
 class Kard(object):
     """Object representing the kard"""
 
     META_FILE = "meta.yml"
+    META_FILE_ENC = "meta.enc"
     CURRENT_NAME = "current"
     LOCAL_SRC = "./src"
     CURRENT_KARD = None
 
-    def __init__(self, name, path, meta=None):
+    def __init__(self, name, path, enc=False, meta=None):
         self.path = path
         self.name = name
         self.meta_file = path / self.META_FILE
-
+        self.meta_file_enc = path / self.META_FILE_ENC
         if meta is None:
-            with self.meta_file.open() as meta_file:
-                self.clean_meta = yaml.safe_load(meta_file)
+            if self.meta_file_enc.is_file():
+                if not enc:
+                    raise KardEncrypted(
+                        'Metafile for Kard "{}" is encrypted, decrypt first: pkr kard decrypt -p <password>'.format(
+                            name
+                        )
+                    )
+                else:
+                    return
+            else:
+                with self.meta_file.open() as meta_file:
+                    self.clean_meta = yaml.safe_load(meta_file)
         else:
             self.clean_meta = meta
 
@@ -172,7 +200,7 @@ class Kard(object):
             if src_path is not None:
                 extras.update({"src_path": src_path})
 
-            kard = cls(name, kard_path, extras)
+            kard = cls(name, kard_path, False, extras)
 
             if env is not None:
                 kard.update()
@@ -197,15 +225,15 @@ class Kard(object):
         return name
 
     @classmethod
-    def load(cls, name):
+    def load(cls, name, enc=False):
         """Return a loaded context"""
         try:
-            return cls(name, cls._build_kard_path(name))
+            return cls(name, cls._build_kard_path(name), enc)
         except IOError as ioe:
             raise KardNotFound('Kard "{}" not found: {}'.format(name, ioe))
 
     @classmethod
-    def load_current(cls, kard=None):
+    def load_current(cls, kard=None, enc=False):
         """Load the last used Kard, or a specific one if given."""
         if cls.CURRENT_KARD is None:
             if not kard:
@@ -213,7 +241,7 @@ class Kard(object):
             if not kard:
                 kard = cls.get_current()
 
-            cls.CURRENT_KARD = cls.load(kard)
+            cls.CURRENT_KARD = cls.load(kard, enc)
         return cls.CURRENT_KARD
 
     @classmethod
@@ -244,6 +272,7 @@ class Kard(object):
     def update(self):
         """Update the kard"""
         with self.meta_file.open("w") as meta_file:
+            os.chmod(self.meta_file, 0o600)
             yaml.safe_dump(self.clean_meta, meta_file, default_flow_style=False)
 
     def dump(self, cleaned=True, **kwargs):
@@ -389,3 +418,46 @@ class Kard(object):
         if src_path_var in path:
             return path.replace(src_path_var, self.meta["src_path"])
         return Path(self.env.pkr_path / path)
+
+    def encrypt(self, password):
+        """Encrypt the kard's metafile"""
+        if password is None:
+            write("Missing parameter (-p/--password)")
+            return
+        with self.meta_file.open("r") as meta_file:
+            meta = meta_file.read()
+            meta_enc = self._encrypt(password.encode("utf-8"), meta.encode("utf-8"))
+            with self.meta_file_enc.open("wb") as meta_file_enc:
+                meta_file_enc.write(meta_enc)
+                self.meta_file.unlink()
+
+    def decrypt(self, password):
+        """Decrypt the kard's metafile"""
+        if password is None:
+            write("Missing parameter (-p/--password)")
+            return
+        with self.meta_file_enc.open("rb") as meta_file_enc:
+            meta_enc = meta_file_enc.read()
+            meta = self._decrypt(password.encode("utf-8"), meta_enc)
+            self.meta_file.write_text(meta.decode("utf-8"))
+            self.meta_file_enc.unlink()
+
+    def _encrypt(self, key, source):
+        key = SHA256.new(key).digest() # use SHA-256 over our key to get a proper-sized AES key
+        IV = Random.new().read(AES.block_size) # generate IV
+        encryptor = AES.new(key, AES.MODE_CBC, IV)
+        padding = AES.block_size - len(source) % AES.block_size # calculate needed padding
+        src = b"".join([source, bytes([padding]) * padding])
+        data = IV + encryptor.encrypt(src) # store the IV at the beginning and encrypt
+        return data
+
+    def _decrypt(self, key, source):
+        key = SHA256.new(key).digest() # use SHA-256 over our key to get a proper-sized AES key
+        IV = source[: AES.block_size] # extract the IV from the beginning
+        decryptor = AES.new(key, AES.MODE_CBC, IV)
+        data = decryptor.decrypt(source[AES.block_size :]) # decrypt
+        padding = data[-1] # pick the padding value from the end
+        if data[-padding:] != bytes([padding]) * padding:
+            raise IncorrectPassword("Incorrect decryption password")
+        return data[:-padding] # remove the padding
+    

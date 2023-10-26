@@ -339,6 +339,69 @@ class TestCLI(pkrTestCase):
         stdout = prc.stdout.read()
         self.assertTrue(tag_test2 not in stdout)
 
+    def test_encrypt_kard(self):
+        self.generate_kard()
+        password = "password"
+
+        cmd = "{} kard encrypt --password {}".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        self.assertEqual(0, prc.returncode, stdout)
+
+        # fail to encrypt again
+        cmd = "{} kard encrypt -p {}".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, stdout)
+        expected = b'ERROR: (KardEncrypted) Metafile for Kard "test" is encrypted, decrypt first: pkr kard decrypt -p <password>\n'
+        self.assertEqual(stderr, expected)
+
+        # fail to perform some regular operations on encrypted metafile
+        ops = ["stop", "restart", "start", "up", "ps", "status", "clean", "listext"]
+        for op in ops:
+            cmd = "{} {}".format(self.PKR, op)
+            prc = self._run_cmd(cmd)
+            stdout = prc.stdout.read()
+            stderr = prc.stderr.read()
+            self.assertEqual(1, prc.returncode, stdout)
+            self.assertEqual(stderr, expected)
+
+        # fail to decrypt with wrong password
+        cmd = "{} kard decrypt -p wrong".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(1, prc.returncode, stdout)
+        expected = b"ERROR: (IncorrectPassword) Incorrect decryption password\n"
+        self.assertEqual(stderr, expected)
+
+        # decrypt
+        cmd = "{} kard decrypt -p {}".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        self.assertEqual(0, prc.returncode, stdout)
+
+        # succeed in some regular operations
+        cmd = "{} kard dump".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        self.assertEqual(0, prc.returncode)
+
+        cmd = "{} kard list".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        self.assertEqual(0, prc.returncode)
+
+        # fail to decrypt again
+        cmd = "{} kard decrypt --password {}".format(self.PKR, password)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read().split(b"\n")
+        self.assertEqual(1, prc.returncode, stdout)
+        expected = re.compile(
+            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '.*/meta.enc'"
+        )
+        assert re.match(expected, stderr[-2])
+
 
 class TestCLIProd(pkrTestCase):
     PKR = "pkr"

@@ -390,6 +390,19 @@ def configure_kard_parser(parser):
     add_kard_argument(update_kard_p)
     update_kard_p.set_defaults(func=lambda args: Kard.load_current(args.kard).update())
 
+    encrypt_kard_p = sub_p.add_parser("encrypt", help="Encrypt metafile for the current kard")
+    add_kard_argument(encrypt_kard_p)
+    encrypt_kard_p.set_defaults(
+        func=lambda args: Kard.load_current(args.kard).encrypt(args.password)
+    )
+    add_password_argument(encrypt_kard_p)
+
+    decrypt_kard_p = sub_p.add_parser("decrypt", help="Decrypt metafile for the current kard")
+    add_kard_argument(decrypt_kard_p)
+    decrypt_kard_p.set_defaults(
+        func=lambda args: Kard.load_current(args.kard, True).decrypt(args.password)
+    )
+    add_password_argument(decrypt_kard_p)
 
 def configure_ext_parser(parser):
     parser.set_defaults(func=lambda _: parser.print_help())
@@ -424,3 +437,14 @@ def add_kard_argument(parser, add_short_option=True):
         parser.add_argument("-k", "--kard", **options)
     else:
         parser.add_argument("--kard", **options)
+
+
+def add_password_argument(parser, add_short_option=True):
+    options = {
+        "default": None,
+        "help": "password to encrypt/decrypt metafile with",
+    }
+    if add_short_option:
+        parser.add_argument("-p", "--password", **options)
+    else:
+        parser.add_argument("--password", **options)
