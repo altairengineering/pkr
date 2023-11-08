@@ -17,7 +17,7 @@ class AbstractDriver(object):
 
     SERVICE_VAR = "%SERVICE%"
 
-    def __init__(self, kard, **kwargs):
+    def __init__(self, kard, password=None, **kwargs):
         """Save the kard to driver
 
         args and kwargs passed to driver
@@ -56,7 +56,7 @@ class AbstractDriver(object):
         """
         raise NotImplementedError()
 
-    def populate_kard(self):
+    def populate_kard(self, meta_txt=True):
         """Driver method executed after templating
 
         Might create some more files in kard_path, but must take care of cleaning it.
@@ -155,6 +155,14 @@ class AbstractDriver(object):
 
     def clean(self, kill=False):
         """Hook for drivers to provide a clean/stop process feature"""
+        NotImplementedError()
+
+    def encrypt(self, password=None):
+        """Hook for drivers to provide a kard encrypt feature"""
+        NotImplementedError()
+
+    def decrypt(self, password=None):
+        """Hook for drivers to provide a kard decrypt feature"""
         NotImplementedError()
 
 

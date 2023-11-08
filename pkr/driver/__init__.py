@@ -32,12 +32,12 @@ def _get_driver_class(module):
             pass
 
 
-def load_driver(driver_name, kard=None, *args, **kwargs):
+def load_driver(driver_name, kard=None, password=None, *args, **kwargs):
     """Return the loaded driver"""
     if driver_name in DRIVER_MAPPING:
         driver_name = DRIVER_MAPPING[driver_name]
     module = import_module(f"pkr.driver.{driver_name}", "pkr.driver")
-    return _get_driver_class(module)(kard, *args, **kwargs)
+    return _get_driver_class(module)(kard, password, *args, **kwargs)
 
 
 def list_drivers():

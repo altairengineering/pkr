@@ -17,8 +17,8 @@ class AutoVolume(ExtMixin):
     """
 
     @staticmethod
-    def get_context_template_data():
-        kard = Kard.load_current()
+    def get_context_template_data(password=None):
+        kard = Kard.load_current(None, password)
         return {"add_file": add_file, "use_volume": kard.env.get("use_volume", False)}
 
 

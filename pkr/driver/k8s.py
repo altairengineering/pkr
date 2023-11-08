@@ -36,7 +36,7 @@ class KubernetesPkr:
     K8S_FOLDER = "k8s"
     K8S_CONFIG = os.path.expandvars("$KUBECONFIG")
 
-    def __init__(self, kard, **kwargs):
+    def __init__(self, kard, password=None, *args, **kwargs):
         super(KubernetesPkr, self).__init__(kard, **kwargs)
 
         self.metas["registry"] = None
@@ -236,6 +236,12 @@ class KubernetesPkr:
         cm = self.get_configmap()
         with self.kard.meta_file.open("w+") as meta_file:
             meta_file.write(cm["meta.yml"])
+
+    def encrypt(self, password=None):
+        NotImplementedError()
+
+    def decrypt(self, password=None):
+        NotImplementedError()
 
 
 class KubernetesDriver(KubernetesPkr, docker.DockerDriver):

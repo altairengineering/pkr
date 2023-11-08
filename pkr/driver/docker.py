@@ -46,7 +46,7 @@ class DockerDriver(AbstractDriver):
     DOCKER_CONTEXT = "docker-context"
     DOCKER_CONTEXT_SOURCE = "dockerfiles"
 
-    def __init__(self, kard, **kwargs):
+    def __init__(self, kard, password=None, **kwargs):
         super().__init__(kard=kard, **kwargs)
         self.metas = {"tag": None}
         # Both of these options work with APIClient and from_env
@@ -567,6 +567,14 @@ class DockerDriver(AbstractDriver):
                             "Error during docker process: " + last_log["errorDetail"]["message"]
                         )
 
+    def encrypt(self, password=None):
+        """Hook for drivers to provide a kard encrypt feature"""
+        NotImplementedError()
+
+    def decrypt(self, password=None):
+        """Hook for drivers to provide a kard decrypt feature"""
+        NotImplementedError()
+
     def purge_images(self, tag=None, except_tag=None, repository=None, **kwargs):
         """Delete all images of this project.
 
@@ -610,6 +618,12 @@ class DockerDriver(AbstractDriver):
             tag = self.kard.meta["tag"]
         for service in services:
             write(self.make_image_name(service, tag))
+
+    def encrypt(self, password=None):
+        NotImplementedError()
+
+    def decrypt(self, password=None):
+        NotImplementedError()
 
 
 class LogOutput(object):

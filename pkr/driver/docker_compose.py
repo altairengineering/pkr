@@ -5,6 +5,7 @@
 
 from builtins import next
 import sys
+import os
 import re
 import subprocess
 import time
@@ -14,11 +15,17 @@ from pathlib import Path
 import yaml
 
 from pkr.driver import docker
-from pkr.cli.log import write
+from pkr.cli.log import write, debug
 from pkr.utils import (
     PkrException,
+    PasswordException,
     merge,
     get_current_container,
+    encrypt_swap,
+    decrypt_swap,
+    decrypt_file,
+    encrypt_with_key,
+    decrypt_with_key,
 )
 
 
@@ -40,14 +47,17 @@ class ComposePkr:
 
     COMPOSE_BIN = "docker-compose"
     COMPOSE_FILE = "docker-compose.yml"
+    COMPOSE_FILE_ENC = "docker-compose.enc"
 
-    def __init__(self, kard, **kwargs):
+    def __init__(self, kard, password=None, *args, **kwargs):
         super().__init__(kard, **kwargs)
         self.metas["project_name"] = None
         self._base_path = None
+        self.password = password
         if self.kard is not None:
             self.compose_file = self.kard.path / self.COMPOSE_FILE
-            self.driver_meta = self.kard.meta["driver"].get("docker_compose", {})
+            self.compose_file_enc = self.kard.path / self.COMPOSE_FILE_ENC
+            self.driver_meta = self.kard.meta.get("driver", {}).get("docker_compose", {})
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
@@ -59,12 +69,26 @@ class ComposePkr:
         compose_cmd = [
             self.COMPOSE_BIN,
             "-f",
-            str(self.compose_file),
+            "-",
             "-p",
             self.kard.meta["project_name"],
         ] + list(args)
 
-        return subprocess.call(compose_cmd)
+        debug("driver: _call_compose: cmd={}".format(compose_cmd))
+        compose = self._get_compose_data()
+        return subprocess.run(compose_cmd, input=compose)
+
+    def _get_compose_data(self):
+        if self.compose_file.exists():
+            with self.compose_file.open("rb") as cp_file:
+                data = cp_file.read()
+        elif self.compose_file_enc.exists():
+            if not self.password:
+                raise PasswordException()
+            data = decrypt_file(self.compose_file_enc, self.password)
+        else:
+            raise PkrException("Neither docker compose yaml nor encrypted file found")
+        return data
 
     def get_templates(self):
         templates = super().get_templates()
@@ -91,7 +115,7 @@ class ComposePkr:
 
         return templates
 
-    def populate_kard(self):
+    def populate_kard(self, meta_txt=True):
         """Populate context for compose"""
         if "compose_file" not in self.driver_meta:
             return
@@ -101,12 +125,33 @@ class ComposePkr:
             # Merge the compose_file
             merge(yaml.safe_load(file.open("r")), merged_compose)
 
-        with self.compose_file.open("w") as dcf:
-            yaml.safe_dump(merged_compose, dcf, default_flow_style=False)
+        if meta_txt:
+            with self.compose_file.open("w") as dcf:
+                os.chmod(self.compose_file, 0o600)
+                yaml.safe_dump(merged_compose, dcf, default_flow_style=False)
+        else:
+            if self.password is None:
+                raise PasswordException()
+            yaml_str = yaml.dump(merged_compose)
+            with self.compose_file_enc.open("wb") as compose_file_enc:
+                compose_enc = encrypt_with_key(
+                    self.password.encode("utf-8"), yaml_str.encode("utf-8")
+                )
+                os.chmod(self.compose_file_enc, 0o600)
+                compose_file_enc.write(compose_enc)
 
-    def _load_compose_config(self):
-        with self.compose_file.open("r") as cp_file:
-            compose_data = yaml.safe_load(cp_file)
+    def _load_compose_config(self, password=None):
+        if self.compose_file_enc.exists():
+            pw = self.password if self.password is not None else password
+            if pw is None:
+                raise PasswordException()
+            with self.compose_file_enc.open("rb") as compose_file_enc:
+                compose_enc = compose_file_enc.read()
+                compose = decrypt_with_key(pw.encode("utf-8"), compose_enc)
+                compose_data = yaml.load(compose, Loader=yaml.Loader)
+        else:
+            with self.compose_file.open("r") as cp_file:
+                compose_data = yaml.safe_load(cp_file)
         return ComposeConfig(compose_data)
 
     def get_real_kard_path(self):
@@ -273,9 +318,9 @@ class ComposePkr:
                 container_ip = self.get_ip(container)
             write(" - {}: {}".format(service, container_ip))
 
-    def cmd_status(self):
+    def cmd_status(self, password=None):
         """Check all containers are up and healthy"""
-        services = self._load_compose_config().services
+        services = self._load_compose_config(password).services
         status = []
 
         for service in services:
@@ -370,6 +415,12 @@ class ComposePkr:
 
         if ret["StatusCode"] != 0:
             raise PkrException("Container exited with non-zero status code {}".format(ret))
+
+    def encrypt(self, password):
+        encrypt_swap(self.compose_file, self.compose_file_enc, password)
+
+    def decrypt(self, password):
+        decrypt_swap(self.compose_file, self.compose_file_enc, password)
 
 
 class ComposeDriver(ComposePkr, docker.DockerDriver):

@@ -175,3 +175,7 @@ class pkrTestCase(unittest.TestCase):
 
 def get_test_files_path():
     return Path(os.path.dirname(os.path.abspath(__file__))) / "files"
+
+
+def msg_hlp(stdout, stderr):
+    return "STDOUT: {}; STDERR={}".format(stdout, stderr)
