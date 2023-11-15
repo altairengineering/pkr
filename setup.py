@@ -46,6 +46,8 @@ def setup_pkr():
             "jinja2-ansible-filters==1.3.2",
             'importlib-metadata>=0.12;python_version<"3.8"',
             'python-on-whales==0.20.2;python_version>="3.8"',
+            "pybase64==1.3.1",
+            "pycryptodome==3.19.0",
         ],
         packages=find_packages(exclude=["test", "docs"]),
         python_requires=">=3.8, <4,",
