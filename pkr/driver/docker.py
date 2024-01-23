@@ -421,7 +421,7 @@ class DockerDriver(AbstractDriver):
                 self._pull_image(image_name, registry.url, tag, remote_tag, ignore_errors)
                 write(" Done !" + "\n")
 
-        write("All images has been pulled successfully !" + "\n")
+        write("All images have been pulled successfully !" + "\n")
 
     def download_images(
         self, services, registry, username, password, tag=None, nopull=False, **kwargs
@@ -456,7 +456,7 @@ class DockerDriver(AbstractDriver):
                     f.write(chunk)
 
             write(" Done !" + "\n")
-        write("All images has been saved successfully !" + "\n")
+        write("All images have been saved successfully !" + "\n")
 
     def import_images(self, services, tag=None, **kwargs):
         """Import images from kard to local docker
