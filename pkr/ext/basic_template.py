@@ -1,5 +1,7 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
+"""Extension to generate additional files as templates."""
+
 from pkr.ext import ExtMixin
 from pkr.kard import Kard
 from pkr.utils import get_pkr_path

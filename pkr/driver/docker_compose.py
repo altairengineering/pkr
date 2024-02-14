@@ -28,6 +28,7 @@ from pkr.utils import (
 )
 
 
+# pylint: disable=too-few-public-methods
 class ComposeConfig:
     """
     Replacement for compose.Config object.
@@ -41,6 +42,7 @@ class ComposeConfig:
         ]
 
 
+# pylint: disable=no-member
 class ComposePkr:
     """Implements pkr functions for docker-compose"""
 
@@ -48,17 +50,17 @@ class ComposePkr:
     COMPOSE_FILE = "docker-compose.yml"
     COMPOSE_FILE_ENC = "docker-compose.enc"
 
-    def __init__(self, kard, password=None, *args, **kwargs):
-        super().__init__(kard, **kwargs)
+    def __init__(self, kard, password=None, **kwargs):
+        super().__init__(kard, password=password, **kwargs)
         self.metas["project_name"] = None
         self._base_path = None
-        self.password = password
         if self.kard is not None:
             self.compose_file = self.kard.path / self.COMPOSE_FILE
             self.compose_file_enc = self.kard.path / self.COMPOSE_FILE_ENC
             self.driver_meta = self.kard.meta.get("driver", {}).get("docker_compose", {})
 
     def get_meta(self, extras, kard):
+        """Return the meta from the kard"""
         values = super().get_meta(extras, kard)
         # Retrieve the real_kard_path which is different if pkr run in container
         kard.meta["real_kard_path"] = str(self.get_real_kard_path())
@@ -73,9 +75,9 @@ class ComposePkr:
             self.kard.meta["project_name"],
         ] + list(args)
 
-        debug("driver: _call_compose: cmd={}".format(compose_cmd))
+        debug(f"driver: _call_compose: cmd={compose_cmd}")
         compose = self._get_compose_data()
-        return subprocess.run(compose_cmd, input=compose)
+        return subprocess.run(compose_cmd, input=compose, check=False)
 
     def _get_compose_data(self):
         if self.compose_file.exists():
@@ -90,6 +92,7 @@ class ComposePkr:
         return data
 
     def get_templates(self):
+        """Return the templates of this driver"""
         templates = super().get_templates()
 
         # Cleanup merged file
@@ -160,6 +163,7 @@ class ComposePkr:
         if container is None:
             return self.kard.path
 
+        # pylint: disable=unsubscriptable-object
         mount = None
         for c in container.attrs["Mounts"]:
             if kard_path.startswith(c["Destination"]):
@@ -168,8 +172,7 @@ class ComposePkr:
 
         if mount is not None:
             return Path(mount["Source"]) / self.kard.path.relative_to(mount["Destination"])
-        else:
-            return self.kard.path  # We are in container, but not a pkr one
+        return self.kard.path  # We are in container, but not a pkr one
 
     def _resolve_services(self, services=None):
         """Return a generator of actual services, or all if None is provided"""
@@ -189,11 +192,14 @@ class ComposePkr:
         # Remove unexisting services
         return set(services) & set(all_services)
 
+    # pylint: disable=unused-argument
     def start(self, services=None, yes=False):
+        """Start the stack"""
         self._call_compose("up", "-d", *(services or ()))
 
+    # pylint: disable=too-many-locals
     def cmd_up(self, services=None, verbose=False, build_log=None):
-        """Start PCLM in a the docker environement.
+        """Start PCLM in a docker environement.
 
         Use parameters stored in meta.yml to generate the
         docker-compose.yml file, and then up the container via docker-compose.
@@ -210,6 +216,7 @@ class ComposePkr:
         eff_modules = self._resolve_services(services)
 
         # This pattern is used to detect the remote image
+        # pylint: disable=anomalous-backslash-in-string
         pattern = re.compile("^\S+\/\S+$")
 
         # Image names may be different from service names (e.g. image re-use)
@@ -277,33 +284,28 @@ class ComposePkr:
         if len(containers) == 0:
             return None
         if len(containers) != 1:
-            raise ValueError(
-                'ERROR: {} containers named "{}"'.format(len(containers), container_name)
-            )
+            raise ValueError(f'ERROR: {len(containers)} containers named "{container_name}"')
 
         return self.docker.inspect_container(containers.pop().get("Id"))
 
     def get_ip(self, container):
-        """Return the first IP of a container"""
+        """Return the first IP of a container"""
         networks = container["NetworkSettings"]["Networks"]
         return next(iter(networks.values()))["IPAddress"]
 
     def get_status(self, container):
-        """Return status of a container"""
+        """Return status of a container"""
         state = container["State"]["Status"]
         health = container["State"].get("Health", {}).get("Status")
         if health is None:
             if state == "running":
                 return 0, "started"
-            else:
-                return 2, "stopped"
-        elif health == "healthy":
+            return 2, "stopped"
+        if health == "healthy":
             return 0, "started"
-        else:
-            if state == "running":
-                return 1, "starting"
-            else:
-                return 2, "stopped"
+        if state == "running":
+            return 1, "starting"
+        return 2, "stopped"
 
     def cmd_ps(self):
         """List containers with ips"""
@@ -315,7 +317,7 @@ class ComposePkr:
                 container_ip = "stopped"
             else:
                 container_ip = self.get_ip(container)
-            write(" - {}: {}".format(service, container_ip))
+            write(f" - {service}: {container_ip}")
 
     def cmd_status(self, password=None):
         """Check all containers are up and healthy"""
@@ -330,18 +332,18 @@ class ComposePkr:
                     # Ignore services that are not started by the `up` command (scale=0)
                     continue
                 status.append(2)
-                write(" - {}: {}".format(service_name, "stopped"))
+                write(f" - {service_name}: stopped")
             else:
                 container_status = self.get_status(container)
                 status.append(container_status[0])
-                write(" - {}: {}".format(service_name, container_status[1]))
+                write(f" - {service_name}: {container_status[1]}")
         if 1 in status:
             status = (1, "starting")
         elif 2 in status:
             status = (2, "down")
         else:
             status = (0, "started")
-        write("Global status: {}".format(status[1]))
+        write(f"Global status: {status[1]}")
         sys.exit(status[0])
 
     def clean(self, kill=False):
@@ -363,10 +365,11 @@ class ComposePkr:
 
         return self.docker.exec_start(exec_id=execution["Id"])
 
-    def launch_container(self, command, image, volumes, v1=False, links=None):
+    # pylint: disable=too-many-arguments
+    def launch_container(self, command, image, volumes, v_1=False, links=None):
         """Generic method to launch a container"""
 
-        if v1:
+        if v_1:
             host_config = self.docker.create_host_config(
                 binds=[":".join((v, k)) for k, v in volumes.items()],
                 links={l: l for l in [self.make_container_name(s) for s in links]},
@@ -376,7 +379,7 @@ class ComposePkr:
             host_config = self.docker.create_host_config(
                 binds=[":".join((v, k)) for k, v in volumes.items()]
             )
-            network_name = self.kard.meta["project_name"] + "_default".format()
+            network_name = self.kard.meta["project_name"] + "_default"
             networking_config = self.docker.create_networking_config(
                 {network_name: self.docker.create_endpoint_config()}
             )
@@ -413,14 +416,16 @@ class ComposePkr:
             self.docker.remove_container(container=container_id)
 
         if ret["StatusCode"] != 0:
-            raise PkrException("Container exited with non-zero status code {}".format(ret))
+            raise PkrException(f"Container exited with non-zero status code {ret}")
 
     def encrypt(self, password):
+        """Encrypt the compose file"""
         encrypt_swap(self.compose_file, self.compose_file_enc, password)
 
     def decrypt(self, password):
+        """Decrypt the compose file"""
         decrypt_swap(self.compose_file, self.compose_file_enc, password)
 
 
 class ComposeDriver(ComposePkr, docker.DockerDriver):
-    pass
+    """Combine class to create the driver"""

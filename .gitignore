@@ -16,3 +16,4 @@ test/**/kard
 doc/demo/kard
 !doc/demo/env
 .docker/
+.python-version

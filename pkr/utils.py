@@ -6,13 +6,14 @@
 
 import hashlib
 from builtins import input
-from builtins import object
 from builtins import range
 from builtins import str
+from enum import Enum
 from fnmatch import fnmatch
 from glob import glob
 import json
 import os
+from pathlib import Path
 import random
 import re
 import shutil
@@ -22,14 +23,11 @@ import platform
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto import Random
-
-from enum import Enum
-
-import jinja2
 import docker
-from pathlib import Path
+import jinja2
 from passlib.apache import HtpasswdFile
 
+ENV_FOLDER = "env"
 KARD_FOLDER = "kard"
 PATH_ENV_VAR = "PKR_PATH"
 
@@ -55,11 +53,10 @@ class PasswordException(PkrException):
         super().__init__(message)
 
 
+# pylint: disable=C0415
 def is_pkr_path(path):
     """Check environments files to deduce if path is a usable pkr path"""
-    from pkr.environment import ENV_FOLDER
-
-    return path.is_dir() and len(list(path.glob("{}/*/env.yml".format(ENV_FOLDER)))) > 0
+    return path.is_dir() and len(list(path.glob(f"{ENV_FOLDER}/*/env.yml"))) > 0
 
 
 def get_pkr_path(raise_if_not_found=True):
@@ -78,9 +75,8 @@ def get_pkr_path(raise_if_not_found=True):
 
     if raise_if_not_found and not is_pkr_path(pkr_path):
         raise KardInitializationException(
-            "{} path {} is not a valid pkr path, no usable env found".format(
-                "Given" if PATH_ENV_VAR in os.environ else "Current", full_path
-            )
+            f"{'Given' if PATH_ENV_VAR in os.environ else 'Current'} path {full_path} is not a "
+            f"valid pkr path, no usable env found"
         )
 
     return pkr_path
@@ -190,10 +186,10 @@ def generate_password(pw_len=15):
 
 
 def ask_input(name):
-    return input("Missing meta({}):".format(name))
+    return input(f"Missing meta({name}):")
 
 
-class TemplateEngine(object):
+class TemplateEngine:
     def __init__(self, tpl_context):
         """Init templating context (filters and functions)"""
         self.tpl_context = tpl_context.copy()
@@ -295,7 +291,7 @@ class TemplateEngine(object):
         else:
             for path_it in path.iterdir():
                 path_it = path / path_it
-                if not any([fnmatch(str(path_it), str(exc_path)) for exc_path in excluded_paths]):
+                if not any((fnmatch(str(path_it), str(exc_path)) for exc_path in excluded_paths)):
                     self.copy(path_it, origin, local_dst, excluded_paths, gen_template)
 
     @staticmethod
@@ -325,15 +321,15 @@ def get_current_container():
     """Return container inspect if we run in docker, None otherwise"""
     if platform.system() != "Linux":
         return None
-    path = Path("/proc/self/cgroup")
-    for line in path.open():
-        if "docker" in line:
-            container_id = line[line.rindex("/") + 1 :].strip()
-            md = re.match(r"docker-(.+)\.scope$", container_id)
-            if md:
-                container_id = md.group(1)
-            cli = docker.DockerClient(version="auto")  # Default to /var/run/docker.sock
-            return cli.containers.get(container_id)
+    with Path("/proc/self/cgroup").open(encoding="utf-8") as cgroup_file:
+        for line in cgroup_file:
+            if "docker" in line:
+                container_id = line[line.rindex("/") + 1 :].strip()
+                md = re.match(r"docker-(.+)\.scope$", container_id)
+                if md:
+                    container_id = md.group(1)
+                cli = docker.DockerClient(version="auto")  # Default to /var/run/docker.sock
+                return cli.containers.get(container_id)
     return None
 
 
@@ -375,7 +371,7 @@ def ensure_definition_matches(definition, defaults, data, path=None):
         )
         return values
 
-    elif isinstance(definition, list):
+    if isinstance(definition, list):
         values = {}
         for element in definition:
             values.update(
@@ -385,9 +381,8 @@ def ensure_definition_matches(definition, defaults, data, path=None):
             )
         return values
 
-    else:
-        value = ensure_key_present(definition, defaults, data, path)
-        return {definition: value}
+    value = ensure_key_present(definition, defaults, data, path)
+    return {definition: value}
 
 
 def create_pkr_folder(pkr_path=None):
@@ -462,18 +457,18 @@ def decrypt_file(file, password=None):
 
 def encrypt_with_key(key: bytes, source: bytes) -> bytes:
     key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
-    IV = Random.new().read(AES.block_size)  # generate IV
-    encryptor = AES.new(key, AES.MODE_CBC, IV)
+    i_v = Random.new().read(AES.block_size)  # generate i_v
+    encryptor = AES.new(key, AES.MODE_CBC, i_v)
     padding = AES.block_size - len(source) % AES.block_size  # calculate needed padding
     src = b"".join([source, bytes([padding]) * padding])
-    data = IV + encryptor.encrypt(src)  # store the IV at the beginning and encrypt
+    data = i_v + encryptor.encrypt(src)  # store the i_v at the beginning and encrypt
     return data
 
 
 def decrypt_with_key(key: bytes, source: bytes) -> bytes:
     key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
-    IV = source[: AES.block_size]  # extract the IV from the beginning
-    decryptor = AES.new(key, AES.MODE_CBC, IV)
+    i_v = source[: AES.block_size]  # extract the i_v from the beginning
+    decryptor = AES.new(key, AES.MODE_CBC, i_v)
     data = decryptor.decrypt(source[AES.block_size :])  # decrypt
     padding = data[-1]  # pick the padding value from the end
     if data[-padding:] != bytes([padding]) * padding:

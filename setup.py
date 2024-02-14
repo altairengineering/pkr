@@ -5,7 +5,6 @@ from setuptools import find_packages, setup
 
 def setup_pkr():
     __version__ = imp.load_source("pkr.version", "pkr/version.py").__version__
-
     setup(
         name="pkr",
         version=__version__,
@@ -38,16 +37,18 @@ def setup_pkr():
         install_requires=[
             "docker==4.4.4",
             "GitPython==3.1.30",
+            "importlib-metadata>=0.12",
             "ipaddress==1.0.17",
             "jinja2",
+            "jinja2-ansible-filters==1.3.2",
             "kubernetes>=9.0.0",
             "netifaces==0.10.5",
             "passlib>=1.7.1",
             "jinja2-ansible-filters==1.3.2",
-            'importlib-metadata>=0.12;python_version<"3.8"',
-            'python-on-whales==0.20.2;python_version>="3.8"',
             "pybase64==1.3.1",
             "pycryptodome==3.19.0",
+            "python-on-whales==0.20.2",
+            "tenacity>=7.0.0",
         ],
         packages=find_packages(exclude=["test", "docs"]),
         python_requires=">=3.8, <4,",

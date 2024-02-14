@@ -1,7 +1,9 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
+"""Base definition for drivers"""
+
+from abc import ABC
 import re
-from builtins import object
 
 from ..utils import (
     merge,
@@ -9,17 +11,20 @@ from ..utils import (
 )
 
 
-class AbstractDriver(object):
+# pylint: disable=missing-class-docstring,too-many-public-methods
+class AbstractDriver:
     """Abstract class for a driver"""
 
     SERVICE_VAR = "%SERVICE%"
 
-    def __init__(self, kard, password=None, **kwargs):
+    def __init__(self, kard, password=None, **_):
         """Save the kard to driver
 
         args and kwargs passed to driver
         """
         self.kard = kard
+        self.metas = {}
+        self.password = password
 
     def get_meta(self, extras, kard):
         """Ensure that the required meta are present.
@@ -58,7 +63,6 @@ class AbstractDriver(object):
 
         Might create some more files in kard_path, but must take care of cleaning it.
         """
-        pass
 
     def context_path(self, sub_path, container):
         """AbstractDriver hook for driver to compute and return path
@@ -78,24 +82,27 @@ class AbstractDriver(object):
         return image_name
 
     def build_images(self, *args, **kwargs):
+        """Build images"""
         raise NotImplementedError()
 
     def push_images(self, *args, **kwargs):
-        raise NotImplementedError()
-
-    def push_images(self, *args, **kwargs):
+        """Push images"""
         raise NotImplementedError()
 
     def download_images(self, *args, **kwargs):
+        """Download images"""
         raise NotImplementedError()
 
     def import_images(self, *args, **kwargs):
+        """Import images"""
         raise NotImplementedError()
 
     def list_images(self, *args, **kwargs):
+        """List images"""
         raise NotImplementedError()
 
     def purge_images(self, *args, **kwargs):
+        """Purge images"""
         raise NotImplementedError()
 
     #
@@ -140,6 +147,7 @@ class AbstractDriver(object):
         raise NotImplementedError()
 
     def cmd_up(self, services=None, verbose=False, build_log=None):
+        """Start the stack"""
         raise NotImplementedError()
 
     def cmd_ps(self):
@@ -150,20 +158,21 @@ class AbstractDriver(object):
         """Hook for drivers to provide a check process feature"""
         raise NotImplementedError()
 
+    # pylint: disable=unused-argument
     def clean(self, kill=False):
         """Hook for drivers to provide a clean/stop process feature"""
-        NotImplementedError()
+        raise NotImplementedError()
 
     def encrypt(self, password=None):
         """Hook for drivers to provide a kard encrypt feature"""
-        NotImplementedError()
+        raise NotImplementedError()
 
     def decrypt(self, password=None):
         """Hook for drivers to provide a kard decrypt feature"""
-        NotImplementedError()
+        raise NotImplementedError()
 
 
-class BaseDriver(AbstractDriver):
+class BaseDriver(AbstractDriver, ABC):
     metas = []
 
     def get_templates(self):

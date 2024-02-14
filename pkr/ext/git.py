@@ -1,7 +1,6 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
 """Git extension to allow fetching a git repository when creating a Kard"""
-from builtins import str
 import os
 
 from git import Repo
@@ -26,7 +25,7 @@ class Git(ExtMixin):
             src_path = kard.meta["src_path"]
             git_branch = args.get("git_branch", kard.meta.get("git_branch", "master"))
             if not os.path.isdir(src_path):
-                write("Fetching sources from {}:{} to {}".format(git_repo, git_branch, src_path))
+                write(f"Fetching sources from {git_repo}:{git_branch} to {src_path}")
                 try:
                     repo = Repo.clone_from(
                         git_repo, src_path, branch=git_branch, single_branch=True, depth=1
@@ -36,8 +35,8 @@ class Git(ExtMixin):
                         sub_module.update()
 
                 except Exception as exc:
-                    write("Could not fetch repository: {}".format(str(exc)))
+                    write(f"Could not fetch repository: {exc}")
                     raise exc
 
             else:
-                write("Using sources from {}".format(src_path))
+                write(f"Using sources from {src_path}")

@@ -27,7 +27,7 @@ def main():
         # we cannot ensure it will not fail
         if "--debug" in sys.argv or "-d" in sys.argv:
             log.set_debug(True)
-        log.write("ERROR: ({}) {}".format(type(exc).__name__, exc), error=True)
+        log.write(f"ERROR: ({type(exc).__name__}) {exc}", error=True)
         log.debug("".join(traceback.format_exception(*sys.exc_info())))
         return 1
     return 0

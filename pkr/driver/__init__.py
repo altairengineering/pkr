@@ -17,6 +17,8 @@ DRIVER_MAPPING = {
 
 
 def set_use_env_var(use_env_var=True):
+    """Activate the usage of environment variable for Docker"""
+    # pylint: disable=global-statement
     global _USE_ENV_VAR
     _USE_ENV_VAR = use_env_var
 
@@ -29,16 +31,17 @@ def _get_driver_class(module):
                 return ext_cls
         except TypeError:
             pass
+    return None
 
 
-def load_driver(driver_name, kard=None, password=None, *args, **kwargs):
+def load_driver(driver_name, kard=None, password=None, **kwargs):
     """Return the loaded driver"""
-    if driver_name in DRIVER_MAPPING:
-        driver_name = DRIVER_MAPPING[driver_name]
+    driver_name = DRIVER_MAPPING.get(driver_name, driver_name)
     module = import_module(f"pkr.driver.{driver_name}", "pkr.driver")
-    return _get_driver_class(module)(kard, password, *args, **kwargs)
+    return _get_driver_class(module)(kard, password, **kwargs)
 
 
-def list_drivers():
+def list_drivers() -> tuple:
+    """Return a list of drivers"""
     drivers_dir = os.path.dirname(os.path.realpath(__file__))
     return tuple(package_name for _, package_name, _ in pkgutil.iter_modules([drivers_dir]))

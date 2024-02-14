@@ -1,9 +1,12 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
+"""CLI argument extend action"""
+
 from argparse import Action, OPTIONAL
 import copy
 
 
+# pylint: disable=too-many-arguments,redefined-builtin
 class ExtendAction(Action):
     """CLI argument extend action"""
 
@@ -27,9 +30,9 @@ class ExtendAction(Action):
                 "be more appropriate"
             )
         if const is not None and nargs != OPTIONAL:
-            raise ValueError("nargs must be %r to supply const" % OPTIONAL)
+            raise ValueError(f"nargs must be {OPTIONAL} to supply const")
 
-        super(ExtendAction, self).__init__(
+        super().__init__(
             option_strings=option_strings,
             dest=dest,
             nargs=nargs,
