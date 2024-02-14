@@ -1,3 +1,5 @@
+# Copyright© 1986-2024 Altair Engineering Inc.
+
 from .docker_compose import ComposePkr
 from .buildx import BuildxDriver
 

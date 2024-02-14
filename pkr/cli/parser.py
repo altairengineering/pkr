@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2019 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """pkr CLI parser"""
 
@@ -8,7 +6,6 @@ import argparse
 from getpass import getpass
 
 from pathlib import Path
-import yaml
 
 from .action import ExtendAction
 from .log import write

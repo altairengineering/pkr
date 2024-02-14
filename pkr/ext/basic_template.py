@@ -1,14 +1,4 @@
-# -*- coding: utf-8 -*-
-
-# *****************************************************************************
-# Altair® PBS Cloud Manager®
-# A Platform for Innovation®
-# Copyright© 1986-2020 Altair Engineering Inc. All Rights Reserved.
-# *****************************************************************************
-
-import shutil
-
-from pathlib import Path
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 from pkr.ext import ExtMixin
 from pkr.kard import Kard

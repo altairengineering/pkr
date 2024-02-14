@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """pkr Kard"""
 
@@ -18,7 +17,6 @@ from .ext import Extensions
 from .cli.log import write
 from .utils import (
     PkrException,
-    PasswordException,
     TemplateEngine,
     get_kard_root_path,
     merge,

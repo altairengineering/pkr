@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2019 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 # pylint: disable=C0111,E1101,R0912,R0913
 
 """Utils functions for pkr"""
 
-import base64
 import hashlib
 from builtins import input
 from builtins import object

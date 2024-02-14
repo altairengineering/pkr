@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """pkr drivers"""
 
