@@ -102,7 +102,18 @@ class DockerDriver(AbstractDriver):
             dockerfile = Path(dockerfile).stem
             templates.append(
                 {
-                    "source": templates_path / f"{dockerfile}*",  # Match template
+                    "source": templates_path / f"{dockerfile}",  # Match template
+                    "origin": templates_path,
+                    "destination": "",
+                    "subfolder": context,
+                }
+            )
+
+            # Also add anything matching dockerfile name stem with an extension
+            # suffix of some kind
+            templates.append(
+                {
+                    "source": templates_path / f"{dockerfile}.*",  # Match template
                     "origin": templates_path,
                     "destination": "",
                     "subfolder": context,

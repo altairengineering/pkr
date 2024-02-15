@@ -294,7 +294,7 @@ class TemplateEngine(object):
                 # os.chmod(str(dst_path), 0o600) # make invisible to the world
             else:
                 shutil.copy2(path_str, str(dst_path))
-        else:
+        elif path.is_dir():
             for path_it in path.iterdir():
                 path_it = path / path_it
                 if not any([fnmatch(str(path_it), str(exc_path)) for exc_path in excluded_paths]):
