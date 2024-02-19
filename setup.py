@@ -36,7 +36,6 @@ def setup_pkr():
         ],
         install_requires=[
             "docker==4.4.4",
-            "GitPython==3.1.30",
             "importlib-metadata>=0.12",
             "ipaddress==1.0.17",
             "jinja2",
@@ -56,6 +55,18 @@ def setup_pkr():
         ],
         packages=find_packages(exclude=["test", "docs"]),
         python_requires=">=3.8, <4,",
+        extras_require={
+            "git-ext": [
+                "GitPython==3.1.30",
+            ],
+            "dev": [
+                "bandit==1.7.4",
+                "mock==2.0.0",
+                "pytest==7.4.0",
+                "tox==4.11.3",
+                "wrapt==1.14.0",
+            ],
+        },
     )
 
 
