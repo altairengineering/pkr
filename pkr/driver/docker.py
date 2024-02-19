@@ -1,22 +1,20 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2020 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """pkr functions for creating the context"""
 
-import sys
+from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 import os
 import re
+import sys
 import traceback
+from pathlib import Path
+
 import docker
 import tenacity
 
-from concurrent.futures import ThreadPoolExecutor
-
-from collections import namedtuple
 from pkr.driver import _USE_ENV_VAR
 from pkr.driver.base import AbstractDriver
-from pathlib import Path
-
 from pkr.cli.log import write
 from pkr.utils import PkrException
 
@@ -38,6 +36,7 @@ class DockerRegistry(namedtuple("DockerRegistry", ("url", "username", "password"
     """
 
 
+# pylint: disable=abstract-method
 class DockerDriver(AbstractDriver):
     """Context object used to manipulate the context used to generate
     docker images
@@ -47,7 +46,7 @@ class DockerDriver(AbstractDriver):
     DOCKER_CONTEXT_SOURCE = "dockerfiles"
 
     def __init__(self, kard, password=None, **kwargs):
-        super().__init__(kard=kard, **kwargs)
+        super().__init__(kard=kard, password=password, **kwargs)
         self.metas = {"tag": None}
         # Both of these options work with APIClient and from_env
         kwargs.setdefault("timeout", DOCKER_CLIENT_TIMEOUT)
@@ -122,11 +121,11 @@ class DockerDriver(AbstractDriver):
 
         return templates
 
-    def context_path(self, subpath, container):
-        """Return absolute path for subpath relative to container context"""
+    def context_path(self, sub_path, container):
+        """Return absolute path for sub_path relative to container context"""
         context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
         context_path = self.kard.real_path / context
-        return context_path / subpath
+        return context_path / sub_path
 
     def get_registry(self, **kwargs):
         """Return a DockerRegistry instance with either the provided values, or
@@ -138,6 +137,7 @@ class DockerDriver(AbstractDriver):
 
         return DockerRegistry(**kwargs)
 
+    # pylint: disable=arguments-differ,too-many-arguments,too-many-locals
     def build_images(
         self,
         services,
@@ -172,7 +172,7 @@ class DockerDriver(AbstractDriver):
         with LogOutput(logfile) as logfh:
             if parallel:
                 if len(services) > 1:
-                    logfh.write("Building docker images using {} threads ...\n".format(parallel))
+                    logfh.write(f"Building docker images using {parallel} threads ...\n")
                 futures = []
                 with ThreadPoolExecutor(max_workers=parallel) as executor:
                     for service in services:
@@ -199,6 +199,7 @@ class DockerDriver(AbstractDriver):
                         service, tag, verbose, logfile, nocache, no_rebuild, False, target
                     )
 
+    # pylint: disable=too-many-arguments
     def _build_image(
         self,
         service,
@@ -231,11 +232,7 @@ class DockerDriver(AbstractDriver):
             if not target:
                 target = self.kard.env.get_container(service).get("target")
 
-            logfh.write(
-                "Building {}{} image...\n".format(
-                    image_name, "({})".format(target) if target else ""
-                )
-            )
+            logfh.write(f"Building {image_name}{f'({target})' if target else ''} image...\n")
 
             if no_rebuild:
                 image = len(self.docker.images(image_name)) == 1
@@ -267,11 +264,12 @@ class DockerDriver(AbstractDriver):
         """
         if registry.username is None:
             return
-        write("Logging to {}...".format(registry.url))
+        write(f"Logging to {registry.url}...")
         self.docker.login(
             username=registry.username, password=registry.password, registry=registry.url
         )
 
+    # pylint: disable=arguments-differ,too-many-arguments,too-many-locals
     def push_images(
         self,
         services,
@@ -305,7 +303,7 @@ class DockerDriver(AbstractDriver):
         for service in services:
             image_name = self.make_image_name(service)
             image = self.make_image_name(service, tag)
-            rep_tag = "{}/{}".format(registry.url, image_name)
+            rep_tag = f"{registry.url}/{image_name}"
             todos.append((image, rep_tag, tags))
 
         if parallel:
@@ -329,7 +327,7 @@ class DockerDriver(AbstractDriver):
         """
         for dest_tag in tags:
             if not buffer:
-                write("Pushing {} to {}:{}".format(image, rep_tag, dest_tag))
+                write(f"Pushing {image} to {rep_tag}:{dest_tag}")
                 sys.stdout.flush()
 
             try:
@@ -343,11 +341,10 @@ class DockerDriver(AbstractDriver):
                         error += "\n" + stream["errorDetail"]["message"]
 
                 if buffer:
-                    write("Pushing {} to {}:{}".format(image, rep_tag, dest_tag))
+                    write(f"Pushing {image} to {rep_tag}:{dest_tag}")
                     sys.stdout.flush()
                 write(" Done !")
             except docker.errors.APIError as error:
-                error_msg = "\nError while pushing the image {}: {}\n".format(dest_tag, error)
                 raise error
 
     def logon_remote_registry(self, registry, username=None, password=None):
@@ -361,6 +358,7 @@ class DockerDriver(AbstractDriver):
         registry = self.get_registry(url=registry, username=username, password=password)
         self._logon_remote_registry(registry)
 
+    # pylint: disable=too-many-arguments,too-many-locals
     def pull_images(
         self,
         services,
@@ -370,7 +368,7 @@ class DockerDriver(AbstractDriver):
         tag=None,
         parallel=None,
         ignore_errors=False,
-        **kwargs,
+        **_,
     ):
         """Pull images from a remote registry
 
@@ -385,51 +383,45 @@ class DockerDriver(AbstractDriver):
             remote_tag = tag or self.kard.meta["tag"]
             tag = self.kard.meta["tag"]
 
-            dockerRegistry = self.get_registry(url=registry, username=username, password=password)
-            self._logon_remote_registry(dockerRegistry)
+            docker_registry = self.get_registry(url=registry, username=username, password=password)
+            self._logon_remote_registry(docker_registry)
 
             todos = []
             for service in services:
                 image_name = self.make_image_name(service)
                 image = self.make_image_name(service, tag)
-                todos.append((image, image_name, dockerRegistry, remote_tag))
+                todos.append((image, image_name, docker_registry, remote_tag))
         else:
             todos = services
         if parallel:
             futures = []
             with ThreadPoolExecutor(max_workers=parallel) as executor:
-                for image, image_name, registry, remote_tag in todos:
+                for image, image_name, reg, remote_tag in todos:
                     futures.append(
                         (
                             image,
                             executor.submit(
                                 self._pull_image,
                                 image_name,
-                                registry.url,
+                                reg.url,
                                 tag,
                                 remote_tag,
                                 ignore_errors,
                             ),
+                            image_name,
+                            remote_tag,
                         )
                     )
-            for image, future in futures:
+            for image, future, image_name, remote_tag in futures:
                 future.result()
-                write(
-                    "Pulling {} from {}/{}:{}...".format(
-                        image, registry.url, image_name, remote_tag
-                    )
-                )
-                write(" Done !" + "\n")
+                write(f"Pulling {image} from {registry.url}/{image_name}:{remote_tag}...")
+                write(" Done !\n")
                 sys.stdout.flush()
         else:
-            for image, image_name, registry, remote_tag in todos:
-                write(
-                    "Pulling {} from {}/{}:{}...".format(
-                        image, registry.url, image_name, remote_tag
-                    )
-                )
+            for image, image_name, reg, remote_tag in todos:
+                write(f"Pulling {image} from {reg.url}/{image_name}:{remote_tag}...")
                 sys.stdout.flush()
-                self._pull_image(image_name, registry.url, tag, remote_tag, ignore_errors)
+                self._pull_image(image_name, reg.url, tag, remote_tag, ignore_errors)
                 write(" Done !" + "\n")
 
         write("All images have been pulled successfully !" + "\n")
@@ -448,7 +440,7 @@ class DockerDriver(AbstractDriver):
         tag = tag or self.kard.meta["tag"]
 
         save_path = Path(self.kard.path) / "images"
-        write("Cleaning images destination {}".format(save_path))
+        write(f"Cleaning images destination {save_path}")
         save_path.mkdir(exist_ok=True)
         for child in save_path.iterdir():
             child.unlink()
@@ -457,19 +449,19 @@ class DockerDriver(AbstractDriver):
             self.pull_images(services, registry, username, password, tag=tag)
 
         for service in services:
-            image_path = save_path / "{}.tar".format(service)
+            image_path = save_path / f"{service}.tar"
             image_name = self.make_image_name(service, tag)
-            write("Saving {} to {}".format(image_name, image_path))
+            write(f"Saving {image_name} to {image_path}")
             sys.stdout.flush()
 
             with open(image_path, "wb") as f:
                 for chunk in self.docker.get_image(image_name):
                     f.write(chunk)
 
-            write(" Done !" + "\n")
-        write("All images have been saved successfully !" + "\n")
+            write(" Done !\n")
+        write("All images have been saved successfully !\n")
 
-    def import_images(self, services, tag=None, **kwargs):
+    def import_images(self, services, **_):
         """Import images from kard to local docker
 
         Args:
@@ -477,20 +469,19 @@ class DockerDriver(AbstractDriver):
           * tag: the tag of the version to load
         """
         services = services or list(self.kard.env.get_container().keys())
-        tag = tag or self.kard.meta["tag"]
 
         save_path = Path(self.kard.path) / "images"
         for child in save_path.iterdir():
             service = child.name[:-4]
             if service not in services:
                 continue
-            write("Importing {} ...".format(child))
+            write(f"Importing {child} ...")
             with open(child, "rb") as f:
                 rsp = self.docker.load_image(f.read())
             for message in rsp:
                 write(message.get("stream", ""))
             write("\n")
-        write("All images have been loaded successfully !" + "\n")
+        write("All images have been loaded successfully !\n")
 
     @tenacity.retry(
         wait=tenacity.wait_fixed(1),
@@ -510,7 +501,7 @@ class DockerDriver(AbstractDriver):
           * tag: the tag of the version to pull
         """
 
-        rep_tag = "{}/{}".format(registry_url, image_name)
+        rep_tag = f"{registry_url}/{image_name}"
 
         try:
             self.docker.pull(repository=rep_tag, tag=remote_tag)
@@ -521,9 +512,10 @@ class DockerDriver(AbstractDriver):
             )
 
         except docker.errors.APIError as error:
-            error_msg = "Error while pulling the image {}: {}".format(tag, error)
+            error_msg = f"Error while pulling the image {tag}: {error}"
             write(error_msg)
             if not ignore_errors:
+                # pylint: disable=raise-missing-from
                 raise ImagePullError(error_msg)
 
     @staticmethod
@@ -575,16 +567,16 @@ class DockerDriver(AbstractDriver):
                         for log_it in all_logs:
                             print_log(log_it)
                         raise Exception(
-                            "Error during docker process: " + last_log["errorDetail"]["message"]
+                            f"Error during docker process: {last_log['errorDetail']['message']}"
                         )
 
     def encrypt(self, password=None):
         """Hook for drivers to provide a kard encrypt feature"""
-        NotImplementedError()
+        raise NotImplementedError()
 
     def decrypt(self, password=None):
         """Hook for drivers to provide a kard decrypt feature"""
-        NotImplementedError()
+        raise NotImplementedError()
 
     def purge_images(self, tag=None, except_tag=None, repository=None, **kwargs):
         """Delete all images of this project.
@@ -600,7 +592,7 @@ class DockerDriver(AbstractDriver):
         if except_tag is None:
             tag = tag or self.kard.meta["tag"]
         else:
-            tag = "(?!{})$".format(except_tag)
+            tag = f"(?!{except_tag})$"
 
         images_to_del = [self.make_image_name(s, tag) for s in services]
 
@@ -619,6 +611,7 @@ class DockerDriver(AbstractDriver):
                     write("Deleting image " + repo_tag)
                     try:
                         self.docker.remove_image(repo_tag)
+                    # pylint: disable=broad-exception-caught
                     except BaseException as exc:
                         write(exc)
 
@@ -630,14 +623,10 @@ class DockerDriver(AbstractDriver):
         for service in services:
             write(self.make_image_name(service, tag))
 
-    def encrypt(self, password=None):
-        NotImplementedError()
 
-    def decrypt(self, password=None):
-        NotImplementedError()
+class LogOutput:
+    """Manage printing docker logs"""
 
-
-class LogOutput(object):
     def __init__(self, filename=None, bufferize=False):
         """Context manager for writing to files or to stdout."""
         if filename is None:
@@ -650,7 +639,7 @@ class LogOutput(object):
 
     def __enter__(self):
         if self.handler != sys.stdout:
-            self.handler = open(self.filename, "a")
+            self.handler = open(self.filename, "a", encoding="utf-8")
         return self
 
     def __exit__(self, *_):
@@ -685,5 +674,6 @@ class LogOutput(object):
         print(line, file=self.handler, end="")
 
     def flush(self):
+        """Flush the handler"""
         self.handler.write("".join(self.buffer))
         self.handler.flush()

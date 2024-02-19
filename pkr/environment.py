@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """Module with the pkr environment"""
 
 import yaml
-from builtins import object
 
-from pkr.cli.log import write
+from .cli.log import write
 from .utils import (
+    ENV_FOLDER,
     HashableDict,
     ensure_definition_matches,
     get_pkr_path,
@@ -16,10 +15,8 @@ from .utils import (
     merge_lists,
 )
 
-ENV_FOLDER = "env"
 
-
-class Environment(object):
+class Environment:
     """Class for loading and holding pkr environment"""
 
     IMPORT_KEY = "import"
@@ -38,9 +35,7 @@ class Environment(object):
 
         self.features = features or []
         for feature in dedup_list(self.env.get("default_features", [])):
-            write(
-                "WARNING: Feature {} is duplicated in env {}".format(feature, env_name), error=True
-            )
+            write(f"WARNING: Feature {feature} is duplicated in env {env_name}", error=True)
         merge_lists(self.env.get("default_features", []), self.features)
 
         for feature in self.features:
@@ -50,7 +45,8 @@ class Environment(object):
                 feature_features = content.pop("default_features", [])
                 for dup in dedup_list(feature_features):
                     write(
-                        f"WARNING: Feature {dup} is duplicated in feature {feature} from env {env_name}",
+                        f"WARNING: Feature {dup} is duplicated in feature {feature} from env "
+                        f"{env_name}",
                         error=True,
                     )
                 merge_lists(feature_features, self.features)
@@ -73,7 +69,8 @@ class Environment(object):
             imp_features = imp_data.pop("default_features", [])
             for dup in dedup_list(imp_features):
                 write(
-                    f"WARNING: Feature {dup} is duplicated in import {imp_name} from env {self.env_name}",
+                    f"WARNING: Feature {dup} is duplicated in import {imp_name} from env "
+                    f"{self.env_name}",
                     error=True,
                 )
             merge_lists(imp_features, content["default_features"])
@@ -199,7 +196,9 @@ class Environment(object):
     def __getitem__(self, item):
         return self.env.__getitem__(item)
 
+    # pylint: disable=unnecessary-dunder-call
     def get(self, item, default):
+        """Return value from the env"""
         try:
             return self.__getitem__(item)
         except KeyError:

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """Git extension to allow using sources from volumes or build them into the
 image"""
@@ -28,14 +27,13 @@ def add_file(context, paths):
     render them by using either the ADD or VOLUME instruction."""
     if context["use_volume"]:
         paths = paths.get("common", {})
-        paths = ['"{}"'.format(path) for path in list(paths.keys())]
+        paths = [f'"{path}"' for path in list(paths.keys())]
         if len(paths):
-            return "VOLUME [{}]".format(", ".join(paths))
-        else:
-            return ""
+            return f"VOLUME [{', '.join(paths)}]"
+        return ""
 
     lines = []
     paths = dict(list(paths.get("common", {}).items()) + list(paths.get("copied", {}).items()))
     for remote, local in sorted(paths.items()):
-        lines.append('ADD "{}" "{}"'.format(local, remote))
+        lines.append(f'ADD "{local}" "{remote}"')
     return os.linesep.join(lines)

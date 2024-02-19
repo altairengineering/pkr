@@ -1,16 +1,14 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """pkr Kard"""
 
 import copy
+from getpass import getpass
 import os
+from pathlib import Path
 import shutil
 
 import yaml
-from pathlib import Path
-from builtins import object
-from getpass import getpass
 
 from .driver import load_driver
 from .environment import Environment
@@ -18,7 +16,6 @@ from .ext import Extensions
 from .cli.log import write
 from .utils import (
     PkrException,
-    PasswordException,
     TemplateEngine,
     get_kard_root_path,
     merge,
@@ -36,10 +33,9 @@ from .utils import (
 class KardNotFound(PkrException):
     """Exception raised if the kard is not found"""
 
-    pass
 
-
-class Kard(object):
+# pylint: disable=too-many-instance-attributes
+class Kard:
     """Object representing the kard"""
 
     META_FILE = "meta.yml"
@@ -48,6 +44,7 @@ class Kard(object):
     LOCAL_SRC = "./src"
     CURRENT_KARD = None
 
+    # pylint: disable=too-many-arguments
     def __init__(self, name, path, password=None, enc=Cmd.OTHER, meta=None):
         self.path = path
         self.name = name
@@ -62,12 +59,12 @@ class Kard(object):
 
             if self.meta_file_enc.is_file():
                 if enc == Cmd.ENCRYPT:
-                    raise PkrException('Metafile for Kard "{}" is already encrypted'.format(name))
+                    raise PkrException(f'Metafile for Kard "{name}" is already encrypted')
                 meta_data = decrypt_file(self.meta_file_enc, self.password)
                 self.clean_meta = yaml.load(meta_data, Loader=yaml.Loader)
             else:
                 if enc == Cmd.DECRYPT:
-                    raise PkrException('Metafile for Kard "{}" is already decrypted'.format(name))
+                    raise PkrException(f'Metafile for Kard "{name}" is already decrypted')
                 with self.meta_file.open() as meta_file:
                     self.clean_meta = yaml.safe_load(meta_file)
         else:
@@ -107,8 +104,7 @@ class Kard(object):
                     except Exception as exc:
                         write(f"Cannot delete subtree {self.path / subfolder}: {exc}")
                         raise
-                    else:
-                        write("Done !")
+                    write("Done !")
                 else:
                     write("Ok !")
             folder.mkdir(parents=True, exist_ok=True)
@@ -146,6 +142,7 @@ class Kard(object):
 
         return sorted(kards)
 
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     @classmethod
     def create(cls, name, env, driver, extra, features=None, meta=None, password=None, **kwargs):
         """Factory method to create a new kard"""
@@ -154,14 +151,14 @@ class Kard(object):
             extras.update(yaml.safe_load(meta))
         extras.update(extra)
         for feature in dedup_list(extras["features"]):
-            write("WARNING: Feature {} is duplicated in passed meta".format(feature), error=True)
+            write(f"WARNING: Feature {feature} is duplicated in passed meta", error=True)
 
         try:
             extra_features = features
             if extra_features is not None:
                 extra_features = extra_features.split(",")
                 for feature in dedup_list(extra_features):
-                    write("WARNING: Feature {} is duplicated in args".format(feature), error=True)
+                    write(f"WARNING: Feature {feature} is duplicated in args", error=True)
                 merge_lists(extra_features, extras["features"], insert=False)
         except AttributeError:
             pass
@@ -224,7 +221,8 @@ class Kard(object):
         try:
             return cls(name, cls._build_kard_path(name), password, enc)
         except IOError as ioe:
-            raise KardNotFound('Kard "{}" not found: {}'.format(name, ioe))
+            # pylint: disable=raise-missing-from
+            raise KardNotFound(f'Kard "{name}" not found: {ioe}')
 
     @classmethod
     def load_current(cls, kard=None, password=None, enc=Cmd.OTHER):
@@ -250,7 +248,7 @@ class Kard(object):
         dst_path = kard_name
 
         if not cls._build_kard_path(dst_path).exists():
-            raise KardNotFound('Kard "{}" not found.'.format(kard_name))
+            raise KardNotFound(f'Kard "{kard_name}" not found.')
 
         # Remove the link if it exists
         try:
@@ -261,7 +259,7 @@ class Kard(object):
 
         # Link the new context
         current_path.symlink_to(dst_path)
-        write("Current kard is now: {}".format(kard_name))
+        write(f"Current kard is now: {kard_name}")
 
     def update(self):
         """Update the kard"""
@@ -277,7 +275,7 @@ class Kard(object):
                 os.chmod(self.meta_file, 0o600)
                 yaml.safe_dump(self.clean_meta, meta_file, default_flow_style=False)
 
-    def dump(self, cleaned=True, **kwargs):
+    def dump(self, cleaned=True, **_):
         """Dump overall templating context meta"""
         return yaml.safe_dump(self.clean_meta if cleaned else self.meta, default_flow_style=False)
 
@@ -319,7 +317,8 @@ class Kard(object):
         # Extensions (give them a copy of extra, ext should not interact with it)
         self.extensions.setup(copy.deepcopy(extra), self)
 
-        # Making a diff and apply it to extra without overwrite (we want cli to superseed extensions)
+        # Making a diff and apply it to extra without overwrite
+        # (we want cli to superseed extensions)
         merge(diff(overall_context, self.meta), extra, overwrite=False)
 
         # We add all remaining extra to the meta(s) (cli superseed all)
@@ -333,6 +332,7 @@ class Kard(object):
         return extra
 
     def _process_src_path(self):
+        """Set the src path in the meta"""
         if "src_path" not in self.meta:
             self.meta["src_path"] = str(self.path / self.LOCAL_SRC)
         if not Path(self.meta["src_path"]).is_absolute():
@@ -340,6 +340,7 @@ class Kard(object):
 
     @classmethod
     def template_meta(cls, meta, context=None):
+        """Return the meta auto-templated"""
         context = context or meta
         tpl_engine = TemplateEngine(context)
         for key, value in meta.items():
@@ -361,6 +362,7 @@ class Kard(object):
         return meta
 
     def get_template_engine(self, extra_data=None):
+        """Return the template engine with template data"""
         data = self.meta.copy()
 
         def read_kard_file(conf_file_name):
@@ -368,11 +370,11 @@ class Kard(object):
             return conf_path.read_text()
 
         def format_image(image_name):
-            image = "{}:{}".format(image_name, self.meta["tag"])
+            image = f"{image_name}:{self.meta['tag']}"
             registry = self.meta.get("registry")
             if not registry:
                 return image
-            return "{}/{}".format(registry, image)
+            return f"{registry}/{image}"
 
         def get_data_path(path):
             """Prefix the given path with the path to data volumes.
@@ -424,7 +426,9 @@ class Kard(object):
         return Path(self.env.pkr_path / path)
 
     def encrypt(self, password):
+        """Encrypt the kard"""
         encrypt_swap(self.meta_file, self.meta_file_enc, password)
 
     def decrypt(self, password):
+        """Decrypt the kard"""
         decrypt_swap(self.meta_file, self.meta_file_enc, password)

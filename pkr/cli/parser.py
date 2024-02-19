@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2019 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """pkr CLI parser"""
 
@@ -8,7 +6,6 @@ import argparse
 from getpass import getpass
 
 from pathlib import Path
-import yaml
 
 from .action import ExtendAction
 from .log import write
@@ -31,7 +28,8 @@ def get_parser():
         "-p",
         "--password",
         dest="crypt_password",
-        help="password to encrypt/decrypt kard metadata with or '-' to input password from terminal",
+        help="password to encrypt/decrypt kard metadata with or '-' to input password from "
+        "terminal",
     )
 
     sub_p = pkr_parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
@@ -140,14 +138,16 @@ def get_parser():
     def create_env(args):
         pkr_path = Path(args.path)
         create_pkr_folder(pkr_path)
-        write("File structure created in : {}".format(str(pkr_path.absolute())))
+        write(f"File structure created in : {pkr_path.absolute()}")
 
     init_parser.set_defaults(func=create_env)
 
     return pkr_parser
 
 
+# pylint: disable=too-many-statements
 def configure_image_parser(parser):
+    """Add image parser"""
     parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
 
@@ -181,12 +181,18 @@ def configure_image_parser(parser):
         )
     )
 
-    # Push parser
+    # Registries parsers
     push_parser = sub_p.add_parser("push", help="Push docker images")
-    add_service_argument(push_parser)
-    push_parser.add_argument("-r", "--registry", default=None, help="The docker registry")
-    push_parser.add_argument("-u", "--username", default=None, help="The docker registry username")
-    push_parser.add_argument("-p", "--password", default=None, help="The docker registry password")
+    login_parser = sub_p.add_parser("login", help="Login docker registry")
+    pull_parser = sub_p.add_parser("pull", help="Pull docker images")
+
+    for r in (push_parser, login_parser, pull_parser):
+        add_service_argument(r)
+        r.add_argument("-r", "--registry", default=None, help="The docker registry")
+        r.add_argument("-u", "--username", default=None, help="The docker registry username")
+        r.add_argument("-p", "--password", default=None, help="The docker registry password")
+
+    # Push parser
     push_parser.add_argument("-t", "--tag", default=None, help="The tag for images")
     push_parser.add_argument(
         "-o", "--other-tags", default=[], nargs="+", help="Supplemental tags for images"
@@ -202,15 +208,6 @@ def configure_image_parser(parser):
     )
 
     # Login parser
-    login_parser = sub_p.add_parser("login", help="Login docker registry")
-    add_service_argument(login_parser)
-    login_parser.add_argument("-r", "--registry", default=None, help="The docker registry")
-    login_parser.add_argument(
-        "-u", "--username", default=None, help="The docker registry username"
-    )
-    login_parser.add_argument(
-        "-p", "--password", default=None, help="The docker registry password"
-    )
     login_parser.set_defaults(
         func=lambda args: Kard.load_current(
             args.kard, args.crypt_password
@@ -218,11 +215,6 @@ def configure_image_parser(parser):
     )
 
     # Pull parser
-    pull_parser = sub_p.add_parser("pull", help="Pull docker images")
-    add_service_argument(pull_parser)
-    pull_parser.add_argument("-r", "--registry", default=None, help="The docker registry")
-    pull_parser.add_argument("-u", "--username", default=None, help="The docker registry username")
-    pull_parser.add_argument("-p", "--password", default=None, help="The docker registry password")
     pull_parser.add_argument("-t", "--tag", default=None, help="The tag for images")
     pull_parser.add_argument(
         "--parallel", type=int, default=None, help="Number of parallel image pull"
@@ -293,7 +285,6 @@ def configure_image_parser(parser):
 
     # Import parser
     import_parser = sub_p.add_parser("import", help="Import all images from kard to docker")
-    import_parser.add_argument("--tag", default=None, help="Import images to the given tag")
     add_service_argument(import_parser)
     add_kard_argument(import_parser)
     import_parser.set_defaults(
@@ -303,6 +294,7 @@ def configure_image_parser(parser):
     )
 
 
+# pylint: disable=too-many-locals
 def configure_kard_parser(parser):
     """
     pkr - A CI tool for Cloud Manager
@@ -363,7 +355,7 @@ def configure_kard_parser(parser):
     create_kard_p.add_argument("name", help="The name of the kard")
     create_kard_p.add_argument("-e", "--env", default="dev", help="The environment (dev/prod)")
     create_kard_p.add_argument(
-        "-d", "--driver", default=None, help="The pkr driver to use {}".format(list_drivers())
+        "-d", "--driver", default=None, help=f"The pkr driver to use {list_drivers()}"
     )
     create_kard_p.add_argument(
         "-m", "--meta", type=argparse.FileType("r"), help="A file to load meta from"
@@ -398,7 +390,7 @@ def configure_kard_parser(parser):
         if kards:
             write("Kards:")
             for kard in kards:
-                write(" - {}".format(kard))
+                write(f" - {kard}")
         else:
             write("No kard found.")
 
@@ -407,7 +399,7 @@ def configure_kard_parser(parser):
     get_kard = sub_p.add_parser("get", help="Get current kard")
 
     def _get_kard_handler(_):
-        write("Current Kard: {}".format(Kard.get_current()))
+        write(f"Current Kard: {Kard.get_current()}")
 
     get_kard.set_defaults(func=_get_kard_handler)
 
@@ -445,6 +437,7 @@ def configure_kard_parser(parser):
         kard.encrypt(kard.password)
         kard.driver.encrypt(kard.password)
 
+    # pylint: disable=unnecessary-lambda
     encrypt_kard_p.set_defaults(func=lambda args: _encrypt_kard_handler(args))
 
     decrypt_kard_p = sub_p.add_parser("decrypt", help="Decrypt metadata for the current kard")
@@ -455,10 +448,12 @@ def configure_kard_parser(parser):
         kard.decrypt(kard.password)
         kard.driver.decrypt(kard.password)
 
+    # pylint: disable=unnecessary-lambda
     decrypt_kard_p.set_defaults(func=lambda args: _decrypt_kard_handler(args))
 
 
 def configure_ext_parser(parser):
+    """Add parser for extensions"""
     parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(title="Extensions", metavar="<extension>", help="Extensions")
 
@@ -468,21 +463,21 @@ def configure_ext_parser(parser):
                 hasattr(ext, "configure_parser")
                 and ext.configure_parser is not ExtMixin.configure_parser
             ):
-                ext_parser = sub_p.add_parser(
-                    name, help="{} extension features".format(name.capitalize())
-                )
+                ext_parser = sub_p.add_parser(name, help=f"{name.capitalize()} extension features")
                 ext.configure_parser(ext_parser)
     except PkrException:
         pass
 
 
 def add_service_argument(parser):
+    """Add parser for listing services"""
     parser.add_argument(
         "-s", "--services", nargs="+", default=None, help="List of services (default to all)"
     )
 
 
 def add_kard_argument(parser, add_short_option=True):
+    """Add an argument for specifying the kard"""
     options = {
         "default": None,
         "help": 'Use a different Kard than "current". You may also set PKR_KARD.',
@@ -493,8 +488,8 @@ def add_kard_argument(parser, add_short_option=True):
         parser.add_argument("--kard", **options)
 
 
-def input_password(pw):
-    if pw == "-":
+def input_password(pwd):
+    """Let the user input the password"""
+    if pwd == "-":
         return getpass()
-    else:
-        return pw
+    return pwd

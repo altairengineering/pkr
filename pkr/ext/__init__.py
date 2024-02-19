@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 """Module containing extensions for pkr"""
 import abc
-from builtins import object
 from builtins import str
 import signal
 import pkgutil
@@ -37,8 +35,8 @@ class ExtMixin(metaclass=abc.ABCMeta):
         """
 
     @staticmethod
-    def get_context_template_data(password=None):
-        """ """
+    def get_context_template_data(password=None) -> dict:
+        """Return a map that will be added to the template data"""
 
     @staticmethod
     def post_up(effective_modules):
@@ -53,13 +51,13 @@ class ExtMixin(metaclass=abc.ABCMeta):
         """configure option parser"""
 
 
-class Extensions(object):
+class Extensions:
     """This class allow the recursive call of a specific method on all
     extensions
     """
 
     def __init__(self, features=None):
-        super(Extensions, self).__init__()
+        super().__init__()
         self.features = features
         self._extensions = None
 
@@ -78,7 +76,7 @@ class Extensions(object):
         """Return all matching extensions methods wrapped into a lambda"""
         # Unknown extension method
         if not hasattr(ExtMixin, attribute):
-            return super(Extensions, self).__getattribute__(attribute)
+            return super().__getattribute__(attribute)
 
         # Called outside a kard, doing nothing
         if not self.features:
@@ -103,29 +101,27 @@ class Extensions(object):
 
         if method is None or method is base_method:
             # it is OK if an extension does not implement all methods
-            return
+            return None
 
         try:
             return (name, method(*args, **kwargs))
-        except TimeoutError:
-            write(
-                'Extension "{}" raise timeout error, step "{}"'.format(extension.name, method_name)
-            )
+        except TimeoutException:
+            write(f'Extension "{extension.name}" raise timeout error, step "{method_name}"')
             raise
         except PkrException:
-            # If this is a PkrException, we simply propagate it, and delegate its handling to the caller
+            # If this is a PkrException, we simply propagate it, and delegate its handling to the
+            # caller
             raise
         except Exception as exc:
             write(
-                'Extension "{}" raise an unknown exception, step "{}": {}'.format(
-                    extension.name, method_name, str(exc)
-                )
+                f'Extension "{extension.name}" raise an unknown exception, step "{method_name}": '
+                f"{exc}"
             )
             raise
 
     def list(self):
         """Return the list of the extensions"""
-        return self.extensions.keys()  # pylint: disable=dict-keys-not-iterating
+        return self.extensions.keys()
 
     @classmethod
     def _get_extension_class(cls, module):
@@ -136,6 +132,7 @@ class Extensions(object):
                     return ext_cls
             except TypeError:
                 pass
+        return None
 
     @classmethod
     def list_all(cls):
@@ -166,13 +163,13 @@ class Extensions(object):
         return ext_name in self.features
 
 
-class TimeoutError(Exception):
+class TimeoutException(Exception):
     """Exception for timeout"""
 
 
 def timeout_handler(*_):
     """Simple function for raising a timeout Exception"""
-    raise TimeoutError()
+    raise TimeoutException()
 
 
 def timeout(timeout_duration):  # pylint: disable=C0111

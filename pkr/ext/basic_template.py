@@ -1,14 +1,6 @@
-# -*- coding: utf-8 -*-
+# Copyright© 1986-2024 Altair Engineering Inc.
 
-# *****************************************************************************
-# Altair® PBS Cloud Manager®
-# A Platform for Innovation®
-# Copyright© 1986-2020 Altair Engineering Inc. All Rights Reserved.
-# *****************************************************************************
-
-import shutil
-
-from pathlib import Path
+"""Extension to generate additional files as templates."""
 
 from pkr.ext import ExtMixin
 from pkr.kard import Kard

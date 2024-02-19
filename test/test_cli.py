@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2018 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
 import os
 from stat import S_IMODE
@@ -8,7 +7,6 @@ import shutil
 import re
 import yaml
 
-from pkr.kard import Kard
 from pkr.utils import PATH_ENV_VAR
 from pkr.version import __version__
 from .utils import pkrTestCase, msg_hlp

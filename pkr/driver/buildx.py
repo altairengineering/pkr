@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-# Copyright© 1986-2021 Altair Engineering Inc.
+# Copyright© 1986-2024 Altair Engineering Inc.
 
-import sys
-import os
-import tempfile
-import copy
+"""pkr functions for managing containers lifecycle with buildx"""
+
 from concurrent.futures import ProcessPoolExecutor
+import copy
+import os
+from pathlib import Path
+import tempfile
+import sys
 
-try:
-    from python_on_whales import docker, DockerException
-except:
-    docker = None
-    DockerException = None
+from python_on_whales import docker, DockerException
 
 from pkr.driver.docker import DockerDriver
 from pkr.cli.log import write
 from pkr.utils import merge
-from pathlib import Path
 
 BUILDKIT_ENV = {
     "env.BUILDKIT_STEP_LOG_MAX_SIZE": 1000000,
@@ -35,9 +32,10 @@ BUILDX_OPTIONS = {
 BUILDX_BUILDER_NAME = "pkrbuilder"
 
 
+# pylint: disable=abstract-method
 class BuildxDriver(DockerDriver):
-    """Driver using `docker buildx` subcommands (included in docker CE 19.03 and newer) to build images.
-    Inherited from docker driver (for get_templates/pull/push/download/import/list)
+    """Driver using `docker buildx` subcommands (included in docker CE 19.03 and newer) to build
+    images. Inherited from docker driver (for get_templates/pull/push/download/import/list)
 
     Buildx provides builkit features to the build and distributed cache
     mechanism (using registry as layer storage)
@@ -51,6 +49,7 @@ class BuildxDriver(DockerDriver):
         self.buildkit_env = BUILDKIT_ENV
         self.buildx_options = BUILDX_OPTIONS
         self.platform = os.environ.get("DOCKER_DEFAULT_PLATFORM")
+        self.builder_name = None
 
     def get_meta(self, extras, kard):
         values = super().get_meta(extras, kard)
@@ -102,7 +101,7 @@ class BuildxDriver(DockerDriver):
         else:
             docker.buildx.create(name=self.builder_name, driver_options=self.buildkit_env)
             write(f"Start buildx builder {self.builder_name}")
-            with open("/dev/null", "a") as devnull:
+            with open("/dev/null", "a", encoding="utf-8") as devnull:
                 os.dup2(sys.stdout.fileno(), 3)
                 os.dup2(devnull.fileno(), sys.stdout.fileno())
                 try:
@@ -111,6 +110,7 @@ class BuildxDriver(DockerDriver):
                     pass  # Build was never intended to success, just to force builder start
                 os.dup2(3, sys.stdout.fileno())
 
+    # pylint: disable=arguments-renamed,too-many-arguments,too-many-locals
     def build_images(
         self,
         services,
@@ -160,7 +160,7 @@ class BuildxDriver(DockerDriver):
 
         if parallel:
             if len(services) >= 1:
-                write("Building docker images using {} threads ...\n".format(parallel))
+                write(f"Building docker images using {parallel} threads ...\n")
             futures = []
             with ProcessPoolExecutor(max_workers=parallel) as executor:
                 for service in services:
@@ -184,7 +184,7 @@ class BuildxDriver(DockerDriver):
             if len(services) >= 1:
                 write("Building docker images...\n")
             for service in services:
-                exec = self._build_image(
+                execution = self._build_image(
                     service,
                     tag,
                     verbose,
@@ -194,8 +194,8 @@ class BuildxDriver(DockerDriver):
                     False,
                     target,
                 )
-                if exec is not None:
-                    exec[0](*exec[1:])
+                if execution is not None:
+                    execution[0](*execution[1:])
 
     def _build_image(
         self,
@@ -224,7 +224,7 @@ class BuildxDriver(DockerDriver):
 
         dockerfile = self.kard.env.get_container(service).get("dockerfile")
         if not dockerfile:
-            return
+            return None
         if not target:
             target = self.kard.env.get_container(service).get("target")
 
@@ -271,11 +271,13 @@ class BuildxDriver(DockerDriver):
         with multiprocessing
         """
         # Handle log output
+        out_file = None
         if bufferize or logfile or not verbose:
             # Replace stdout/stderr by a file (for subprocess)
             # Equivalent of exec 3>&1 4>&2 1>$(mktemp) 2>&1
+            # pylint: disable=consider-using-with
             if logfile:
-                out_file = open(logfile, "a")
+                out_file = open(logfile, "a", encoding="utf-8")
             else:
                 out_file = tempfile.TemporaryFile()
             os.dup2(sys.stdout.fileno(), 3)
@@ -283,14 +285,11 @@ class BuildxDriver(DockerDriver):
             os.dup2(out_file.fileno(), sys.stdout.fileno())
             os.dup2(out_file.fileno(), sys.stderr.fileno())
 
-        write(
-            "Building {}{} image...\n".format(
-                buildx_options["tags"],
-                "({})".format(buildx_options["target"]) if buildx_options.get("target") else "",
-            )
-        )
+        target_name = f'({buildx_options["target"]})"' if buildx_options.get("target") else ""
+        write(f'Building {buildx_options["tags"]}{target_name} image...\n')
 
         error = None
+        buffer = None
         try:
             docker.buildx.build(**buildx_options)
         except Exception as exc:
@@ -299,11 +298,11 @@ class BuildxDriver(DockerDriver):
             if bufferize:
                 out_file.seek(0)
                 buffer = out_file.read()
-            if bufferize or logfile or not verbose:
+            if out_file is not None:
                 os.dup2(3, sys.stdout.fileno())
                 os.dup2(4, sys.stderr.fileno())
                 out_file.close()
-            if bufferize:
+            if buffer is not None:
                 write(buffer.decode("utf-8"))
 
         if error is None:
