@@ -194,7 +194,9 @@ class TestCLI(pkrTestCase):
         dump = yaml.safe_load(prc.stdout)
         self.assertEqual(dump.get("features", []), ["h", "g", "f", "e", "b", "a", "d", "c"])
         self.assertEqual(dump.get("env_meta"), "dummy")
-        self.assertEqual(dump.get("src_path"), "/tmp")
+        self.assertEqual(
+            dump.get("src_path"), os.environ.get("RUNNER_TEMP", str(self.env_test.kard_folder))
+        )
         self.assertEqual(dump.get("templated_meta"), "MTIz")
         self.assertEqual(dump.get("templated_hash").get("key"), "dHV0dQ==")
         self.assertEqual(dump.get("templated_list"), ["tutu", "dHV0dQ=="])
@@ -281,8 +283,8 @@ class TestCLI(pkrTestCase):
 
         expected_cmd_output = b"Pushing backend:foo to testrepo.io/backend:foo\n"
         expected_cmd_output_2 = re.compile(
-            b"ERROR: \(ImageNotFound\) 404 Client Error for http\+docker://.*: "
-            b'Not Found \("No such image: backend:foo"\)'
+            rb"ERROR: \(ImageNotFound\) 404 Client Error for http\+docker://.*: "
+            rb'Not Found \("No such image: backend:foo"\)'
         )
 
         error_outputs = stderr.split(b"\n")[:-1]
@@ -298,7 +300,6 @@ class TestCLI(pkrTestCase):
         cmd = "{} kard create test2 --do-not-set-current --extra tag=test2".format(self.PKR)
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
-        stderr = prc.stderr.read()
         self.assertEqual(0, prc.returncode, stdout)
 
         cmd = "{} kard list".format(self.PKR)
@@ -348,7 +349,9 @@ class TestCLI(pkrTestCase):
         stderr = prc.stderr.read()
         self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
         expected = re.compile(
-            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '/tmp/.*/kard/test/docker-compose.yml'"
+            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '"
+            + bytes(self.env_test.tmp_kard)
+            + b"/kard/test/docker-compose.yml'"
         )
         assert re.match(expected, stderr.split(b"\n")[-2])
 
@@ -377,15 +380,15 @@ class TestCLI(pkrTestCase):
         stderr = prc.stderr.read()
         self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
         expected = re.compile(
-            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '/tmp/.*/kard/test/docker-compose.enc'"
+            rb"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '"
+            + bytes(self.env_test.tmp_kard)
+            + rb"/kard/test/docker-compose.enc'"
         )
         assert re.match(expected, stderr.split(b"\n")[-2])
 
         # succeed in some regular operations
         cmd = "{} kard dump".format(self.PKR)
         prc = self._run_cmd(cmd)
-        stdout = prc.stdout.read()
-        stderr = prc.stderr.read()
         self.assertEqual(0, prc.returncode)
 
         cmd = "{} kard list".format(self.PKR)
@@ -439,7 +442,7 @@ class TestKardMake(pkrTestCase):
             "services": {},
             "paths": [
                 str(self.context_path.resolve() / "test"),
-                str("/tmp/test"),
+                str(self.env_test.kard_folder / "test"),
             ],
         }
 
@@ -505,16 +508,14 @@ class TestKardMakeWithRelativeSrcPath(pkrTestCase):
 
         gen_file = self.context_path / "backend" / "start.sh"
         expected_content = "#!/bin/bash\n\nsleep 1\n"
-        # We only check permissions for user, to be compatible with Travis CI environment
-        expected_user_mode = "5"
 
         self.assertTrue(gen_file.exists())
 
         content = gen_file.open("r").read()
         self.assertEqual(expected_content, content)
 
-        mode = str(S_IMODE(gen_file.stat().st_mode))[:1]
-        self.assertEqual(expected_user_mode, mode)
+        self.assertTrue(os.access(gen_file, os.R_OK))
+        self.assertTrue(os.access(gen_file, os.X_OK))
 
     def test_exec_script_present_with_proper_mod(self):
         self.generate_kard()
@@ -522,15 +523,14 @@ class TestKardMakeWithRelativeSrcPath(pkrTestCase):
 
         gen_file = self.context_path / "backend" / "exec.sh"
         expected_content = "echo test"
-        expected_user_mode = "5"
 
         self.assertTrue(gen_file.exists())
 
         content = gen_file.open("r").read()
         self.assertEqual(expected_content, content)
 
-        mode = str(S_IMODE(gen_file.stat().st_mode))[:1]
-        self.assertEqual(expected_user_mode, mode)
+        self.assertTrue(os.access(gen_file, os.R_OK))
+        self.assertTrue(os.access(gen_file, os.X_OK))
 
 
 class TestKardMakeWithExtensionDev(TestKardMake):

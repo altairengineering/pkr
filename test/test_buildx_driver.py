@@ -76,7 +76,7 @@ class TestBuildxDriver(pkrTestCase):
         self.assertRegex(
             stderr.decode("utf-8"),
             r"docker buildx build --progress plain --builder testpkrbuilder --load "
-            r"--file /tmp/.*/file1.dockerfile --cache-from type=registry,ref=dummy/cache "
-            r"--cache-to type=registry,mode=max,ref=dummy/cache --tag container1:123 "
-            r"/tmp/.*/context1",
+            r"--file " + str(self.env_test.kard_folder) + "/.*/file1.dockerfile --cache-from "
+            r"type=registry,ref=dummy/cache --cache-to type=registry,mode=max,ref=dummy/cache "
+            r"--tag container1:123 " + str(self.env_test.kard_folder) + r"/.*/context1",
         )

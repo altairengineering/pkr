@@ -28,6 +28,8 @@ class _EnvTest(object):
 
     def __init__(self, path):
         self.path = Path(__file__).parent / "files" / path
+        # if the /tmp folder cannot be used, it can be overridden using TEST_TMP env var.
+        self.kard_folder = Path(os.environ.get("TEST_TMP", "/tmp"))
         self.tmp_kard = None
 
     def activate(self, override=None):
@@ -41,7 +43,7 @@ class _EnvTest(object):
         Set PKR_PATH to created temporary directory and link
         `env` and `templates` directories to new env.
         """
-        self.tmp_kard = Path(tempfile.mkdtemp())
+        self.tmp_kard = Path(tempfile.mkdtemp(dir=str(self.kard_folder)))
         self.previous_path = os.environ.pop(PATH_ENV_VAR, None)
         os.environ[PATH_ENV_VAR] = str(self.tmp_kard)
         pkr.utils.ENV_FOLDER = pkr.environment.ENV_FOLDER = "env"
