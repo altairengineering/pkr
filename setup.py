@@ -57,7 +57,7 @@ def setup_pkr():
         python_requires=">=3.8, <4,",
         extras_require={
             "git-ext": [
-                "GitPython==3.1.30",
+                "GitPython==3.1.37",
             ],
             "dev": [
                 "bandit==1.7.4",
