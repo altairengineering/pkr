@@ -9,6 +9,8 @@ def setup_pkr():
         name="pkr",
         version=pkr_version.__version__,
         description="Template engine for deploying docker containers.",
+        long_description=open("README.md").read(),
+        long_description_content_type="text/markdown",
         keywords="docker template deployment",
         author="Altair Engineering",
         author_email="pclm-team@altair.com",
