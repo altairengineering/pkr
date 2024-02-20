@@ -1,13 +1,13 @@
-import imp
+from importlib.machinery import SourceFileLoader
 
 from setuptools import find_packages, setup
 
 
 def setup_pkr():
-    __version__ = imp.load_source("pkr.version", "pkr/version.py").__version__
+    pkr_version = SourceFileLoader("pkr.version", "pkr/version.py").load_module()
     setup(
         name="pkr",
-        version=__version__,
+        version=pkr_version.__version__,
         description="Template engine for deploying docker containers.",
         keywords="docker template deployment",
         author="Altair Engineering",
