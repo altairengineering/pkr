@@ -52,7 +52,7 @@ def setup_pkr():
             "bcrypt<=4.0.1",
             "pydantic<2",
             "requests==2.31.0",
-            "urllib3==1.26.16",
+            "urllib3==1.26.18",
         ],
         packages=find_packages(exclude=["test", "docs"]),
         python_requires=">=3.8, <4,",
