@@ -20,7 +20,6 @@ def setup_pkr():
                 "pkr = pkr.__main__:main",
             ],
             "pkr_extensions": [
-                "git = pkr.ext.git:Git",
                 "auto-volume = pkr.ext.auto_volume:AutoVolume",
                 "basic-template = pkr.ext.basic_template:BasicTemplate",
             ],
@@ -58,9 +57,6 @@ def setup_pkr():
         packages=find_packages(exclude=["test", "docs"]),
         python_requires=">=3.8, <4,",
         extras_require={
-            "git-ext": [
-                "GitPython==3.1.37",
-            ],
             "dev": [
                 "bandit==1.7.4",
                 "mock==2.0.0",
