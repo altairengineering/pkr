@@ -46,7 +46,7 @@ def setup_pkr():
             "passlib>=1.7.1",
             "jinja2-ansible-filters==1.3.2",
             "pybase64==1.3.1",
-            "pycryptodome==3.19.0",
+            "pycryptodome==3.19.1",
             "python-on-whales==0.20.2",
             "tenacity>=7.0.0",
             "bcrypt<=4.0.1",
