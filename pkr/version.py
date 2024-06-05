@@ -2,4 +2,6 @@
 
 """pkr version"""
 
-__version__ = "1.4.29"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("pkr")

@@ -142,7 +142,7 @@ class Extensions:
         for importer, package_name, _ in pkgutil.iter_modules(
             [str(get_pkr_path() / "extensions")]
         ):
-            module = importer.find_module(package_name).load_module(package_name)
+            module = importer.find_spec(package_name).loader.load_module(package_name)
             extensions[package_name] = cls._get_extension_class(module)
         # Load from pkr_extensions entrypoints (and TO BE DEPRECATED extensions group)
         eps = entry_points()
@@ -151,7 +151,9 @@ class Extensions:
                 eps.select(group="extensions")
             )
         else:
-            extension_eps = eps.get("pkr_extensions", ()) + eps.get("extensions", ())
+            extension_eps = eps.get("pkr_extensions", ()) + eps.get(  # pylint: disable=no-member
+                "extensions", ()
+            )
 
         for entry in extension_eps:
             if entry.name not in extensions:
