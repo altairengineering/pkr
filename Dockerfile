@@ -28,7 +28,7 @@ RUN \
 WORKDIR $PKR_PATH
 COPY --from=builder /wheels /wheels
 COPY pkr $PKR_PATH/pkr
-COPY setup.py requirements.txt $PKR_PATH/
+COPY pyproject.toml requirements.txt $PKR_PATH/
 
 RUN \
   pip3 install --no-cache-dir -r /wheels/requirements.txt -f /wheels \
