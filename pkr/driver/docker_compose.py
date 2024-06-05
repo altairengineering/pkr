@@ -217,7 +217,7 @@ class ComposePkr:
 
         # This pattern is used to detect the remote image
         # pylint: disable=anomalous-backslash-in-string
-        pattern = re.compile("^\S+\/\S+$")
+        pattern = re.compile(r"^\S+\/\S+$")
 
         # Image names may be different from service names (e.g. image re-use)
         build_images = set(
