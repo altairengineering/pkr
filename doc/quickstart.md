@@ -9,7 +9,7 @@ An environment is a template, providing a default set of values for a specific k
 
 An instance of environment is called a `kard`, which may superseed or add some `metas` from source environment (like passwords of urls).
 
-In this example, we are going to create an environment for a simple python web application exposed through a Nginx server, builded locally on docker and started with docker-compose.
+In this example, we are going to create an environment for a simple python web application exposed through a Nginx server, builded locally on docker and started with docker compose.
 
 ### Drivers
 

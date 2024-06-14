@@ -58,9 +58,7 @@ pip install -e ./pkr
 
 Some python packages are installed alongside `pkr` as dependencies, most notably :
 
-  * docker-compose
   * docker
-  * GitPython
   * jinja2
   * kubernetes
   * pyyaml

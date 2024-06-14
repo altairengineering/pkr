@@ -44,9 +44,9 @@ class ComposeConfig:
 
 # pylint: disable=no-member
 class ComposePkr:
-    """Implements pkr functions for docker-compose"""
+    """Implements pkr functions for docker compose"""
 
-    COMPOSE_BIN = "docker-compose"
+    COMPOSE_BIN = ["docker", "compose"]
     COMPOSE_FILE = "docker-compose.yml"
     COMPOSE_FILE_ENC = "docker-compose.enc"
 
@@ -68,7 +68,7 @@ class ComposePkr:
 
     def _call_compose(self, *args):
         compose_cmd = [
-            self.COMPOSE_BIN,
+            *self.COMPOSE_BIN,
             "-f",
             "-",
             "-p",

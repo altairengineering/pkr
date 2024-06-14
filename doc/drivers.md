@@ -76,7 +76,7 @@ Output directories in kard folder are named as contexts (default to `buildx`).
 
 ## compose
 
-Compose driver superseed docker driver and add `deploy` features for a local deployment with `docker-compose`.
+Compose driver superseed docker driver and add `deploy` features for a local deployment with `docker compose`.
 
 Config (environment example):
 ```
