@@ -77,7 +77,12 @@ class ComposePkr:
 
         debug(f"driver: _call_compose: cmd={compose_cmd}")
         compose = self._get_compose_data()
-        return subprocess.run(compose_cmd, input=compose, check=False)
+        try:
+            return subprocess.run(compose_cmd, input=compose, check=True)
+        except subprocess.CalledProcessError as exc:
+            raise PkrException(
+                f"Subcommand {compose_cmd} returned non-zero exit code: {exc.returncode}"
+            ) from exc
 
     def _get_compose_data(self):
         if self.compose_file.exists():
