@@ -130,7 +130,9 @@ class ComposePkr:
         compose_path = self.kard.path / "compose"
         for file in compose_path.iterdir():
             # Merge the compose_file
-            merge(yaml.safe_load(file.open("r")), merged_compose)
+            yaml_data = yaml.safe_load(file.open("r"))
+            if yaml_data is not None:
+                merge(yaml_data, merged_compose)
 
         if meta_txt:
             with self.compose_file.open("w") as dcf:

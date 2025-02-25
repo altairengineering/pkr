@@ -28,7 +28,12 @@ class TestEnvironment(unittest.TestCase):
             "default_meta": {
                 "from": "env",
                 "driver": {
-                    "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+                    "docker_compose": {
+                        "compose_file": "templates/docker-compose.yml.template",
+                        "compose_extension_files": [
+                            "templates/empty.yml.template",
+                        ],
+                    }
                 },
             },
             "import": ["common/env"],
@@ -47,7 +52,12 @@ class TestEnvironment(unittest.TestCase):
             "default_features": ["auto-volume"],
             "default_meta": {
                 "driver": {
-                    "docker_compose": {"compose_file": "templates/docker-compose.yml.template"},
+                    "docker_compose": {
+                        "compose_file": "templates/docker-compose.yml.template",
+                        "compose_extension_files": [
+                            "templates/empty.yml.template",
+                        ],
+                    },
                     "k8s": {"k8s_files": ["templates/k8s.yml.template"]},
                     "name": "k8s",
                 },
@@ -68,7 +78,12 @@ class TestEnvironment(unittest.TestCase):
             "default_features": ["auto-volume"],
             "default_meta": {
                 "driver": {
-                    "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+                    "docker_compose": {
+                        "compose_file": "templates/docker-compose.yml.template",
+                        "compose_extension_files": [
+                            "templates/empty.yml.template",
+                        ],
+                    },
                 },
                 "from": "import",
             },
@@ -92,7 +107,12 @@ class TestEnvironment(unittest.TestCase):
 
         expected_values = {
             "driver": {
-                "docker_compose": {"compose_file": "templates/docker-compose.yml.template"}
+                "docker_compose": {
+                    "compose_file": "templates/docker-compose.yml.template",
+                    "compose_extension_files": [
+                        "templates/empty.yml.template",
+                    ],
+                }
             },
             "features": ["auto-volume"],
             "from": "import",
