@@ -14,8 +14,8 @@ from glob import glob
 import json
 import os
 from pathlib import Path
-import random
 import re
+import secrets
 import shutil
 import time
 import platform
@@ -175,13 +175,13 @@ def generate_password(pw_len=15):
     pwlist = []
 
     for _ in range(pw_len // 3):
-        pwlist.append(alphabet[random.randrange(len(alphabet))])
-        pwlist.append(upperalphabet[random.randrange(len(upperalphabet))])
-        pwlist.append(str(random.randrange(10)))
+        pwlist.append(secrets.choice(alphabet))
+        pwlist.append(secrets.choice(upperalphabet))
+        pwlist.append(str(secrets.randbelow(10)))
     for _ in range(pw_len - len(pwlist)):
-        pwlist.append(alphabet[random.randrange(len(alphabet))])
+        pwlist.append(secrets.choice(alphabet))
 
-    random.shuffle(pwlist)
+    secrets.SystemRandom().shuffle(pwlist)
     return "".join(pwlist)
 
 
