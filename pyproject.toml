@@ -22,7 +22,6 @@ dependencies = [
     "jinja2",
     "jinja2-ansible-filters==1.3.2",
     "kubernetes>=25.0.0",
-    "netifaces==0.11.0",
     "passlib>=1.7.1",
     "pybase64==1.3.2",
     "pycryptodome==3.19.1",
