@@ -111,6 +111,10 @@ def merge(source, destination, overwrite=True):
     Warning: the source dict is merged INTO the destination one. Make a copy
     before using it if you do not want to destroy the destination dict.
     """
+    if not source:
+        return destination
+    if destination is None:
+        destination = {}
     for key, value in list(source.items()):
         if isinstance(value, dict):
             # Handle type mismatch
