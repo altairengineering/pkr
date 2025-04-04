@@ -422,9 +422,9 @@ class DockerDriver(AbstractDriver):
                 write(f"Pulling {image} from {reg.url}/{image_name}:{remote_tag}...")
                 sys.stdout.flush()
                 self._pull_image(image_name, reg.url, tag, remote_tag, ignore_errors)
-                write(" Done !" + "\n")
+                write(" Done !\n")
 
-        write("All images have been pulled successfully !" + "\n")
+        write("All images have been pulled successfully !\n")
 
     def download_images(
         self, services, registry, username, password, tag=None, nopull=False, **kwargs

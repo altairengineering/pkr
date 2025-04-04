@@ -131,7 +131,9 @@ class ComposePkr:
         for file in compose_path.iterdir():
             # Merge the compose_file
             yaml_data = yaml.safe_load(file.open("r"))
-            if yaml_data is not None:
+            if yaml_data is None:
+                write(f"Warning: empty template {file} is ignored\n")
+            else:
                 merge(yaml_data, merged_compose)
 
         if meta_txt:
