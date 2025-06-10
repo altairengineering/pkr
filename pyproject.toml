@@ -29,7 +29,7 @@ dependencies = [
     "tenacity>=7.0.0",
     "bcrypt<=4.0.1",
     "pydantic<2",
-    "requests==2.32.2",
+    "requests==2.32.4",
     "urllib3==1.26.19",
 ]
 
