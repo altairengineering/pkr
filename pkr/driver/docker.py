@@ -592,7 +592,13 @@ class DockerDriver(AbstractDriver):
         rep_tag = f"{registry_url}/{image_name}"
 
         try:
-            self.docker.pull(repository=rep_tag, tag=remote_tag)
+            # Check whether we already have the image locally, using the full
+            # image name (repo/image:tag format). Don't pull try to pull images
+            # if we already have them because it can take a non-negligible
+            # amount of time.
+            full_image_name = self.make_image_name(rep_tag, tag=remote_tag)
+            if len(self.docker.images(full_image_name)) != 1:
+                self.docker.pull(repository=rep_tag, tag=remote_tag)
 
             # Strip the repository tag
             self.docker.tag(
