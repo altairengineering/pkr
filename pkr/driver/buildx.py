@@ -148,7 +148,7 @@ class BuildxDriver(DockerDriver):
         buildx_meta = self.kard.meta.get("buildx", {})
         if "cache_registry_username" in buildx_meta and buildx_meta["cache_registry"] is not None:
             registry_url = buildx_meta["cache_registry"].split("/")[0]
-            print(f"Logging to {registry_url}")
+            write(f"Logging to {registry_url}")
             docker.login(
                 server=registry_url,
                 username=buildx_meta.get("cache_registry_username", None),
@@ -221,18 +221,22 @@ class BuildxDriver(DockerDriver):
           * target: name of the build-stage to build in a multi-stage Dockerfile
         """
         image_name = self.make_image_name(service, tag)
+        container = self.kard.env.get_container(service)
 
-        dockerfile = self.kard.env.get_container(service).get("dockerfile")
+        dockerfile = container.get("dockerfile")
         if not dockerfile:
             return None
         if not target:
-            target = self.kard.env.get_container(service).get("target")
+            if "build" in container:
+                target = container["build"].get("target")
+            else:
+                target = container.get("target")
 
         if no_rebuild:
             image = len(self.docker.images(image_name)) == 1
 
         if not no_rebuild or image is False:
-            context = self.kard.env.get_container(service).get("context", self.DOCKER_CONTEXT)
+            context = container.get("context", self.DOCKER_CONTEXT)
             self.buildx_options.update(
                 {
                     "context_path": str(self.kard.path / context),

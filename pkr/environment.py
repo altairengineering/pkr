@@ -140,7 +140,7 @@ class Environment:
         """Return the template folder name"""
         return self.env.get("template_dir", self.DEFAULT_TEMPLATE_DIR)
 
-    def get_container(self, name=None):
+    def get_container(self, name=None) -> dict[str, dict]:
         """Return a compiled dictionary representing a container, or a list of
         all if name is not specified.
 
@@ -161,7 +161,7 @@ class Environment:
 
         return container
 
-    def get_requires(self, containers=None):
+    def get_requires(self, containers: list =None) -> list[dict[str,str]]:
         """Returns a list of required files for the provided containers.
 
         The result is returned as a list of dicts with 3 values: origin, src
@@ -174,14 +174,12 @@ class Environment:
         if containers is None:
             containers = list(self._containers().keys())
 
-        requirements = {}
+        requirements: dict[str, set] = {}
         # We first put them in a dict containing sets to avoid having doubles
         for name in containers:
             env = self.get_container(name)
             for key, value in env.get("requires", {}).items():
-                dst_set = requirements.get(key, set())
-                dst_set.add(HashableDict(value))
-                requirements[key] = dst_set
+                requirements.setdefault(key, set()).add(HashableDict(value))
 
         # then we transform it to a list of dicts
         ret = []

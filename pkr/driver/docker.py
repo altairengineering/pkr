@@ -16,7 +16,7 @@ import tenacity
 from pkr.driver import _USE_ENV_VAR
 from pkr.driver.base import AbstractDriver
 from pkr.cli.log import write
-from pkr.utils import PkrException
+from pkr.utils import PkrException, HashableDict
 
 DOCKER_SOCK = "unix://var/run/docker.sock"
 DOCKER_CLIENT_TIMEOUT = int(os.environ.get("DOCKER_CLIENT_TIMEOUT", 300))
@@ -63,68 +63,138 @@ class DockerDriver(AbstractDriver):
             extras["tag"] = str(values["tag"])
         return values
 
-    def get_templates(self):
+    def get_templates(self, phase: str | None=None):
         """Use the environment information to return files and folder to template
-        or copy to templated directory according to the 'requires' section of the
+        or copy to templated directory according to the 'requires' sections of the
         containers description
         """
-        templates = []
+        templates = set()
         templates_path = (
             self.kard.env.pkr_path / self.kard.env.template_dir / self.DOCKER_CONTEXT_SOURCE
         )
 
         # Process dockerfiles
-        for container in self.kard.env.get_container():
-            context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+        for container_name, container in self.kard.env.get_container().items():
+            # pkr v2 mode
+            build_cfg = container.get("build")
+            run_cfg = container.get("run")
+            # if container_name == "rest-api":
+            #     import ipdb; ipdb.set_trace()
+            if build_cfg and (phase in ("build", None)):
+                # First populate the build config
+                try:
+                    subfolder = build_cfg["subfolder"]
+                except:
+                    raise PkrException(f"Container {container_name} is missing a build subfolder")
+                for req in build_cfg.get("requires", []):
+                    templates.add(HashableDict({
+                        "source": req["src"],
+                        "origin": req["src"],
+                        "destination": req["dst"],
+                        "subfolder": subfolder,
+                        "excluded_paths": req.get("exclude", []),
+                        "gen_template": req.get("template", True),
+                    }))
 
-            # Process requirements
-            for src in self.kard.env.get_requires([container]):
-                template = {
-                    "source": src["origin"],
-                    "origin": src["origin"],
-                    "destination": src["dst"],
-                    "subfolder": context,
-                    "excluded_paths": src.get("exclude", []),
-                    "gen_template": False,
-                }
-                if template not in templates:
-                    # Dedup templates to avoid multi-copy
-                    templates.append(template)
+                dockerfile = build_cfg.get("dockerfile")
+                if dockerfile:
+                    templates.add(HashableDict(
+                        {
+                            "source": str(templates_path / f"{dockerfile}"),  # Match template
+                            "origin": str(templates_path),
+                            "destination": "",
+                            "subfolder": subfolder,
+                            "gen_template": False,
+                        }
+                    ))
+                    templates.add(HashableDict(
+                        {
+                            "source": str(templates_path / f"{dockerfile}.template"),  # Match template
+                            "origin": str(templates_path),
+                            "destination": "",
+                            "subfolder": subfolder,
+                            "gen_template": True,
+                        }
+                    ))
 
-            try:
-                dockerfile = self.kard.env.get_container(container)["dockerfile"]
-            except KeyError:
-                # In this case, we use an image provided by the hub
-                continue
+            if run_cfg and (phase in ("run", None)):
+                # Then deal with the run config
+                try:
+                    subfolder = run_cfg["subfolder"]
+                except:
+                    raise PkrException(f"Container {container_name} is missing a build subfolder")
 
-            # Automatically add dockerfile name matching folder to the context
-            dockerfile = Path(dockerfile).stem
-            templates.append(
-                {
-                    "source": templates_path / f"{dockerfile}",  # Match template
-                    "origin": templates_path,
-                    "destination": "",
-                    "subfolder": context,
-                }
-            )
+                for req in run_cfg.get("requires", []):
 
-            # Also add anything matching dockerfile name stem with an extension
-            # suffix of some kind
-            templates.append(
-                {
-                    "source": templates_path / f"{dockerfile}.*",  # Match template
-                    "origin": templates_path,
-                    "destination": "",
-                    "subfolder": context,
-                }
-            )
+                    templates.add(HashableDict({
+                        "source": req["src"],
+                        "origin": req["src"],
+                        "destination": req["dst"],
+                        "subfolder": subfolder,
+                        "excluded_paths": req.get("exclude", []),
+                        "gen_template": req.get("template", True),
+                    }))
 
-        return templates
+            # Legacy mode
+            if build_cfg is run_cfg is None:
+                context = container.get("context", self.DOCKER_CONTEXT)
+
+                # Process requirements
+                for src in self.kard.env.get_requires([container_name]):
+                    template = {
+                        "source": src["origin"],
+                        "origin": src["origin"],
+                        "destination": src["dst"],
+                        "subfolder": context,
+                        "excluded_paths": src.get("exclude", []),
+                        "gen_template": False,
+                    }
+                    templates.add(HashableDict(template))
+
+                try:
+                    dockerfile = container["dockerfile"]
+                except KeyError:
+                    # In this case, we use an image provided by the hub
+                    continue
+
+                # Automatically add dockerfile name matching folder to the context
+                dockerfile = Path(dockerfile).stem
+                templates.add(HashableDict(
+                    {
+                        "source": str(templates_path / f"{dockerfile}"),  # Match template
+                        "origin": str(templates_path),
+                        "destination": "",
+                        "subfolder": context,
+                    }
+                ))
+
+                # Also add anything matching dockerfile name stem with an extension
+                # suffix of some kind
+                templates.add(HashableDict(
+                    {
+                        "source": str(templates_path / f"{dockerfile}.*"),  # Match template
+                        "origin": str(templates_path),
+                        "destination": "",
+                        "subfolder": context,
+                    }
+                ))
+
+        return list(templates)
 
     def context_path(self, sub_path, container):
         """Return absolute path for sub_path relative to container context"""
-        context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+        if not (context := self.kard.env.get_container(container).get("build", {}).get("subfolder")):
+            context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+
         context_path = self.kard.real_path / context
+        return context_path / sub_path
+
+    def mount_path(self, sub_path, container):
+        """Return absolute path for sub_path relative to container mount path"""
+        if not (subfolder := self.kard.env.get_container(container).get("run", {}).get("subfolder")):
+            subfolder = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+
+        context_path = self.kard.real_path / subfolder
         return context_path / sub_path
 
     def get_registry(self, **kwargs):
@@ -226,11 +296,16 @@ class DockerDriver(AbstractDriver):
         image_name = self.make_image_name(service, tag)
 
         with LogOutput(logfile, bufferize=bufferize) as logfh:
-            dockerfile = self.kard.env.get_container(service).get("dockerfile")
+            container = self.kard.env.get_container(service)
+            if not (dockerfile := container.get("build", {}).get("dockerfile")):
+                dockerfile = container.get("dockerfile")
+
             if not dockerfile:
                 return
+
             if not target:
-                target = self.kard.env.get_container(service).get("target")
+                if not (target := container.get("build", {}).get("target")):
+                    target = container.get("target")
 
             logfh.write(f"Building {image_name}{f'({target})' if target else ''} image...\n")
 
@@ -238,7 +313,8 @@ class DockerDriver(AbstractDriver):
                 image = len(self.docker.images(image_name)) == 1
 
             if not no_rebuild or image is False:
-                context = self.kard.env.get_container(service).get("context", self.DOCKER_CONTEXT)
+                if not (context := container.get("build", {}).get("subfolder")):
+                    context = container.get("context", self.DOCKER_CONTEXT)
                 stream = self.docker.build(
                     path=str(self.kard.path / context),
                     dockerfile=str(Path(self.kard.path / context, dockerfile)),  # Relative Path

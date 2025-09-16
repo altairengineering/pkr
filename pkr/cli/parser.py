@@ -156,7 +156,7 @@ def configure_image_parser(parser):
     build_parser.add_argument("-t", "--tag", default=None, help="The tag for images")
     build_parser.add_argument("-T", "--target", default=None, help="The targeted stage")
     build_parser.add_argument(
-        "-r", "--rebuild-context", action="store_true", default=True, help="Rebuild the context"
+        "-r", "--rebuild-context", action="store_true", default=False, help="Rebuild the context"
     )
     build_parser.add_argument(
         "-n", "--nocache", action="store_true", help="Pass nocache to docker for the build"
@@ -329,7 +329,7 @@ def configure_kard_parser(parser):
     sub_p = parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
 
     make_context = sub_p.add_parser(
-        "make", help="Generate or regenerate docker-context using the current pkr " "kard"
+        "make", help="Generate or regenerate docker-context using the current pkr kard"
     )
     make_context.add_argument(
         "-u",
@@ -340,9 +340,16 @@ def configure_kard_parser(parser):
         "after the previously pkr make will not "
         "be removed",
     )
+
+    make_context.add_argument(
+        "-p",
+        "--phase",
+        default=None,
+        help="Can be 'build' or 'run'"
+    )
     add_kard_argument(make_context)
     make_context.set_defaults(
-        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(reset=args.update)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(reset=args.update, phase=args.phase)
     )
 
     create_kard_p = sub_p.add_parser("create", help="Create a new kard")
