@@ -41,7 +41,7 @@ class AbstractDriver:
         merge(values, extras)
         return values
 
-    def get_templates(self):
+    def get_templates(self, phase: str | None=None):
         """Return files or folders to be templated by pkr
 
         Format:
@@ -67,6 +67,11 @@ class AbstractDriver:
     def context_path(self, sub_path, container):
         """AbstractDriver hook for driver to compute and return path
         relative to container name
+        """
+        raise NotImplementedError()
+
+    def mount_path(self, sub_path, container):
+        """AbstractDriver hook for driver to compute and return path for mounts
         """
         raise NotImplementedError()
 
@@ -175,7 +180,7 @@ class AbstractDriver:
 class BaseDriver(AbstractDriver, ABC):
     metas = []
 
-    def get_templates(self):
+    def get_templates(self, phase: str | None=None):
         templates = []
         templates_path = self.kard.env.pkr_path / self.kard.env.template_dir
 

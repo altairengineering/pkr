@@ -57,9 +57,9 @@ class KubernetesPkr:
             self._client = client.CoreV1Api()
         return self._client
 
-    def get_templates(self):
+    def get_templates(self, phase: str | None=None):
         """Return the k8s templates"""
-        templates = super().get_templates()
+        templates = super().get_templates(phase)
 
         for file in self.kard.meta["driver"].get("k8s", {}).get("k8s_files", []):
             templates.append(

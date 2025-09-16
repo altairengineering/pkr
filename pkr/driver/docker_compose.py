@@ -96,9 +96,9 @@ class ComposePkr:
             raise PkrException("Neither docker compose yaml nor encrypted file found")
         return data
 
-    def get_templates(self):
+    def get_templates(self, phase: str | None=None):
         """Return the templates of this driver"""
-        templates = super().get_templates()
+        templates = super().get_templates(phase)
 
         # Cleanup merged file
         if self.compose_file.exists():

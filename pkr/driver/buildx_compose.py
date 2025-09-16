@@ -10,8 +10,8 @@ from .buildx import BuildxDriver
 class BuildxComposeDriver(ComposePkr, BuildxDriver):
     """Driver using `docker buildx` subcommands with compose"""
 
-    def get_templates(self):
-        return ComposePkr.get_templates(self)
+    def get_templates(self, phase: str | None=None):
+        return ComposePkr.get_templates(self, phase)
 
     def build_images(self, *args, **kwargs):
         return BuildxDriver.build_images(self, *args, **kwargs)
