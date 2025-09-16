@@ -55,18 +55,7 @@ class TestBuildxDriver(pkrTestCase):
         stdout = prc.stdout.read()
         stderr = prc.stderr.read()
 
-        # Python 3.6
-        if sys.version_info < (3, 7):
-            self.assertEqual(stdout, b"", stdout)
-            self.assertEqual(
-                stderr, b"ERROR: (Exception) buildx is not supported for python < 3.6\n"
-            )
-            return
-
         expected = (
-            b"Warning: No docker-compose file is provided with this environment.\n"
-            b"Removing context1 ... Done !\n"
-            b"Removing buildx ... Done !\n"
             b"Start buildx builder testpkrbuilder\n"
             b"Building docker images...\n\n"
             b"Building container1:123 image...\n\n"

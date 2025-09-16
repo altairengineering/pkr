@@ -120,9 +120,10 @@ class pkrTestCase(unittest.TestCase):
         Kard.CURRENT_KARD = None
 
     @classmethod
-    def make_kard(cls):
+    def make_kard(cls, cmd_extras=None):
         """pkr kard make"""
-        cmd_args = ["kard", "make"]
+        cmd_extras = cmd_extras or []
+        cmd_args = ["kard", "make", *cmd_extras]
 
         pkr_args = get_parser().parse_args(cmd_args)
         func = vars(pkr_args).pop("func")

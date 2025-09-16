@@ -120,7 +120,7 @@ You can now see the IP address of containers.
 pkr ps
 ```
 
-Copy the IP address of the nginx container, and try to curl its http port.
+Copy the IP address of the nginx container, and try to curl its http port.
 
 ```
 curl http://<the nginx ip>
@@ -140,7 +140,7 @@ or to input the password interactively from the command line
 pkr -p - kard encrypt
 ```
 
-After ecryption is performed, `pkr` commands expect the password to be provided with `-p` global option. For example:
+After encryption is performed, `pkr` commands expect the password to be provided with `-p` global option. For example:
 
 ```
 pkr -p - start
