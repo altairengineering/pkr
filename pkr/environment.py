@@ -8,10 +8,10 @@ from .cli.log import write
 from .utils import (
     ENV_FOLDER,
     HashableDict,
+    dedup_list,
     ensure_definition_matches,
     get_pkr_path,
     merge,
-    dedup_list,
     merge_lists,
 )
 
@@ -161,7 +161,7 @@ class Environment:
 
         return container
 
-    def get_requires(self, containers: list =None) -> list[dict[str,str]]:
+    def get_requires(self, containers: list = None) -> list[dict[str, str]]:
         """Returns a list of required files for the provided containers.
 
         The result is returned as a list of dicts with 3 values: origin, src

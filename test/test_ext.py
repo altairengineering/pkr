@@ -1,6 +1,7 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
 from pkr.kard import Kard
+
 from .utils import pkrTestCase
 
 

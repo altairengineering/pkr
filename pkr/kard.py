@@ -3,30 +3,30 @@
 """pkr Kard"""
 
 import copy
-from getpass import getpass
 import os
-from pathlib import Path
 import shutil
+from getpass import getpass
+from pathlib import Path
 
 import yaml
 
+from .cli.log import write
 from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
-from .cli.log import write
 from .utils import (
+    Cmd,
     PkrException,
     TemplateEngine,
+    decrypt_file,
+    decrypt_swap,
+    dedup_list,
+    diff,
+    encrypt_swap,
+    encrypt_with_key,
     get_kard_root_path,
     merge,
-    diff,
-    dedup_list,
     merge_lists,
-    encrypt_swap,
-    decrypt_swap,
-    decrypt_file,
-    encrypt_with_key,
-    Cmd,
 )
 
 

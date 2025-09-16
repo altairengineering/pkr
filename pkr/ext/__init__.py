@@ -2,9 +2,9 @@
 
 """Module containing extensions for pkr"""
 import abc
-from builtins import str
-import signal
 import pkgutil
+import signal
+from builtins import str
 
 try:
     from importlib.metadata import entry_points

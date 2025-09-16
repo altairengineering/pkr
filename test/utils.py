@@ -3,21 +3,19 @@
 """
 This module provide utilities to write tests
 """
-from builtins import str
-from builtins import object
-import unittest
-import tempfile
 import os
 import shutil
 import subprocess
-
+import tempfile
+import unittest
+from builtins import object, str
 from pathlib import Path
 
-from pkr.cli.parser import get_parser
-from pkr.utils import PATH_ENV_VAR
-from pkr.kard import Kard
-import pkr.utils
 import pkr.environment
+import pkr.utils
+from pkr.cli.parser import get_parser
+from pkr.kard import Kard
+from pkr.utils import PATH_ENV_VAR
 
 
 class _EnvTest(object):

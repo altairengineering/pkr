@@ -2,17 +2,19 @@
 
 """pkr functions for managing containers lifecycle with buildx"""
 
-from concurrent.futures import ProcessPoolExecutor
+from __future__ import annotations
+
 import copy
 import os
-from pathlib import Path
-import tempfile
 import sys
+import tempfile
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
-from python_on_whales import docker, DockerException
+from python_on_whales import DockerException, docker
 
-from pkr.driver.docker import DockerDriver
 from pkr.cli.log import write
+from pkr.driver.docker import DockerDriver
 from pkr.utils import merge
 
 BUILDKIT_ENV = {
@@ -232,10 +234,7 @@ class BuildxDriver(DockerDriver):
             else:
                 target = container.get("target")
 
-        if no_rebuild:
-            image = len(self.docker.images(image_name)) == 1
-
-        if not no_rebuild or image is False:
+        if not no_rebuild or len(self.docker.images(image_name)) != 1:
             context = container.get("context", self.DOCKER_CONTEXT)
             self.buildx_options.update(
                 {

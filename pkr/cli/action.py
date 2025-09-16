@@ -2,8 +2,8 @@
 
 """CLI argument extend action"""
 
-from argparse import Action, OPTIONAL
 import copy
+from argparse import OPTIONAL, Action
 
 
 # pylint: disable=too-many-arguments,redefined-builtin

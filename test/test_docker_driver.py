@@ -1,5 +1,6 @@
-from .utils import pkrTestCase
 import re
+
+from .utils import pkrTestCase
 
 
 class TestDockerDriver(pkrTestCase):
