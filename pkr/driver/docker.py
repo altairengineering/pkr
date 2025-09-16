@@ -2,21 +2,23 @@
 
 """pkr functions for creating the context"""
 
-from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
+from __future__ import annotations
+
 import os
 import re
 import sys
 import traceback
+from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import docker
 import tenacity
 
+from pkr.cli.log import write
 from pkr.driver import _USE_ENV_VAR
 from pkr.driver.base import AbstractDriver
-from pkr.cli.log import write
-from pkr.utils import PkrException, HashableDict
+from pkr.utils import HashableDict, PkrException
 
 DOCKER_SOCK = "unix://var/run/docker.sock"
 DOCKER_CLIENT_TIMEOUT = int(os.environ.get("DOCKER_CLIENT_TIMEOUT", 300))
@@ -63,7 +65,8 @@ class DockerDriver(AbstractDriver):
             extras["tag"] = str(values["tag"])
         return values
 
-    def get_templates(self, phase: str | None=None):
+    # pylint: disable= too-many-locals
+    def get_templates(self, phase: str | None = None):
         """Use the environment information to return files and folder to template
         or copy to templated directory according to the 'requires' sections of the
         containers description
@@ -84,56 +87,74 @@ class DockerDriver(AbstractDriver):
                 # First populate the build config
                 try:
                     subfolder = build_cfg["subfolder"]
-                except:
-                    raise PkrException(f"Container {container_name} is missing a build subfolder")
+                except KeyError as exc:
+                    raise PkrException(
+                        f"Container {container_name} is missing a build subfolder"
+                    ) from exc
                 for req in build_cfg.get("requires", []):
-                    templates.add(HashableDict({
-                        "source": req["src"],
-                        "origin": req["src"],
-                        "destination": req["dst"],
-                        "subfolder": subfolder,
-                        "excluded_paths": req.get("exclude", []),
-                        "gen_template": req.get("template", True),
-                    }))
+                    templates.add(
+                        HashableDict(
+                            {
+                                "source": req["src"],
+                                "origin": req["src"],
+                                "destination": req["dst"],
+                                "subfolder": subfolder,
+                                "excluded_paths": req.get("exclude", []),
+                                "gen_template": req.get("template", True),
+                            }
+                        )
+                    )
 
                 dockerfile = build_cfg.get("dockerfile")
                 if dockerfile:
-                    templates.add(HashableDict(
-                        {
-                            "source": str(templates_path / f"{dockerfile}"),  # Match template
-                            "origin": str(templates_path),
-                            "destination": "",
-                            "subfolder": subfolder,
-                            "gen_template": False,
-                        }
-                    ))
-                    templates.add(HashableDict(
-                        {
-                            "source": str(templates_path / f"{dockerfile}.template"),  # Match template
-                            "origin": str(templates_path),
-                            "destination": "",
-                            "subfolder": subfolder,
-                            "gen_template": True,
-                        }
-                    ))
+                    templates.add(
+                        HashableDict(
+                            {
+                                "source": str(templates_path / f"{dockerfile}"),  # Match template
+                                "origin": str(templates_path),
+                                "destination": "",
+                                "subfolder": subfolder,
+                                "gen_template": False,
+                            }
+                        )
+                    )
+                    templates.add(
+                        HashableDict(
+                            {
+                                "source": str(
+                                    templates_path / f"{dockerfile}.template"
+                                ),  # Match template
+                                "origin": str(templates_path),
+                                "destination": "",
+                                "subfolder": subfolder,
+                                "gen_template": True,
+                            }
+                        )
+                    )
 
             if run_cfg and (phase in ("run", None)):
                 # Then deal with the run config
                 try:
                     subfolder = run_cfg["subfolder"]
-                except:
-                    raise PkrException(f"Container {container_name} is missing a build subfolder")
+                except KeyError as exc:
+                    raise PkrException(
+                        f"Container {container_name} is missing a build subfolder"
+                    ) from exc
 
                 for req in run_cfg.get("requires", []):
 
-                    templates.add(HashableDict({
-                        "source": req["src"],
-                        "origin": req["src"],
-                        "destination": req["dst"],
-                        "subfolder": subfolder,
-                        "excluded_paths": req.get("exclude", []),
-                        "gen_template": req.get("template", True),
-                    }))
+                    templates.add(
+                        HashableDict(
+                            {
+                                "source": req["src"],
+                                "origin": req["src"],
+                                "destination": req["dst"],
+                                "subfolder": subfolder,
+                                "excluded_paths": req.get("exclude", []),
+                                "gen_template": req.get("template", True),
+                            }
+                        )
+                    )
 
             # Legacy mode
             if build_cfg is run_cfg is None:
@@ -159,40 +180,44 @@ class DockerDriver(AbstractDriver):
 
                 # Automatically add dockerfile name matching folder to the context
                 dockerfile = Path(dockerfile).stem
-                templates.add(HashableDict(
-                    {
-                        "source": str(templates_path / f"{dockerfile}"),  # Match template
-                        "origin": str(templates_path),
-                        "destination": "",
-                        "subfolder": context,
-                    }
-                ))
+                templates.add(
+                    HashableDict(
+                        {
+                            "source": str(templates_path / f"{dockerfile}"),  # Match template
+                            "origin": str(templates_path),
+                            "destination": "",
+                            "subfolder": context,
+                        }
+                    )
+                )
 
                 # Also add anything matching dockerfile name stem with an extension
                 # suffix of some kind
-                templates.add(HashableDict(
-                    {
-                        "source": str(templates_path / f"{dockerfile}.*"),  # Match template
-                        "origin": str(templates_path),
-                        "destination": "",
-                        "subfolder": context,
-                    }
-                ))
+                templates.add(
+                    HashableDict(
+                        {
+                            "source": str(templates_path / f"{dockerfile}.*"),  # Match template
+                            "origin": str(templates_path),
+                            "destination": "",
+                            "subfolder": context,
+                        }
+                    )
+                )
 
         return list(templates)
 
     def context_path(self, sub_path, container):
         """Return absolute path for sub_path relative to container context"""
-        if not (context := self.kard.env.get_container(container).get("build", {}).get("subfolder")):
-            context = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+        ctn = self.kard.env.get_container(container)
+        context = ctn.get("build", {}).get("subfolder") or ctn.get("context", self.DOCKER_CONTEXT)
 
         context_path = self.kard.real_path / context
         return context_path / sub_path
 
     def mount_path(self, sub_path, container):
         """Return absolute path for sub_path relative to container mount path"""
-        if not (subfolder := self.kard.env.get_container(container).get("run", {}).get("subfolder")):
-            subfolder = self.kard.env.get_container(container).get("context", self.DOCKER_CONTEXT)
+        ctn = self.kard.env.get_container(container)
+        subfolder = ctn.get("run", {}).get("subfolder") or ctn.get("context", self.DOCKER_CONTEXT)
 
         context_path = self.kard.real_path / subfolder
         return context_path / sub_path
@@ -309,10 +334,7 @@ class DockerDriver(AbstractDriver):
 
             logfh.write(f"Building {image_name}{f'({target})' if target else ''} image...\n")
 
-            if no_rebuild:
-                image = len(self.docker.images(image_name)) == 1
-
-            if not no_rebuild or image is False:
+            if not no_rebuild or len(self.docker.images(image_name)) != 1:
                 if not (context := container.get("build", {}).get("subfolder")):
                     context = container.get("context", self.DOCKER_CONTEXT)
                 stream = self.docker.build(

@@ -1,6 +1,9 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
 """Pkr functions for handling the life cycle with k8s"""
+
+from __future__ import annotations
+
 import base64
 import os
 import shlex
@@ -10,11 +13,11 @@ import zlib
 from tempfile import NamedTemporaryFile
 from time import sleep
 
-from kubernetes import client, config
 import yaml
+from kubernetes import client, config
 
-from pkr.driver import docker
 from pkr.cli.log import write
+from pkr.driver import docker
 
 CONFIGMAP = {
     "apiVersion": "v1",
@@ -57,7 +60,7 @@ class KubernetesPkr:
             self._client = client.CoreV1Api()
         return self._client
 
-    def get_templates(self, phase: str | None=None):
+    def get_templates(self, phase: str | None = None):
         """Return the k8s templates"""
         templates = super().get_templates(phase)
 

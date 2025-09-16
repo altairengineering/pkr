@@ -5,26 +5,24 @@
 """Utils functions for pkr"""
 
 import hashlib
-from builtins import input
-from builtins import range
-from builtins import str
-from enum import Enum
-from fnmatch import fnmatch
-from glob import glob
 import json
 import os
-from pathlib import Path
+import platform
 import re
 import secrets
 import shutil
 import time
-import platform
+from builtins import input, range, str
+from enum import Enum
+from fnmatch import fnmatch
+from glob import glob
+from pathlib import Path
 
-from Crypto.Cipher import AES
-from Crypto.Hash import SHA256
-from Crypto import Random
 import docker
 import jinja2
+from Crypto import Random
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
 from passlib.apache import HtpasswdFile
 
 ENV_FOLDER = "env"
@@ -105,7 +103,7 @@ class HashableDict(dict):
         return self.__key() == other.__key()  # pylint: disable=W0212
 
 
-def merge(source, destination, overwrite: bool =True):
+def merge(source, destination, overwrite: bool = True):
     """Deep merge 2 dicts
 
     Warning: the source dict is merged INTO the destination one. Make a copy

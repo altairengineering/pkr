@@ -2,13 +2,12 @@
 
 """Base definition for drivers"""
 
-from abc import ABC
-import re
+from __future__ import annotations
 
-from ..utils import (
-    merge,
-    ensure_definition_matches,
-)
+import re
+from abc import ABC
+
+from ..utils import ensure_definition_matches, merge
 
 
 # pylint: disable=missing-class-docstring,too-many-public-methods
@@ -41,7 +40,7 @@ class AbstractDriver:
         merge(values, extras)
         return values
 
-    def get_templates(self, phase: str | None=None):
+    def get_templates(self, phase: str | None = None):
         """Return files or folders to be templated by pkr
 
         Format:
@@ -71,8 +70,7 @@ class AbstractDriver:
         raise NotImplementedError()
 
     def mount_path(self, sub_path, container):
-        """AbstractDriver hook for driver to compute and return path for mounts
-        """
+        """AbstractDriver hook for driver to compute and return path for mounts"""
         raise NotImplementedError()
 
     #
@@ -180,7 +178,7 @@ class AbstractDriver:
 class BaseDriver(AbstractDriver, ABC):
     metas = []
 
-    def get_templates(self, phase: str | None=None):
+    def get_templates(self, phase: str | None = None):
         templates = []
         templates_path = self.kard.env.pkr_path / self.kard.env.template_dir
 

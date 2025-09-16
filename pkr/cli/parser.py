@@ -4,19 +4,21 @@
 
 import argparse
 from getpass import getpass
-
 from pathlib import Path
 
+import yaml
+
+from ..driver import list_drivers
+from ..ext import Extensions, ExtMixin
+from ..kard import Kard
+from ..utils import Cmd, PkrException, create_pkr_folder
+from ..version import __version__
 from .action import ExtendAction
 from .log import write
-from ..driver import list_drivers
-from ..ext import ExtMixin, Extensions
-from ..kard import Kard
-from ..utils import PkrException, create_pkr_folder, Cmd
-from ..version import __version__
 
 
-def get_parser():
+# pylint: disable=too-many-statements
+def get_parser() -> ArgumentParser:
     """Return the pkr parser"""
     pkr_parser = argparse.ArgumentParser()
     pkr_parser.set_defaults(func=lambda _: pkr_parser.print_help())
@@ -341,15 +343,12 @@ def configure_kard_parser(parser):
         "be removed",
     )
 
-    make_context.add_argument(
-        "-p",
-        "--phase",
-        default=None,
-        help="Can be 'build' or 'run'"
-    )
+    make_context.add_argument("-p", "--phase", default=None, help="Can be 'build' or 'run'")
     add_kard_argument(make_context)
     make_context.set_defaults(
-        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(reset=args.update, phase=args.phase)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(
+            reset=args.update, phase=args.phase
+        )
     )
 
     create_kard_p = sub_p.add_parser("create", help="Create a new kard")
