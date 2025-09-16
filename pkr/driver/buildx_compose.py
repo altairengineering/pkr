@@ -2,15 +2,17 @@
 
 """pkr functions for managing containers lifecycle with buildx and compose"""
 
-from .docker_compose import ComposePkr
+from __future__ import annotations
+
 from .buildx import BuildxDriver
+from .docker_compose import ComposePkr
 
 
 # pylint: disable=abstract-method
 class BuildxComposeDriver(ComposePkr, BuildxDriver):
     """Driver using `docker buildx` subcommands with compose"""
 
-    def get_templates(self, phase: str | None=None):
+    def get_templates(self, phase: str | None = None):
         return ComposePkr.get_templates(self, phase)
 
     def build_images(self, *args, **kwargs):

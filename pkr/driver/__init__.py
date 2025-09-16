@@ -2,9 +2,9 @@
 
 """pkr drivers"""
 
-from importlib import import_module
-import pkgutil
 import os
+import pkgutil
+from importlib import import_module
 
 from .base import AbstractDriver
 
