@@ -81,15 +81,13 @@ class DockerDriver(AbstractDriver):
             # pkr v2 mode
             build_cfg = container.get("build")
             run_cfg = container.get("run")
-            # if container_name == "rest-api":
-            #     import ipdb; ipdb.set_trace()
             if build_cfg and (phase in ("build", None)):
                 # First populate the build config
                 try:
                     subfolder = build_cfg["subfolder"]
                 except KeyError as exc:
                     raise PkrException(
-                        f"Container {container_name} is missing a build subfolder"
+                        f"Container '{container_name}' is missing a 'build' subfolder"
                     ) from exc
                 for req in build_cfg.get("requires", []):
                     templates.add(
@@ -107,30 +105,23 @@ class DockerDriver(AbstractDriver):
 
                 dockerfile = build_cfg.get("dockerfile")
                 if dockerfile:
-                    templates.add(
-                        HashableDict(
-                            {
-                                "source": str(templates_path / f"{dockerfile}"),  # Match template
-                                "origin": str(templates_path),
-                                "destination": "",
-                                "subfolder": subfolder,
-                                "gen_template": False,
-                            }
+                    # We add 2 potential templates, one with '.template' suffix, one without
+                    # This could be optimized with regex, because glob would include too many files
+                    for tpl in (True, False):
+                        templates.add(
+                            HashableDict(
+                                {
+                                    "source": str(
+                                        templates_path
+                                        / f"{dockerfile}{'.template' if tpl else ''}"
+                                    ),
+                                    "origin": str(templates_path),
+                                    "destination": "",
+                                    "subfolder": subfolder,
+                                    "gen_template": tpl,
+                                }
+                            )
                         )
-                    )
-                    templates.add(
-                        HashableDict(
-                            {
-                                "source": str(
-                                    templates_path / f"{dockerfile}.template"
-                                ),  # Match template
-                                "origin": str(templates_path),
-                                "destination": "",
-                                "subfolder": subfolder,
-                                "gen_template": True,
-                            }
-                        )
-                    )
 
             if run_cfg and (phase in ("run", None)):
                 # Then deal with the run config
@@ -138,11 +129,10 @@ class DockerDriver(AbstractDriver):
                     subfolder = run_cfg["subfolder"]
                 except KeyError as exc:
                     raise PkrException(
-                        f"Container {container_name} is missing a build subfolder"
+                        f"Container '{container_name}' is missing a 'run' subfolder"
                     ) from exc
 
                 for req in run_cfg.get("requires", []):
-
                     templates.add(
                         HashableDict(
                             {
@@ -156,7 +146,7 @@ class DockerDriver(AbstractDriver):
                         )
                     )
 
-            # Legacy mode
+            # Legacy format
             if build_cfg is run_cfg is None:
                 context = container.get("context", self.DOCKER_CONTEXT)
 

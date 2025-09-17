@@ -16,7 +16,7 @@ from builtins import input, range, str
 from enum import Enum
 from fnmatch import fnmatch
 from glob import glob
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import docker
 import jinja2
@@ -57,14 +57,14 @@ def is_pkr_path(path):
     return path.is_dir() and len(list(path.glob(f"{ENV_FOLDER}/*/env.yml"))) > 0
 
 
-def get_pkr_path(raise_if_not_found=True):
+def get_pkr_path(raise_if_not_found=True) -> PosixPath:
     """Return the path of the pkr folder
 
     If the env. var 'PKR_PATH' is specified, it is returned, otherwise a
     KeyError exception is raised.
     """
 
-    full_path = Path(os.environ.get(PATH_ENV_VAR, os.getcwd())).absolute()
+    full_path = Path(os.environ.get(PATH_ENV_VAR, os.getcwd())).absolute().resolve()
     pkr_path = full_path
     while pkr_path.parent != pkr_path:
         if is_pkr_path(pkr_path):

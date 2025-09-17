@@ -350,7 +350,7 @@ class TestCLI(pkrTestCase):
         stderr = prc.stderr.read()
         self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
         expected = re.compile(
-            b"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '"
+            rb"ERROR: \(FileNotFoundError\) \[Errno 2\] No such file or directory: '"
             + bytes(self.env_test.tmp_kard)
             + b"/kard/test/docker-compose.yml'"
         )
@@ -406,6 +406,17 @@ class TestCLI(pkrTestCase):
         self.assertEqual(1, prc.returncode, msg_hlp(stdout, stderr))
         expected = b'ERROR: (PkrException) Metafile for Kard "test" is already decrypted'
         self.assertEqual(stderr.split(b"\n")[-2], expected)
+
+    def test_container_tpl_list(self):
+        self.generate_kard()
+
+        cmd = "{} container templates".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+        self.assertEqual(0, prc.returncode, msg_hlp(stdout, stderr))
+        # print(stdout)
+        self.assertEqual(stdout, b"backend:\n  dockerfile: backend.dockerfile\n\n")
 
 
 class TestCLIProd(pkrTestCase):
