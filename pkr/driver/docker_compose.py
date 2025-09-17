@@ -207,7 +207,13 @@ class ComposePkr:
         self._call_compose("up", "-d", *(services or ()))
 
     # pylint: disable=too-many-locals
-    def cmd_up(self, services=None, verbose=False, build_log=None):
+    def cmd_up(
+        self,
+        services=None,
+        verbose=False,
+        build_log=None,
+        no_rebuild=False,
+    ):
         """Start PCLM in a docker environement.
 
         Use parameters stored in meta.yml to generate the
@@ -262,7 +268,11 @@ class ComposePkr:
             self.pull_images(pull_images, tag=tag)
         if len(build_images) != 0:
             self.build_images(
-                build_images, rebuild_context=False, verbose=verbose, logfile=build_log
+                build_images,
+                rebuild_context=False,
+                verbose=verbose,
+                logfile=build_log,
+                no_rebuild=no_rebuild,
             )
 
         self.start(services)

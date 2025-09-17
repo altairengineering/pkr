@@ -22,7 +22,11 @@ class TestDockerComposeDriver(pkrTestCase):
                 self.up()
 
                 mock_build.assert_called_once_with(
-                    {"backend"}, rebuild_context=False, verbose=False, logfile=None
+                    {"backend"},
+                    rebuild_context=False,
+                    verbose=False,
+                    logfile=None,
+                    no_rebuild=False,
                 )
                 mock_start.assert_called_once()
 
@@ -36,6 +40,10 @@ class TestDockerComposeDriver(pkrTestCase):
                 self.up()
 
                 mock_build.assert_called_once_with(
-                    {"backend"}, rebuild_context=False, verbose=False, logfile=None
+                    {"backend"},
+                    rebuild_context=False,
+                    verbose=False,
+                    logfile=None,
+                    no_rebuild=False,
                 )
                 mock_start.assert_called_once()

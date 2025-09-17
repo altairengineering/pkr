@@ -228,10 +228,12 @@ class BuildxDriver(DockerDriver):
         if not target:
             target = self.kard.env.get_container(service).get("target")
 
-        if no_rebuild:
-            image = len(self.docker.images(image_name)) == 1
+        # Can only skip rebuilds if skipping the rebuild is requested via
+        # the no_rebuild kwarg AND we have the image already.
+        has_image = len(self.docker.images(image_name)) > 0
+        skip_rebuild = no_rebuild and has_image
 
-        if not no_rebuild or image is False:
+        if not skip_rebuild:
             context = self.kard.env.get_container(service).get("context", self.DOCKER_CONTEXT)
             self.buildx_options.update(
                 {

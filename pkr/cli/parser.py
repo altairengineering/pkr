@@ -16,6 +16,7 @@ from ..utils import PkrException, create_pkr_folder, Cmd
 from ..version import __version__
 
 
+# pylint: disable=too-many-statements
 def get_parser():
     """Return the pkr parser"""
     pkr_parser = argparse.ArgumentParser()
@@ -72,10 +73,14 @@ def get_parser():
         "-v", "--verbose", action="store_true", help="verbose mode", default=False
     )
     up_parser.add_argument("--build-log", help="Log file for image building", default=None)
+    add_norebuild_argument(up_parser)
     add_kard_argument(up_parser)
     up_parser.set_defaults(
         func=lambda args: Kard.load_current(args.kard, args.crypt_password).driver.cmd_up(
-            args.services, verbose=args.verbose, build_log=args.build_log
+            args.services,
+            verbose=args.verbose,
+            build_log=args.build_log,
+            no_rebuild=args.no_rebuild,
         )
     )
 
@@ -165,14 +170,12 @@ def configure_image_parser(parser):
         "-p", "--parallel", type=int, default=None, help="Number of parallel image build"
     )
     build_parser.add_argument(
-        "-b", "--no-rebuild", action="store_true", help="Disable rebuild if image already exists"
-    )
-    build_parser.add_argument(
         "-c",
         "--clean-builder",
         action="store_true",
         help="Clean builder before build (buildx driver)",
     )
+    add_norebuild_argument(build_parser)
     add_service_argument(build_parser)
     add_kard_argument(build_parser)
     build_parser.set_defaults(
@@ -467,6 +470,13 @@ def configure_ext_parser(parser):
                 ext.configure_parser(ext_parser)
     except PkrException:
         pass
+
+
+def add_norebuild_argument(parser):
+    """Add argument for disabling image rebuilds"""
+    parser.add_argument(
+        "-b", "--no-rebuild", action="store_true", help="Disable rebuild if image already exists"
+    )
 
 
 def add_service_argument(parser):
