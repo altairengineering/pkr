@@ -1,14 +1,14 @@
 # Copyright© 1986-2024 Altair Engineering Inc.
 
+import os
 import unittest
+
 from mock import call, patch
 
-import os
-
-from pkr.environment import Environment
 import pkr.environment
-from pkr.utils import PATH_ENV_VAR
 import pkr.utils
+from pkr.environment import Environment
+from pkr.utils import PATH_ENV_VAR
 
 from .utils import get_test_files_path
 

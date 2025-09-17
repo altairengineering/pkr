@@ -1,24 +1,26 @@
-# Copyright© 1986-2024 Altair Engineering Inc.
+# Copyright© 1986-2025 Altair Engineering Inc.
 
 """pkr CLI parser"""
 
-import argparse
+from argparse import ArgumentParser, FileType
 from getpass import getpass
-
 from pathlib import Path
 
+import yaml
+
+from ..driver import list_drivers
+from ..ext import Extensions, ExtMixin
+from ..kard import Kard
+from ..utils import Cmd, PkrException, create_pkr_folder
+from ..version import __version__
 from .action import ExtendAction
 from .log import write
-from ..driver import list_drivers
-from ..ext import ExtMixin, Extensions
-from ..kard import Kard
-from ..utils import PkrException, create_pkr_folder, Cmd
-from ..version import __version__
 
 
-def get_parser():
+# pylint: disable=too-many-statements
+def get_parser() -> ArgumentParser:
     """Return the pkr parser"""
-    pkr_parser = argparse.ArgumentParser()
+    pkr_parser = ArgumentParser()
     pkr_parser.set_defaults(func=lambda _: pkr_parser.print_help())
     pkr_parser.add_argument("-v", "--version", action="version", version="%(prog)s " + __version__)
 
@@ -109,6 +111,9 @@ def get_parser():
     # Image parser
     configure_image_parser(sub_p.add_parser("image", help="Manage docker images"))
 
+    # Container parser
+    configure_container_parser(sub_p.add_parser("container", help="Manage containers"))
+
     # List available extensions
     list_extension_parser = sub_p.add_parser("listext", help="List extensions")
     list_extension_parser.add_argument(
@@ -116,7 +121,7 @@ def get_parser():
     )
     add_kard_argument(list_extension_parser)
     list_extension_parser.set_defaults(
-        func=lambda args: print(
+        func=lambda args: write(
             *(
                 Extensions().list()
                 if args.all
@@ -146,7 +151,7 @@ def get_parser():
 
 
 # pylint: disable=too-many-statements
-def configure_image_parser(parser):
+def configure_image_parser(parser: ArgumentParser):
     """Add image parser"""
     parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
@@ -156,7 +161,7 @@ def configure_image_parser(parser):
     build_parser.add_argument("-t", "--tag", default=None, help="The tag for images")
     build_parser.add_argument("-T", "--target", default=None, help="The targeted stage")
     build_parser.add_argument(
-        "-r", "--rebuild-context", action="store_true", default=True, help="Rebuild the context"
+        "-r", "--rebuild-context", action="store_true", default=False, help="Rebuild the context"
     )
     build_parser.add_argument(
         "-n", "--nocache", action="store_true", help="Pass nocache to docker for the build"
@@ -295,7 +300,7 @@ def configure_image_parser(parser):
 
 
 # pylint: disable=too-many-locals
-def configure_kard_parser(parser):
+def configure_kard_parser(parser: ArgumentParser):
     """
     pkr - A CI tool for Cloud Manager
 
@@ -329,7 +334,7 @@ def configure_kard_parser(parser):
     sub_p = parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
 
     make_context = sub_p.add_parser(
-        "make", help="Generate or regenerate docker-context using the current pkr " "kard"
+        "make", help="Generate or regenerate docker-context using the current pkr kard"
     )
     make_context.add_argument(
         "-u",
@@ -340,9 +345,13 @@ def configure_kard_parser(parser):
         "after the previously pkr make will not "
         "be removed",
     )
+
+    make_context.add_argument("-p", "--phase", default=None, help="Can be 'build' or 'run'")
     add_kard_argument(make_context)
     make_context.set_defaults(
-        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(reset=args.update)
+        func=lambda args: Kard.load_current(args.kard, args.crypt_password).make(
+            reset=args.update, phase=args.phase
+        )
     )
 
     create_kard_p = sub_p.add_parser("create", help="Create a new kard")
@@ -357,9 +366,7 @@ def configure_kard_parser(parser):
     create_kard_p.add_argument(
         "-d", "--driver", default=None, help=f"The pkr driver to use {list_drivers()}"
     )
-    create_kard_p.add_argument(
-        "-m", "--meta", type=argparse.FileType("r"), help="A file to load meta from"
-    )
+    create_kard_p.add_argument("-m", "--meta", type=FileType("r"), help="A file to load meta from")
     create_kard_p.add_argument(
         "-f",
         "--features",
@@ -452,7 +459,7 @@ def configure_kard_parser(parser):
     decrypt_kard_p.set_defaults(func=lambda args: _decrypt_kard_handler(args))
 
 
-def configure_ext_parser(parser):
+def configure_ext_parser(parser: ArgumentParser):
     """Add parser for extensions"""
     parser.set_defaults(func=lambda _: parser.print_help())
     sub_p = parser.add_subparsers(title="Extensions", metavar="<extension>", help="Extensions")
@@ -469,14 +476,38 @@ def configure_ext_parser(parser):
         pass
 
 
-def add_service_argument(parser):
+def configure_container_parser(parser: ArgumentParser):
+    """Add parser for container manipulation"""
+    parser.set_defaults(func=lambda _: parser.print_help())
+    sub_p = parser.add_subparsers(title="Commands", metavar="<command>", help="<action>")
+
+    tpl_context = sub_p.add_parser(
+        "templates", help="Outputs the template of a container or all containers"
+    )
+    add_kard_argument(tpl_context)
+    add_service_argument(tpl_context)
+
+    def print_tpl(args):
+        """Print the template of a container or all containers"""
+        kard = Kard.load_current(args.kard, args.crypt_password)
+        if args.services:
+            containers = {s: kard.env.get_container(s) for s in args.services}
+        else:
+            containers = kard.env.get_container()
+
+        write(yaml.dump(containers))
+
+    tpl_context.set_defaults(func=print_tpl)
+
+
+def add_service_argument(parser: ArgumentParser):
     """Add parser for listing services"""
     parser.add_argument(
         "-s", "--services", nargs="+", default=None, help="List of services (default to all)"
     )
 
 
-def add_kard_argument(parser, add_short_option=True):
+def add_kard_argument(parser: ArgumentParser, add_short_option: bool = True):
     """Add an argument for specifying the kard"""
     options = {
         "default": None,
@@ -488,7 +519,7 @@ def add_kard_argument(parser, add_short_option=True):
         parser.add_argument("--kard", **options)
 
 
-def input_password(pwd):
+def input_password(pwd: str):
     """Let the user input the password"""
     if pwd == "-":
         return getpass()

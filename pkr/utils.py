@@ -5,26 +5,24 @@
 """Utils functions for pkr"""
 
 import hashlib
-from builtins import input
-from builtins import range
-from builtins import str
-from enum import Enum
-from fnmatch import fnmatch
-from glob import glob
 import json
 import os
-from pathlib import Path
+import platform
 import re
 import secrets
 import shutil
 import time
-import platform
+from builtins import input, range, str
+from enum import Enum
+from fnmatch import fnmatch
+from glob import glob
+from pathlib import Path
 
-from Crypto.Cipher import AES
-from Crypto.Hash import SHA256
-from Crypto import Random
 import docker
 import jinja2
+from Crypto import Random
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
 from passlib.apache import HtpasswdFile
 
 ENV_FOLDER = "env"
@@ -105,7 +103,7 @@ class HashableDict(dict):
         return self.__key() == other.__key()  # pylint: disable=W0212
 
 
-def merge(source, destination, overwrite=True):
+def merge(source, destination, overwrite: bool = True):
     """Deep merge 2 dicts
 
     Warning: the source dict is merged INTO the destination one. Make a copy
@@ -285,7 +283,7 @@ class TemplateEngine:
                     if dst_path.name.endswith(".template"):
                         dst_path = self.remove_ext(dst_path)
                 else:  # We create the destination path
-                    dst_path = dst_path / self.remove_ext(path.name)
+                    dst_path = dst_path / self.remove_ext(path)
                 out = self.process_template(path)
                 dst_path.write_text(out)
                 shutil.copystat(path_str, str(dst_path))
@@ -299,7 +297,7 @@ class TemplateEngine:
                     self.copy(path_it, origin, local_dst, excluded_paths, gen_template)
 
     @staticmethod
-    def remove_ext(path):
+    def remove_ext(path: Path):
         """Remove the portion of a string after the last dot."""
         return path.parent / path.stem
 

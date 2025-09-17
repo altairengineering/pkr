@@ -2,29 +2,31 @@
 
 """pkr functions for managing containers lifecycle with compose"""
 
-from builtins import next
-import sys
+from __future__ import annotations
+
 import os
 import re
 import subprocess
+import sys
 import time
 import traceback
-
+from builtins import next
 from pathlib import Path
+
 import yaml
 
+from pkr.cli.log import debug, write
 from pkr.driver import docker
-from pkr.cli.log import write, debug
 from pkr.utils import (
-    PkrException,
     PasswordException,
-    merge,
-    get_current_container,
-    encrypt_swap,
-    decrypt_swap,
+    PkrException,
     decrypt_file,
-    encrypt_with_key,
+    decrypt_swap,
     decrypt_with_key,
+    encrypt_swap,
+    encrypt_with_key,
+    get_current_container,
+    merge,
 )
 
 
@@ -96,9 +98,9 @@ class ComposePkr:
             raise PkrException("Neither docker compose yaml nor encrypted file found")
         return data
 
-    def get_templates(self):
+    def get_templates(self, phase: str | None = None):
         """Return the templates of this driver"""
-        templates = super().get_templates()
+        templates = super().get_templates(phase)
 
         # Cleanup merged file
         if self.compose_file.exists():
