@@ -30,7 +30,7 @@ dependencies = [
     "bcrypt<=4.0.1",
     "pydantic<2",
     "requests==2.32.4",
-    "urllib3==1.26.19",
+    "urllib3==2.5.0",
 ]
 
 [project.optional-dependencies]
