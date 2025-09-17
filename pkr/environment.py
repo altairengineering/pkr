@@ -1,4 +1,4 @@
-# Copyright© 1986-2024 Altair Engineering Inc.
+# Copyright© 1986-2025 Altair Engineering Inc.
 
 """Module with the pkr environment"""
 
@@ -108,26 +108,14 @@ class Environment:
         """Return the default path"""
         return self.pkr_path / ENV_FOLDER
 
-    def _containers(self, template=False):
-        """Method for fetching the containers dict as the schema might
-        evolve.
+    def _containers(self, include_template: bool = False) -> dict[str, dict]:
+        """Method for fetching the containers dict as the schema might evolve."""
 
-        Args:
-          - template: a bool specifying if templates should be returned
-        """
-
-        containers = self.env["containers"]
-
-        if template:
-            return containers
-
-        if not containers:
-            return {}
-
+        containers = self.env.get("containers", {})
         return {
             name: value
             for name, value in containers.items()
-            if value and not value.get("template", False)
+            if value and (not value.get("template", False) or include_template)
         }
 
     @property
@@ -140,9 +128,9 @@ class Environment:
         """Return the template folder name"""
         return self.env.get("template_dir", self.DEFAULT_TEMPLATE_DIR)
 
-    def get_container(self, name=None) -> dict[str, dict]:
-        """Return a compiled dictionary representing a container, or a list of
-        all if name is not specified.
+    def get_container(self, name: str = None) -> dict[str, dict]:
+        """Return a compiled dictionary representing a container, or a list of all if name is not
+        specified.
 
         Args:
           - name: the name of the container to retrieve
@@ -154,7 +142,7 @@ class Environment:
                     ret[c_name] = self.get_container(c_name)
             return ret
 
-        container = self._containers(template=True)[name] or {}
+        container = self._containers(include_template=True)[name]
         if "parent" in container and container["parent"] is not None:
             parent = self.get_container(container["parent"])
             return merge(container, parent.copy())
