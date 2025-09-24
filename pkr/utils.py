@@ -200,6 +200,7 @@ class TemplateEngine:
         self.tpl_env = jinja2.Environment(
             extensions=["jinja2_ansible_filters.AnsibleCoreFiltersExtension"],
             loader=jinja2.FileSystemLoader(str(self.pkr_path)),
+            keep_trailing_newline=True,
         )
 
         def sha256(string):
