@@ -61,3 +61,43 @@ pkr <command>
 Usage of `pkr` objects (Kard) from python code is possible but API of those objects is subject to change in future releases.
 
 Please pin pkr version in that case.
+
+# Container files description
+
+## Version 1
+
+```yaml
+containers:
+    <container_name>:
+        dockerfile: <path_to_dockerfile>
+        requires:
+          <src_path_on_host>:
+            dst: <dst_path_in_docker_context>
+            template: <true|false> # Optional, default to false
+            exclude:
+              - <file_or_dir_to_exclude>
+```
+
+## Version 2
+
+```yaml
+containers:
+  <container_name>:
+    build:
+      subfolder: <path_to_docker_context>
+      dockerfile: <path_to_dockerfile_relative_to_context>
+      requires:
+        - src: <src_path_on_host>
+          dst: <dst_path_in_docker_context>
+          template: <true|false> # Optional, default to false
+          exclude:
+            - <file_or_dir_to_exclude>
+    run:
+      subfolder: <path_to_docker_mount_path>
+      requires:
+        - src: <src_path_on_host>
+          dst: <dst_path_in_docker_context>
+          template: <true|false> # Optional, default to false
+          exclude:
+            - <file_or_dir_to_exclude>
+```

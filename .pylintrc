@@ -52,7 +52,7 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=C0325,I0011,broad-exception-caught,broad-exception-raised,useless-suppression,suppressed-message
+disable=C0325,I0011,broad-exception-caught,broad-exception-raised,useless-suppression,suppressed-message,too-many-positional-arguments
 
 
 [REPORTS]

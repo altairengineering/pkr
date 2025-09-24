@@ -3,30 +3,30 @@
 """pkr Kard"""
 
 import copy
-from getpass import getpass
 import os
-from pathlib import Path
 import shutil
+from getpass import getpass
+from pathlib import Path
 
 import yaml
 
+from .cli.log import write
 from .driver import load_driver
 from .environment import Environment
 from .ext import Extensions
-from .cli.log import write
 from .utils import (
+    Cmd,
     PkrException,
     TemplateEngine,
+    decrypt_file,
+    decrypt_swap,
+    dedup_list,
+    diff,
+    encrypt_swap,
+    encrypt_with_key,
     get_kard_root_path,
     merge,
-    diff,
-    dedup_list,
     merge_lists,
-    encrypt_swap,
-    decrypt_swap,
-    decrypt_file,
-    encrypt_with_key,
-    Cmd,
 )
 
 
@@ -87,9 +87,9 @@ class Kard:
         """Return the Extension class loaded with the correct instance"""
         return Extensions(self.meta["features"])
 
-    def make(self, reset=True):
+    def make(self, reset=True, phase=None):
         """Make the kard"""
-        templates = self.driver.get_templates()
+        templates = self.driver.get_templates(phase=phase)
 
         # Reset/create all subfolders
         subfolder_list = list(map(lambda a: a.get("subfolder"), templates))
@@ -396,6 +396,7 @@ class Kard:
                 "format_image": format_image,
                 "context_path": lambda p="", c=None: str(self.driver.context_path(p, c)),
                 "kard_path": lambda p="": str(self.real_path / p),
+                "mount_path": lambda p="", c=None: str(self.driver.mount_path(p, c)),
                 "src_path": lambda p="": str(Path(self.meta["src_path"]) / p),
                 "make_container_name": self.driver.make_container_name,
                 "make_image_name": lambda n, t=None: self.driver.make_image_name(n, t),

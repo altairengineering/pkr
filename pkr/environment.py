@@ -1,4 +1,4 @@
-# Copyright© 1986-2024 Altair Engineering Inc.
+# Copyright© 1986-2025 Altair Engineering Inc.
 
 """Module with the pkr environment"""
 
@@ -8,10 +8,10 @@ from .cli.log import write
 from .utils import (
     ENV_FOLDER,
     HashableDict,
+    dedup_list,
     ensure_definition_matches,
     get_pkr_path,
     merge,
-    dedup_list,
     merge_lists,
 )
 
@@ -108,26 +108,14 @@ class Environment:
         """Return the default path"""
         return self.pkr_path / ENV_FOLDER
 
-    def _containers(self, template=False):
-        """Method for fetching the containers dict as the schema might
-        evolve.
+    def _containers(self, include_template: bool = False) -> dict[str, dict]:
+        """Method for fetching the containers dict as the schema might evolve."""
 
-        Args:
-          - template: a bool specifying if templates should be returned
-        """
-
-        containers = self.env["containers"]
-
-        if template:
-            return containers
-
-        if not containers:
-            return {}
-
+        containers = self.env.get("containers", {})
         return {
             name: value
             for name, value in containers.items()
-            if value and not value.get("template", False)
+            if value and (not value.get("template", False) or include_template)
         }
 
     @property
@@ -140,9 +128,9 @@ class Environment:
         """Return the template folder name"""
         return self.env.get("template_dir", self.DEFAULT_TEMPLATE_DIR)
 
-    def get_container(self, name=None):
-        """Return a compiled dictionary representing a container, or a list of
-        all if name is not specified.
+    def get_container(self, name: str = None) -> dict[str, dict]:
+        """Return a compiled dictionary representing a container, or a list of all if name is not
+        specified.
 
         Args:
           - name: the name of the container to retrieve
@@ -154,14 +142,14 @@ class Environment:
                     ret[c_name] = self.get_container(c_name)
             return ret
 
-        container = self._containers(template=True)[name] or {}
+        container = self._containers(include_template=True)[name]
         if "parent" in container and container["parent"] is not None:
             parent = self.get_container(container["parent"])
             return merge(container, parent.copy())
 
         return container
 
-    def get_requires(self, containers=None):
+    def get_requires(self, containers: list = None) -> list[dict[str, str]]:
         """Returns a list of required files for the provided containers.
 
         The result is returned as a list of dicts with 3 values: origin, src
@@ -174,14 +162,12 @@ class Environment:
         if containers is None:
             containers = list(self._containers().keys())
 
-        requirements = {}
+        requirements: dict[str, set] = {}
         # We first put them in a dict containing sets to avoid having doubles
         for name in containers:
             env = self.get_container(name)
             for key, value in env.get("requires", {}).items():
-                dst_set = requirements.get(key, set())
-                dst_set.add(HashableDict(value))
-                requirements[key] = dst_set
+                requirements.setdefault(key, set()).add(HashableDict(value))
 
         # then we transform it to a list of dicts
         ret = []
