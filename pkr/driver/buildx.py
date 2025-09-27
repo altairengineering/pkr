@@ -4,37 +4,26 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stdout, redirect_stderr
 import copy
+import io
 import os
-import sys
-import tempfile
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from python_on_whales import DockerException, docker
+from python_on_whales import docker
 
 from pkr.cli.log import write
 from pkr.driver.docker import DockerDriver
-from pkr.utils import merge
 
 BUILDKIT_ENV = {
     "env.BUILDKIT_STEP_LOG_MAX_SIZE": 1000000,
     "env.BUILDKIT_STEP_LOG_MAX_SPEED": 100000000,
 }
-BUILDX_OPTIONS = {
-    "cache_to": {
-        "type": "registry",
-        "mode": "max",
-    },
-    "cache_from": {
-        "type": "registry",
-    },
-    "progress": "plain",
-}
 BUILDX_BUILDER_NAME = "pkrbuilder"
 
 
-# pylint: disable=abstract-method
+# pylint: disable=abstract-method,too-many-instance-attributes
 class BuildxDriver(DockerDriver):
     """Driver using `docker buildx` subcommands (included in docker CE 19.03 and newer) to build
     images. Inherited from docker driver (for get_templates/pull/push/download/import/list)
@@ -43,54 +32,54 @@ class BuildxDriver(DockerDriver):
     mechanism (using registry as layer storage)
     """
 
-    DOCKER_CONTEXT = "buildx"
+    DOCKER_CONTEXT = "contexts"
 
     def __init__(self, kard, **kwargs):
         super().__init__(kard=kard, **kwargs)
         self.metas = {"tag": None, "buildx": ["cache_registry"]}
         self.buildkit_env = BUILDKIT_ENV
-        self.buildx_options = BUILDX_OPTIONS
+        self.buildx_options = None
         self.platform = os.environ.get("DOCKER_DEFAULT_PLATFORM")
         self.builder_name = None
+        self.registry_url = None
+        self.registry_username = None
+        self.registry_password = None
 
-    def get_meta(self, extras, kard):
-        values = super().get_meta(extras, kard)
-        if "tag" in extras:
-            extras["tag"] = str(values["tag"])
+    def _load_conf(self):
 
-        # Get values from meta if defined
-        self.buildkit_env.update(kard.meta.get("buildx", {}).get("buildkit_env", {}))
-        self.builder_name = kard.meta.get("buildx", {}).get("builder_name", BUILDX_BUILDER_NAME)
+        buildx_meta = self.kard.meta.get("buildx", {})
 
-        # Force cache_registry to be a sub-repo (saved in metafile)
-        if extras["buildx"]["cache_registry"] == "None":
-            extras["buildx"]["cache_registry"] = None
-        if (
-            extras["buildx"]["cache_registry"] is not None
-            and "/" not in extras["buildx"]["cache_registry"]
-        ):
-            extras["buildx"]["cache_registry"] += "/cache"
+        if bk_env := buildx_meta.get("buildkit_env"):
+            self.buildkit_env.update(bk_env)
 
-        # Compute options
-        builded_options = {
+        self.builder_name = buildx_meta.get("builder_name", BUILDX_BUILDER_NAME)
+
+        self.buildx_options = {
             "builder": self.builder_name,
-            "cache_to": {
-                "ref": extras["buildx"]["cache_registry"],
-            },
-            "cache_from": {
-                "ref": extras["buildx"]["cache_registry"],
-            },
+            "progress": "plain",
         }
-        self.buildx_options = kard.meta.get("buildx", {}).get("options", self.buildx_options)
-
-        # Handle null cache_registry
-        if extras["buildx"]["cache_registry"] is None:
-            del builded_options["cache_from"]
-            del builded_options["cache_to"]
-
-        merge(builded_options, self.buildx_options, overwrite=False)
-
-        return values
+        self.registry_url = buildx_meta.get("cache_registry")
+        if self.registry_url:
+            self.buildx_options.update(
+                {
+                    "cache_from": {
+                        "ref": self.registry_url,
+                        "type": "registry",
+                    },
+                }
+            )
+            if buildx_meta.get("push_cache", False):
+                self.buildx_options.update(
+                    {
+                        "cache_to": {
+                            "ref": self.registry_url,
+                            "mode": "max",
+                            "type": "registry",
+                        },
+                    }
+                )
+            self.registry_username = buildx_meta.get("cache_registry_username")
+            self.registry_password = buildx_meta.get("cache_registry_password")
 
     def _create_builder(self, purge=False):
         """Create the buildkit builder, never to be purged"""
@@ -102,15 +91,9 @@ class BuildxDriver(DockerDriver):
                     break
         else:
             docker.buildx.create(name=self.builder_name, driver_options=self.buildkit_env)
-            write(f"Start buildx builder {self.builder_name}")
-            with open("/dev/null", "a", encoding="utf-8") as devnull:
-                os.dup2(sys.stdout.fileno(), 3)
-                os.dup2(devnull.fileno(), sys.stdout.fileno())
-                try:
-                    docker.buildx.build(self.kard.path, progress=False, builder=self.builder_name)
-                except DockerException:
-                    pass  # Build was never intended to success, just to force builder start
-                os.dup2(3, sys.stdout.fileno())
+
+        write(f"Start buildx builder {self.builder_name}")
+        docker.buildx.inspect(x=self.builder_name, bootstrap=True)
 
     # pylint: disable=arguments-renamed,too-many-arguments,too-many-locals
     def build_images(
@@ -139,22 +122,18 @@ class BuildxDriver(DockerDriver):
           * no_rebuild: do not build if destination image exists
           * target: name of the build-stage to build in a multi-stage Dockerfile
         """
-        if docker is None:
-            # Handle python 3.6 here, to not impact child drivers
-            raise Exception("buildx is not supported for python < 3.6")
-
         services = services or list(self.kard.env.get_container().keys())
         if rebuild_context:
             self.kard.make()
 
-        buildx_meta = self.kard.meta.get("buildx", {})
-        if "cache_registry_username" in buildx_meta and buildx_meta["cache_registry"] is not None:
-            registry_url = buildx_meta["cache_registry"].split("/")[0]
-            write(f"Logging to {registry_url}")
+        self._load_conf()
+
+        if self.registry_username:
+            write(f"Logging to {self.registry_url}")
             docker.login(
-                server=registry_url,
-                username=buildx_meta.get("cache_registry_username", None),
-                password=buildx_meta.get("cache_registry_password", None),
+                server=self.registry_url,
+                username=self.registry_username,
+                password=self.registry_password,
             )
         self._create_builder(purge=clean_builder)
 
@@ -164,22 +143,19 @@ class BuildxDriver(DockerDriver):
             if len(services) >= 1:
                 write(f"Building docker images using {parallel} threads ...\n")
             futures = []
-            with ProcessPoolExecutor(max_workers=parallel) as executor:
+            with ThreadPoolExecutor(max_workers=parallel) as executor:
                 for service in services:
-                    futures.append(
-                        executor.submit(
-                            *self._build_image(
-                                service,
-                                tag,
-                                verbose,
-                                logfile,
-                                nocache,
-                                no_rebuild,
-                                True,
-                                target,
-                            )
-                        )
-                    )
+                    if build_desc := self._build_image(
+                        service,
+                        tag,
+                        verbose,
+                        logfile,
+                        nocache,
+                        no_rebuild,
+                        True,
+                        target,
+                    ):
+                        futures.append(executor.submit(*build_desc))
             for future in futures:
                 future.result(timeout=1800)
         else:
@@ -225,18 +201,20 @@ class BuildxDriver(DockerDriver):
         image_name = self.make_image_name(service, tag)
         container = self.kard.env.get_container(service)
 
-        dockerfile = container.get("dockerfile")
+        # Handle container format v1
+        container_desc = container.get("build") or container
+
+        target = target or container_desc.get("target")
+        dockerfile = container_desc.get("dockerfile")
+        context = container_desc.get("subfolder", container.get("context", self.DOCKER_CONTEXT))
+
         if not dockerfile:
             return None
-        if not target:
-            if "build" in container:
-                target = container["build"].get("target")
-            else:
-                target = container.get("target")
 
         if not no_rebuild or len(self.docker.images(image_name)) != 1:
-            context = container.get("context", self.DOCKER_CONTEXT)
-            self.buildx_options.update(
+
+            buildx_options = copy.deepcopy(self.buildx_options)
+            buildx_options.update(
                 {
                     "context_path": str(self.kard.path / context),
                     "file": str(Path(self.kard.path / context, dockerfile)),
@@ -248,15 +226,21 @@ class BuildxDriver(DockerDriver):
             )
 
             if self.platform is not None:
-                self.buildx_options.update({"platforms": [self.platform]})
+                buildx_options.update({"platforms": [self.platform]})
+
+            if "cache_from" in buildx_options:
+                buildx_options["cache_from"].update({"ref": f"{self.registry_url}/{service}"})
+            if "cache_to" in buildx_options:
+                buildx_options["cache_to"].update({"ref": f"{self.registry_url}/{service}"})
 
             # Handle args
-            if nocache and "cache_from" in self.buildx_options:
-                del self.buildx_options["cache_from"]
+            if nocache:
+                buildx_options.pop("cache_from", None)
+                buildx_options.pop("cache_to", None)
 
             return (
                 self._do_build_image,
-                copy.deepcopy(self.buildx_options),
+                copy.deepcopy(buildx_options),
                 verbose,
                 logfile,
                 bufferize,
@@ -265,50 +249,50 @@ class BuildxDriver(DockerDriver):
 
     @staticmethod
     def _do_build_image(
-        buildx_options,
-        verbose=True,
-        logfile=None,
-        bufferize=None,
-    ):
-        """Method compatible with pickle to handle build
-        with multiprocessing
-        """
-        # Handle log output
-        out_file = None
+        buildx_options, verbose=True, logfile=None, bufferize=None
+    ):  # pylint: disable=too-many-branches
+        out_buffer = None
+        file_handle = None
+        text_buffer = None
+
         if bufferize or logfile or not verbose:
-            # Replace stdout/stderr by a file (for subprocess)
-            # Equivalent of exec 3>&1 4>&2 1>$(mktemp) 2>&1
-            # pylint: disable=consider-using-with
             if logfile:
-                out_file = open(logfile, "a", encoding="utf-8")
+                # pylint: disable=consider-using-with
+                file_handle = open(logfile, "a+", encoding="utf-8")  # a+ so we can read
+                stdout = file_handle
+                stderr = file_handle
             else:
-                out_file = tempfile.TemporaryFile()
-            os.dup2(sys.stdout.fileno(), 3)
-            os.dup2(sys.stderr.fileno(), 4)
-            os.dup2(out_file.fileno(), sys.stdout.fileno())
-            os.dup2(out_file.fileno(), sys.stderr.fileno())
+                text_buffer = io.StringIO()
+                stdout = text_buffer
+                stderr = text_buffer
+        else:
+            stdout = None
+            stderr = None
 
         target_name = f'({buildx_options["target"]})"' if buildx_options.get("target") else ""
         write(f'Building {buildx_options["tags"]}{target_name} image...\n')
 
-        error = None
-        buffer = None
         try:
-            docker.buildx.build(**buildx_options)
-        except Exception as exc:
-            error = exc
+            if stdout:
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    docker.buildx.build(**buildx_options)
+            else:
+                docker.buildx.build(**buildx_options)
+        except Exception:
+            # Flush & rethrow
+            if file_handle:
+                file_handle.flush()
+            raise
         finally:
-            if bufferize:
-                out_file.seek(0)
-                buffer = out_file.read()
-            if out_file is not None:
-                os.dup2(3, sys.stdout.fileno())
-                os.dup2(4, sys.stderr.fileno())
-                out_file.close()
-            if buffer is not None:
-                write(buffer.decode("utf-8"))
+            if text_buffer and bufferize:
+                out_buffer = text_buffer.getvalue()
+            elif file_handle and bufferize:
+                file_handle.flush()
+                file_handle.seek(0)
+                out_buffer = file_handle.read()
+            if file_handle:
+                file_handle.close()
 
-        if error is None:
-            write("done.\n")
-        else:
-            raise error
+        if out_buffer:
+            write(out_buffer)
+        write("done.\n")
