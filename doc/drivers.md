@@ -60,6 +60,7 @@ default_meta:
     cache_registry_password: password #
     builder_name: pkrbuilder # Default to pkrbuilder
     buildkit_env: ... #
+    push_cache: false # Push cache to registry after build (default to false)
     options: ...      # Advanced use, please refer to driver, sane defaults
 containers:
   my_service:
