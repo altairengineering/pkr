@@ -23,9 +23,9 @@ class TestBuildxDriver(pkrTestCase):
         out_dir = self.pkr_path / "kard" / "test"
         expected = sorted(
             [
-                out_dir / "buildx" / "folder2_dst" / "copy",
-                out_dir / "buildx" / "file1" / "file2",
-                out_dir / "buildx" / "file1.dockerfile",
+                out_dir / "contexts" / "folder2_dst" / "copy",
+                out_dir / "contexts" / "file1" / "file2",
+                out_dir / "contexts" / "file1.dockerfile",
                 out_dir / "meta.yml",
             ]
         )
@@ -45,13 +45,13 @@ class TestBuildxDriver(pkrTestCase):
         self.make_kard()
 
         out_dir = self.pkr_path / "kard" / "test"
-        self.assertTrue((out_dir / "buildx" / "folder2_dst" / "copy").exists())
+        self.assertTrue((out_dir / "contexts" / "folder2_dst" / "copy").exists())
         self.assertTrue((out_dir / "context1" / "folder2_dst" / "copy").exists())
 
-        self.assertTrue((out_dir / "buildx" / "file1.dockerfile").exists())
+        self.assertTrue((out_dir / "contexts" / "file1.dockerfile").exists())
         self.assertTrue((out_dir / "context1" / "file1.dockerfile").exists())
 
-        cmd = "{} image build -s container1 -c".format(self.PKR)
+        cmd = f"{self.PKR} image build -s container1 -c"
         prc = self._run_cmd(cmd)
         stdout = prc.stdout.read()
         stderr = prc.stderr.read()
@@ -66,7 +66,6 @@ class TestBuildxDriver(pkrTestCase):
         self.assertRegex(
             stderr.decode("utf-8"),
             r"docker buildx build --progress plain --builder testpkrbuilder --load "
-            r"--file " + str(self.env_test.kard_folder) + "/.*/file1.dockerfile --cache-from "
-            r"type=registry,ref=dummy/cache --cache-to type=registry,mode=max,ref=dummy/cache "
-            r"--tag container1:123 " + str(self.env_test.kard_folder) + r"/.*/context1",
+            rf"--file {self.env_test.kard_folder}/.*/file1.dockerfile --cache-from "
+            rf"ref=dummy/container1,type=registry --tag container1:123 {self.env_test.kard_folder}/.*/context1",
         )
