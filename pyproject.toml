@@ -1,6 +1,6 @@
 [project]
 name = "pkr"
-version = "2.0.0"
+version = "2.0.1"
 description = "Template engine for deploying docker containers."
 authors = [ { name = "Altair Engineering", email = "pclm-team@altair.com" } ]
 license = {file = "LICENSE.md"}
