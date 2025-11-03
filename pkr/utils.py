@@ -3,7 +3,6 @@
 # pylint: disable=C0111,E1101,R0912,R0913
 
 """Utils functions for pkr"""
-
 import hashlib
 import json
 import os
@@ -103,7 +102,9 @@ class HashableDict(dict):
         return self.__key() == other.__key()  # pylint: disable=W0212
 
 
-def merge(source, destination, overwrite: bool = True):
+def merge(
+    source, destination, overwrite: bool = True, path: str = "", warnings: dict[str, str] = None
+):
     """Deep merge 2 dicts
 
     Warning: the source dict is merged INTO the destination one. Make a copy
@@ -111,16 +112,35 @@ def merge(source, destination, overwrite: bool = True):
     """
     if not source:
         return destination
+
     if destination is None:
         destination = {}
+
+    if warnings is None:
+        warnings: dict[str, str] = {}
+
     for key, value in list(source.items()):
+        # Build the path, in the form of 'parent.child.key'
+        if path == "":
+            cur_path = key
+        else:
+            cur_path = f"{path}.{key}"
+
+        # Check if source/destination types match
+        src_type = type(value).__name__
+        dst_val = destination.get(key)
+        dst_type = type(dst_val).__name__ if dst_val is not None else None
+        if dst_val is not None and src_type != dst_type:
+            warnings[cur_path] = f"type mismatch: overriding a {dst_type} with a {src_type}"
+
         if isinstance(value, dict):
             # Handle type mismatch
             if overwrite and not isinstance(destination.get(key), dict):
                 destination[key] = {}
             # get node or create one
             node = destination.setdefault(key, {})
-            merge(value, node, overwrite)
+            merge(value, node, overwrite, cur_path, warnings)
+
         elif isinstance(value, list):
             if key in destination:
                 # Handle type mismatch
@@ -131,8 +151,10 @@ def merge(source, destination, overwrite: bool = True):
                 # Prevent errors when having unhashable dict types
                 except TypeError:
                     destination[key].extend(value)
+
             else:
                 destination[key] = value
+
         elif overwrite or key not in destination:
             destination[key] = value
 
