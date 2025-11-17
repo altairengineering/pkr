@@ -623,16 +623,21 @@ class DockerDriver(AbstractDriver):
             def print_log(log):
                 for key in log_keys & set(log):
                     try:
-                        if key == "status" and log.get(key) in ("Downloading", "Extracting"):
+                        if (
+                            key == "status"
+                            and log.get(key) in ("Downloading", "Extracting")
+                            and (progress := log.get("progress"))
+                        ):
                             status_id = log.get("id")
 
                             if last_log_id[0] is None:
                                 last_log_id[0] = status_id
+
                             if last_log_id[0] != status_id:
                                 last_log_id[0] = status_id
-                                logfh.writeln(log["progress"])
+                                logfh.writeln(progress)
                             else:
-                                logfh.write_console(log["progress"] + "\r")
+                                logfh.write_console(progress + "\r")
                         else:
                             logfh.write_console("\n")
                             logfh.writeln(log.get(key))
