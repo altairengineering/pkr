@@ -59,8 +59,8 @@ class DockerDriver(AbstractDriver):
             self.docker = docker.APIClient(**kwargs)
         self.platform = os.environ.get("DOCKER_DEFAULT_PLATFORM")
 
-    def get_meta(self, extras, kard):
-        values = super().get_meta(extras, kard)
+    def get_meta(self, extras, kard, warnings: dict[str, str] = None):
+        values = super().get_meta(extras, kard, warnings=warnings)
         if "tag" in extras:
             extras["tag"] = str(values["tag"])
         return values

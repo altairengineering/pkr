@@ -77,7 +77,7 @@ class Environment:
             content = merge(content, imp_data)
         return content
 
-    def get_meta(self, extra):
+    def get_meta(self, extra, warnings: dict[str, str] = None):
         """Ensure that all metadata are present"""
         default = self.env.get("default_meta")
 
@@ -92,12 +92,12 @@ class Environment:
             default = {}
 
         ret = default.copy()
-        merge(extra, ret)
+        merge(extra, ret, warnings=warnings)
 
         required_values = ensure_definition_matches(
             definition=self.env.get("required_meta", []), defaults=ret, data=extra
         )
-        merge(required_values, extra)
+        merge(required_values, extra, warnings=warnings)
 
         # Feature
         ret["features"] = self.env.get("default_features", [])

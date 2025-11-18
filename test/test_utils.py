@@ -55,3 +55,19 @@ class TestMerge(unittest.TestCase):
             result,
             {"key1": "value", "key2": "new value", "key3": 9},
         )
+
+    def test_warning(self):
+        source = {"key1": "value", "key2": "new value"}
+        dest = {"key2": 2, "key3": 9}
+        src_type = type(source["key2"])
+        dest_type = type(dest["key2"])
+        warnings: dict[str, str] = {}
+
+        _ = merge(source, dest, warnings=warnings)
+
+        # Warning should be recorded for key2 because types differ
+        self.assertIn("key2", warnings)
+        self.assertEqual(
+            warnings["key2"],
+            f"type mismatch: overriding a {dest_type.__name__} with a {src_type.__name__}",
+        )

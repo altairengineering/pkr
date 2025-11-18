@@ -77,6 +77,7 @@ class Kard:
             env_name=self.clean_meta["env"], features=self.clean_meta["features"].copy()
         )
 
+        self._warnings: dict[str, str] = {}
         self._compute_meta(self.clean_meta)
         self.template_meta(self.meta)
 
@@ -279,6 +280,16 @@ class Kard:
         """Dump overall templating context meta"""
         return yaml.safe_dump(self.clean_meta if cleaned else self.meta, default_flow_style=False)
 
+    def validate(self):
+        """Return kard validation warnings"""
+        output = []
+        if len(self._warnings) > 0:
+            for k, v in self._warnings.items():
+                output.append(f"WARNING: '{k}' {v}")
+        else:
+            output.append("No configuration warnings found")
+        return "\n".join(output)
+
     def _compute_meta(self, extra):
         """
         Compute meta
@@ -297,16 +308,22 @@ class Kard:
         self.meta = copy.deepcopy(extra)
 
         # Add env to overall context in kard.meta
-        merge(self.env.get_meta(extra), self.meta)  # Extra receiving ask_input values
+        merge(
+            self.env.get_meta(extra, warnings=self._warnings), self.meta, warnings=self._warnings
+        )  # Extra receiving ask_input values
 
-        # Load driver an add it to overall context
+        # Load driver and add it to overall context
         self.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
         driver_args = self.meta.get("driver", {}).get("args", [])
         driver_kwargs = self.meta.get("driver", {}).get("kwargs", {})
         self.driver = load_driver(
             self.meta["driver"]["name"], self, self.password, *driver_args, **driver_kwargs
         )
-        merge(self.driver.get_meta(extra, self), self.meta)  # Extra receiving ask_input values
+        merge(
+            self.driver.get_meta(extra, self, warnings=self._warnings),
+            self.meta,
+            warnings=self._warnings,
+        )  # Extra receiving ask_input values
 
         # Populate src_path before extension call
         self._process_src_path()
@@ -318,11 +335,11 @@ class Kard:
         self.extensions.setup(copy.deepcopy(extra), self)
 
         # Making a diff and apply it to extra without overwrite
-        # (we want cli to superseed extensions)
+        # (we want cli to supersede extensions)
         merge(diff(overall_context, self.meta), extra, overwrite=False)
 
         # We add all remaining extra to the meta(s) (cli superseed all)
-        merge(extra, self.meta)
+        merge(extra, self.meta, warnings=self._warnings)
         self._process_src_path()
 
         # Append features

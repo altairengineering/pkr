@@ -25,7 +25,7 @@ class AbstractDriver:
         self.metas = {}
         self.password = password
 
-    def get_meta(self, extras, kard):
+    def get_meta(self, extras, kard, warnings: dict[str, str] = None):
         """Ensure that the required meta are present.
 
         Args:
@@ -37,7 +37,7 @@ class AbstractDriver:
         merge(extras, default)
 
         values = ensure_definition_matches(definition=self.metas, defaults=default, data=kard.meta)
-        merge(values, extras)
+        merge(values, extras, warnings=warnings)
         return values
 
     def get_templates(self, phase: str | None = None):

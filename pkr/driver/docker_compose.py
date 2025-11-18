@@ -61,9 +61,9 @@ class ComposePkr:
             self.compose_file_enc = self.kard.path / self.COMPOSE_FILE_ENC
             self.driver_meta = self.kard.meta.get("driver", {}).get("docker_compose", {})
 
-    def get_meta(self, extras, kard):
+    def get_meta(self, extras, kard, warnings: dict[str, str] = None):
         """Return the meta from the kard"""
-        values = super().get_meta(extras, kard)
+        values = super().get_meta(extras, kard, warnings=warnings)
         # Retrieve the real_kard_path which is different if pkr run in container
         kard.meta["real_kard_path"] = str(self.get_real_kard_path())
         return values

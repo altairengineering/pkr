@@ -436,6 +436,17 @@ def configure_kard_parser(parser: ArgumentParser):
         func=lambda args: Kard.load_current(args.kard, args.crypt_password).update()
     )
 
+    validate_kard = sub_p.add_parser("validate", help="Validate current kard templating context")
+    validate_kard.add_argument(
+        "-v",
+        action="store_true",
+        help="Validate kard configuration values (validate the overrides in meta.yml)",
+    )
+    add_kard_argument(validate_kard)
+    validate_kard.set_defaults(
+        func=lambda args: write(Kard.load_current(args.kard, args.crypt_password).validate())
+    )
+
     encrypt_kard_p = sub_p.add_parser("encrypt", help="Encrypt metadata for the current kard")
     add_kard_argument(encrypt_kard_p)
 
