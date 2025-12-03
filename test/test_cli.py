@@ -147,7 +147,6 @@ class TestCLI(pkrTestCase):
         expected_meta = {
             "env": "dev",
             "features": [],
-            "project_name": "test",
             "tag": "123",
             "tag2": "456",
         }
@@ -183,7 +182,6 @@ class TestCLI(pkrTestCase):
         expected_meta = {
             "env": "dev",
             "features": ["b", "a", "d", "c"],
-            "project_name": "test",
             "tag": "123",
         }
 
@@ -415,8 +413,30 @@ class TestCLI(pkrTestCase):
         stdout = prc.stdout.read()
         stderr = prc.stderr.read()
         self.assertEqual(0, prc.returncode, msg_hlp(stdout, stderr))
-        # print(stdout)
         self.assertEqual(stdout, b"backend:\n  dockerfile: backend.dockerfile\n\n")
+
+
+class TestCLIOverrideExtra(pkrTestCase):
+    PKR = "pkr"
+    pkr_folder = "path1"
+    kard_env = "dev"
+    kard_driver = "compose"
+    kard_extra = {"templated_list": "test_str", "tag": "test"}
+
+    def test_override_extra_with_different_type(self):
+        self.generate_kard()
+
+        cmd = "{} kard make".format(self.PKR)
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+
+        self.assertEqual(0, prc.returncode, msg_hlp(stdout, stderr))
+
+        last_error = stderr.split(b"\n")[-2]
+        self.assertEqual(
+            last_error, b"WARNING: 'templated_list', type mismatch: overriding a list with a str"
+        )
 
 
 class TestCLIProd(pkrTestCase):

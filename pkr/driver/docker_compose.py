@@ -65,7 +65,7 @@ class ComposePkr:
         """Return the meta from the kard"""
         values = super().get_meta(extras, kard)
         # Retrieve the real_kard_path which is different if pkr run in container
-        kard.meta["real_kard_path"] = str(self.get_real_kard_path())
+        values["real_kard_path"] = str(self.get_real_kard_path())
         return values
 
     def _call_compose(self, *args):
@@ -136,7 +136,7 @@ class ComposePkr:
             if yaml_data is None:
                 write(f"Warning: empty template {file} is ignored\n")
             else:
-                merge(yaml_data, merged_compose)
+                merged_compose = merge(merged_compose, yaml_data)
 
         if meta_txt:
             with self.compose_file.open("w") as dcf:
