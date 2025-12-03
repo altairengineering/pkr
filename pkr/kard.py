@@ -91,7 +91,7 @@ class Kard:
     @property
     def extensions(self):
         """Return the Extension class loaded with the correct instance"""
-        return Extensions(self.meta["features"])
+        return Extensions(reversed(self.meta["features"]))
 
     def make(self, reset=True, phase=None):
         """Make the kard"""
@@ -100,7 +100,6 @@ class Kard:
         # Reset/create all subfolders
         subfolder_list = list(map(lambda a: a.get("subfolder"), templates))
         for subfolder in [i for n, i in enumerate(subfolder_list) if i not in subfolder_list[:n]]:
-            # set(map(lambda a: a.get("subfolder"), templates)):
             folder = self.path / subfolder
             if reset:
                 write(f"Removing {subfolder} ... ", add_return=False)
@@ -162,16 +161,17 @@ class Kard:
         if meta is not None:
             extras.update(yaml.safe_load(meta))
         extras.update(extra)
-        for feature in dedup_list(extras["features"]):
+        extras["features"], duplicates = dedup_list(extras["features"])
+        for feature in duplicates:
             write(f"WARNING: Feature {feature} is duplicated in passed meta", error=True)
 
         try:
             extra_features = features
             if extra_features is not None:
-                extra_features = extra_features.split(",")
-                for feature in dedup_list(extra_features):
+                extra_features, duplicates = dedup_list(extra_features.split(","))
+                for feature in duplicates:
                     write(f"WARNING: Feature {feature} is duplicated in args", error=True)
-                merge_lists(extra_features, extras["features"], insert=False)
+                extras["features"] = merge_lists(extra_features, extras["features"], insert=False)
         except AttributeError:
             pass
 

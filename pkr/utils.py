@@ -433,24 +433,24 @@ def create_pkr_folder(pkr_path=None):
     (pkr_path / "kard").mkdir(parents=True)
 
 
-def dedup_list(src):
-    """Dedup src list (in-place) and yield duplicates"""
-    for item in set(src):
-        if src.count(item) != 1:
-            yield item
-            src.remove(item)
+def dedup_list(src: list) -> (list, list):
+    """Dedup src list and return a 2-tuple lists.
+
+    The first one contains the deduped list, the second one the list of duplicates.
+    """
+    duplicates = [i for i in set(src) if src.count(i) > 1]
+    src = list(dict.fromkeys(src))
+    return src, duplicates
 
 
-def merge_lists(src, dest, insert=True):
+def merge_lists(src: list, dest: list, insert: bool = True) -> list:
     """Merge lists avoiding duplicates"""
     if insert:
-        for x in reversed(src):
-            if x in dest:
-                continue
-            dest.insert(0, x)
+        merged_list = dest + src
     else:
-        dest.extend([x for x in src if x not in dest])
-    return dest
+        merged_list = dest + src
+    merged_list, _ = dedup_list(merged_list)
+    return merged_list
 
 
 def encrypt_swap(file, file_enc, password):

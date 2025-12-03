@@ -46,22 +46,23 @@ class Environment:
         self.extra_features = extra_features or []
         self.features = self.extra_features.copy()
         default_features = self.env.get("default_features", [])
-        for feature in dedup_list(default_features):
+        default_features, duplicates = dedup_list(default_features)
+        for feature in duplicates:
             write(f"WARNING: Feature {feature} is duplicated in env {env_name}", error=True)
-        merge_lists(default_features, self.features)
+        self.features = merge_lists(default_features, self.features)
 
         for feature in set(reversed(self.features)):
             f_path = env_path / (feature + ".yml")
             if f_path.is_file():
                 content = self._load_env_file(f_path)
-                feature_features = content.get("default_features", [])
-                for dup in dedup_list(feature_features):
+                feature_features, duplicates = dedup_list(content.get("default_features", []))
+                for dup in duplicates:
                     write(
                         f"WARNING: Feature {dup} is duplicated in feature {feature} from env "
                         f"{env_name}",
                         error=True,
                     )
-                merge_lists(feature_features, self.features)
+                self.features = merge_lists(feature_features, self.features)
                 content["default_features"] = feature_features
                 self.env = self.meta_merger.merge(self.env, content)
 
@@ -79,14 +80,14 @@ class Environment:
             # Don't return all imports, but treat them recursively in the previous loading
             imp_data.pop(self.IMPORT_KEY, None)
 
-            imp_features = imp_data.pop("default_features", [])
-            for dup in dedup_list(imp_features):
+            imp_features, duplicates = dedup_list(imp_data.pop("default_features", []))
+            for dup in duplicates:
                 write(
                     f"WARNING: Feature {dup} is duplicated in import {imp_name} from env "
                     f"{self.env_name}",
                     error=True,
                 )
-            merge_lists(imp_features, content["default_features"])
+            content["default_features"] = merge_lists(imp_features, content["default_features"])
             content = self.meta_merger.merge(imp_data, content)
         return content
 

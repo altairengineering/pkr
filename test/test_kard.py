@@ -32,7 +32,7 @@ class TestKard(pkrTestCase):
                 "name": "docker",
             },
             "env": "dev",
-            "features": ["b", "a", "d", "c"],
+            "features": ["a", "b", "c", "d"],
             "tag": 123,
         }
 
@@ -44,6 +44,8 @@ class TestKardWithInput(pkrTestCase):
     pkr_folder = "path2"
 
     def test_with_ask_input(self):
+
+        self.maxDiff = None
 
         metas = {
             "simple_meta": "simple_meta_value",
@@ -74,7 +76,7 @@ class TestKardWithInput(pkrTestCase):
                     },
                     "name": "docker",
                 },
-                "features": ["auto-volume", "b", "a"],
+                "features": ["a", "b", "auto-volume"],
                 "tag": 123,
                 "env": "required_meta",
                 "simple_meta": "simple_meta_value",
