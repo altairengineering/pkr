@@ -134,7 +134,6 @@ class TestCLI(pkrTestCase):
 
         msg_err = (
             b"WARNING: Feature g is duplicated in import dev/e from env dev\n"
-            b"WARNING: Feature e is duplicated in env dev\n"
             b"WARNING: Feature g is duplicated in feature e from env dev\n"
         )
         msg = b"Current kard is now: test\n"
@@ -169,7 +168,6 @@ class TestCLI(pkrTestCase):
             b"WARNING: Feature a is duplicated in passed meta\n"
             b"WARNING: Feature c is duplicated in args\n"
             b"WARNING: Feature g is duplicated in import dev/e from env dev\n"
-            b"WARNING: Feature e is duplicated in env dev\n"
             b"WARNING: Feature g is duplicated in feature e from env dev\n"
         )
         msg = b"Current kard is now: test\n"
@@ -181,7 +179,7 @@ class TestCLI(pkrTestCase):
 
         expected_meta = {
             "env": "dev",
-            "features": ["b", "a", "d", "c"],
+            "features": ["a", "b", "c", "d"],
             "tag": "123",
         }
 
@@ -191,7 +189,7 @@ class TestCLI(pkrTestCase):
         cmd = "{} kard dump".format(self.PKR)
         prc = self._run_cmd(cmd)
         dump = yaml.safe_load(prc.stdout)
-        self.assertEqual(dump.get("features", []), ["h", "g", "f", "e", "b", "a", "d", "c"])
+        self.assertEqual(dump.get("features", []), ["a", "b", "c", "d", "e", "f", "g", "h"])
         self.assertEqual(dump.get("env_meta"), "dummy")
         self.assertEqual(
             dump.get("src_path"), os.environ.get("RUNNER_TEMP", str(self.env_test.kard_folder))
@@ -288,10 +286,10 @@ class TestCLI(pkrTestCase):
 
         error_outputs = stderr.split(b"\n")[:-1]
         # 1 line for the command output
-        # 4 lines with the same error (3 tries, and the final print)
-        self.assertEqual(len(error_outputs), 4, stdout)
+        # 2 lines with duplicate features warning + the last error
+        self.assertEqual(len(error_outputs), 3, stderr)
         self.assertEqual(stdout, expected_cmd_output)
-        assert re.match(expected_cmd_output_2, error_outputs[3])
+        assert re.match(expected_cmd_output_2, error_outputs[2])
 
     def test_explicit_kard_option(self):
         self.generate_kard()
