@@ -2,6 +2,7 @@
 
 """Module containing extensions for pkr"""
 import abc
+import importlib.util
 import pkgutil
 import signal
 from builtins import str
@@ -142,7 +143,9 @@ class Extensions:
         for importer, package_name, _ in pkgutil.iter_modules(
             [str(get_pkr_path() / "extensions")]
         ):
-            module = importer.find_spec(package_name).loader.load_module(package_name)
+            spec = importer.find_spec(package_name)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
             extensions[package_name] = cls._get_extension_class(module)
         # Load from pkr_extensions entrypoints (and TO BE DEPRECATED extensions group)
         eps = entry_points()
