@@ -10,7 +10,7 @@ class TestExt(pkrTestCase):
 
     def test_kard_features_order_is_deterministic(self):
         res = []
-        for i in range(3):
+        for _ in range(3):
             with open(str(self.env_test.path / "meta1.yml"), "r") as f:
                 kard = Kard.create(
                     name="test", env="test", driver="compose", features="a,b", extra={}, meta=f
