@@ -7,8 +7,6 @@ from __future__ import annotations
 import re
 from abc import ABC
 
-from ..utils import ensure_definition_matches, merge
-
 
 # pylint: disable=missing-class-docstring,too-many-public-methods
 class AbstractDriver:
@@ -25,6 +23,7 @@ class AbstractDriver:
         self.metas = {}
         self.password = password
 
+    # pylint: disable=unused-argument
     def get_meta(self, extras, kard):
         """Ensure that the required meta are present.
 
@@ -32,12 +31,10 @@ class AbstractDriver:
           * extras(dict): extra values
           * kard: the current kard
         """
-        default = kard.env.get("default_meta", {}).copy()
-        default.setdefault("project_name", re.sub(r"[^-_a-z0-9]", "", str(kard.path.name).lower()))
-        merge(extras, default)
+        values = {}
+        if not kard.meta.get("project_name"):
+            values["project_name"] = re.sub(r"[^-_a-z0-9]", "", str(kard.path.name).lower())
 
-        values = ensure_definition_matches(definition=self.metas, defaults=default, data=kard.meta)
-        merge(values, extras)
         return values
 
     def get_templates(self, phase: str | None = None):

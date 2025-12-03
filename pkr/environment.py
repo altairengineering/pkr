@@ -2,14 +2,15 @@
 
 """Module with the pkr environment"""
 
+from pathlib import Path
 import yaml
 
 from .cli.log import write
 from .utils import (
     ENV_FOLDER,
     HashableDict,
+    PkrMerger,
     dedup_list,
-    ensure_definition_matches,
     get_pkr_path,
     merge,
     merge_lists,
@@ -22,10 +23,19 @@ class Environment:
     IMPORT_KEY = "import"
     DEFAULT_TEMPLATE_DIR = "templates"
 
-    def __init__(self, env_name, features=None, path=None):
+    def __init__(self, env_name, extra_features=None, path=None, meta_merger=None):
+        """Load an environment from its name
+
+        Args:
+          - env_name: the name of the environment to load
+          - features: a list of extra features to enable
+          - path: the path where to find the environments (default to PKR_PATH/env)
+          - meta_merger: the merger to use for merging metadata (default to PkrMerger)
+        """
         self.env_name = env_name
-        self.pkr_path = get_pkr_path()
-        self.path = path or self.default_path
+        self.pkr_path: Path = get_pkr_path()
+        self.path: Path = path or self.default_path
+        self.meta_merger = meta_merger or PkrMerger()
 
         # First load the main file to add eventual dependencies
         env_path = self.path / env_name
@@ -33,16 +43,18 @@ class Environment:
 
         self.env = self._load_env_file(env_file_path)
 
-        self.features = features or []
-        for feature in dedup_list(self.env.get("default_features", [])):
+        self.extra_features = extra_features or []
+        self.features = self.extra_features.copy()
+        default_features = self.env.get("default_features", [])
+        for feature in dedup_list(default_features):
             write(f"WARNING: Feature {feature} is duplicated in env {env_name}", error=True)
-        merge_lists(self.env.get("default_features", []), self.features)
+        merge_lists(default_features, self.features)
 
-        for feature in self.features:
+        for feature in set(reversed(self.features)):
             f_path = env_path / (feature + ".yml")
             if f_path.is_file():
                 content = self._load_env_file(f_path)
-                feature_features = content.pop("default_features", [])
+                feature_features = content.get("default_features", [])
                 for dup in dedup_list(feature_features):
                     write(
                         f"WARNING: Feature {dup} is duplicated in feature {feature} from env "
@@ -51,21 +63,22 @@ class Environment:
                     )
                 merge_lists(feature_features, self.features)
                 content["default_features"] = feature_features
-                merge(content, self.env)
+                self.env = self.meta_merger.merge(self.env, content)
 
-    def _load_env_file(self, path):
+    def _load_env_file(self, path: Path):
         """Load an environment with its dependencies recursively"""
         with path.open() as env_file:
-            content = yaml.safe_load(env_file)
-            if content is None:
-                content = {}
-            if "default_features" not in content:
-                content["default_features"] = []
+            content = yaml.safe_load(env_file) or {}
+            content.setdefault("default_features", [])
 
         for imp_name in content.get(self.IMPORT_KEY, ()):
+            # Loading the import file
             imp_path = self.path / (imp_name + ".yml")
             imp_data = self._load_env_file(imp_path)
+
+            # Don't return all imports, but treat them recursively in the previous loading
             imp_data.pop(self.IMPORT_KEY, None)
+
             imp_features = imp_data.pop("default_features", [])
             for dup in dedup_list(imp_features):
                 write(
@@ -74,34 +87,8 @@ class Environment:
                     error=True,
                 )
             merge_lists(imp_features, content["default_features"])
-            content = merge(content, imp_data)
+            content = self.meta_merger.merge(imp_data, content)
         return content
-
-    def get_meta(self, extra):
-        """Ensure that all metadata are present"""
-        default = self.env.get("default_meta")
-
-        if "driver" in self.env:
-            write(
-                f"DEPRECATION: driver should be under default_meta in env {self.env_name}",
-                error=True,
-            )
-            merge(self.env["driver"], default.setdefault("driver", {}), overwrite=False)
-
-        if not default:  # This prevent an empty value in the YAML
-            default = {}
-
-        ret = default.copy()
-        merge(extra, ret)
-
-        required_values = ensure_definition_matches(
-            definition=self.env.get("required_meta", []), defaults=ret, data=extra
-        )
-        merge(required_values, extra)
-
-        # Feature
-        ret["features"] = self.env.get("default_features", [])
-        return ret
 
     @property
     def default_path(self):
@@ -145,7 +132,7 @@ class Environment:
         container = self._containers(include_template=True)[name]
         if "parent" in container and container["parent"] is not None:
             parent = self.get_container(container["parent"])
-            return merge(container, parent.copy())
+            return merge(parent.copy(), container)
 
         return container
 
@@ -183,7 +170,7 @@ class Environment:
         return self.env.__getitem__(item)
 
     # pylint: disable=unnecessary-dunder-call
-    def get(self, item, default):
+    def get(self, item, default=None):
         """Return value from the env"""
         try:
             return self.__getitem__(item)
