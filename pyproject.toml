@@ -17,6 +17,7 @@ classifiers=[
     "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = [
+    "deepmerge (>=2.0,<3.0)",
     "docker==7.1.0",
     "importlib-metadata>=0.12",
     "ipaddress==1.0.17",

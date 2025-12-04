@@ -17,6 +17,7 @@ from .ext import Extensions
 from .utils import (
     Cmd,
     PkrException,
+    PkrMerger,
     TemplateEngine,
     decrypt_file,
     decrypt_swap,
@@ -24,6 +25,7 @@ from .utils import (
     diff,
     encrypt_swap,
     encrypt_with_key,
+    ensure_definition_matches,
     get_kard_root_path,
     merge,
     merge_lists,
@@ -73,8 +75,12 @@ class Kard:
         if self.clean_meta["env"] is None:
             return
 
+        self.meta_merger = PkrMerger()
+
         self.env = Environment(
-            env_name=self.clean_meta["env"], features=self.clean_meta["features"].copy()
+            env_name=self.clean_meta["env"],
+            extra_features=self.clean_meta["features"].copy(),
+            meta_merger=self.meta_merger,
         )
 
         self._compute_meta(self.clean_meta)
@@ -85,7 +91,7 @@ class Kard:
     @property
     def extensions(self):
         """Return the Extension class loaded with the correct instance"""
-        return Extensions(self.meta["features"])
+        return Extensions(reversed(self.meta["features"]))
 
     def make(self, reset=True, phase=None):
         """Make the kard"""
@@ -94,7 +100,6 @@ class Kard:
         # Reset/create all subfolders
         subfolder_list = list(map(lambda a: a.get("subfolder"), templates))
         for subfolder in [i for n, i in enumerate(subfolder_list) if i not in subfolder_list[:n]]:
-            # set(map(lambda a: a.get("subfolder"), templates)):
             folder = self.path / subfolder
             if reset:
                 write(f"Removing {subfolder} ... ", add_return=False)
@@ -125,6 +130,10 @@ class Kard:
         self.extensions.populate_kard()
         self.driver.populate_kard(self.meta_file.exists())
 
+        if warns := self.meta_merger.warnings:
+            for key, warn in warns.items():
+                write(f"WARNING: '{key}', {warn}", error=True)
+
     @classmethod
     def list(cls, kubernetes=False):
         """Return a list of all kards"""
@@ -144,22 +153,25 @@ class Kard:
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     @classmethod
-    def create(cls, name, env, driver, extra, features=None, meta=None, password=None, **kwargs):
+    def create(
+        cls, name, env, driver, extra, features=None, meta=None, password=None, **kwargs
+    ) -> "Kard":
         """Factory method to create a new kard"""
         extras = {"features": []}
         if meta is not None:
             extras.update(yaml.safe_load(meta))
         extras.update(extra)
-        for feature in dedup_list(extras["features"]):
+        extras["features"], duplicates = dedup_list(extras["features"])
+        for feature in duplicates:
             write(f"WARNING: Feature {feature} is duplicated in passed meta", error=True)
 
         try:
             extra_features = features
             if extra_features is not None:
-                extra_features = extra_features.split(",")
-                for feature in dedup_list(extra_features):
+                extra_features, duplicates = dedup_list(extra_features.split(","))
+                for feature in duplicates:
                     write(f"WARNING: Feature {feature} is duplicated in args", error=True)
-                merge_lists(extra_features, extras["features"], insert=False)
+                extras["features"] = merge_lists(extra_features, extras["features"], insert=False)
         except AttributeError:
             pass
 
@@ -185,8 +197,7 @@ class Kard:
             if driver is not None:
                 extras.setdefault("driver", {})["name"] = driver
             extras["env"] = env
-            # If a path is provided, we take it. Otherwise, we use a src folder
-            # in the kard folder.
+            # If a path is provided, we take it. Otherwise, we use a src folder in the kard folder.
             src_path = extras.pop("src_path", None)
             if src_path is not None:
                 extras.update({"src_path": src_path})
@@ -290,23 +301,35 @@ class Kard:
          - Diff what has been changed by extensions
          - Apply command line meta(s) on top
         """
-        # Extract features to push them later (ensure precedence)
-        features = extra.pop("features", [])
-
-        # Copy extra to meta
-        self.meta = copy.deepcopy(extra)
-
         # Add env to overall context in kard.meta
-        merge(self.env.get_meta(extra), self.meta)  # Extra receiving ask_input values
+        env_dict = self.env.env.copy()
+        default_meta = env_dict.get("default_meta") or {}
+        if "driver" in env_dict:
+            write(
+                f"DEPRECATION: driver should be under default_meta in env {self.env.env_name}",
+                error=True,
+            )
+            default_meta["driver"] = merge(
+                default_meta.get("driver", {}), env_dict["driver"], overwrite=False
+            )
+        self.meta = self.meta_merger.merge(default_meta, extra)
 
-        # Load driver an add it to overall context
-        self.meta.setdefault("driver", {}).setdefault("name", "compose")  # Default value
-        driver_args = self.meta.get("driver", {}).get("args", [])
-        driver_kwargs = self.meta.get("driver", {}).get("kwargs", {})
+        required_values = ensure_definition_matches(
+            definition=env_dict.get("required_meta", []), defaults=self.meta, data=extra
+        )
+        self.meta = self.meta_merger.merge(self.meta, required_values)
+
+        # Load driver and add it to overall context
+        driver = self.meta.setdefault("driver", {})
+        driver.setdefault("name", "compose")  # Default value
+        driver_args = driver.get("args", [])
+        driver_kwargs = driver.get("kwargs", {})
         self.driver = load_driver(
             self.meta["driver"]["name"], self, self.password, *driver_args, **driver_kwargs
         )
-        merge(self.driver.get_meta(extra, self), self.meta)  # Extra receiving ask_input values
+        self.meta = self.meta_merger.merge(
+            self.meta, self.driver.get_meta(extra.copy(), self)
+        )  # Extra receiving ask_input values
 
         # Populate src_path before extension call
         self._process_src_path()
@@ -319,17 +342,14 @@ class Kard:
 
         # Making a diff and apply it to extra without overwrite
         # (we want cli to superseed extensions)
-        merge(diff(overall_context, self.meta), extra, overwrite=False)
+        extra = self.meta_merger.merge(extra, diff(overall_context, self.meta), overwrite=False)
 
         # We add all remaining extra to the meta(s) (cli superseed all)
-        merge(extra, self.meta)
+        self.meta = self.meta_merger.merge(self.meta, extra)
         self._process_src_path()
 
         # Append features
-        merge_lists(features, self.meta["features"], insert=False)
-        extra["features"] = features
-
-        return extra
+        self.meta["features"] = self.env.features
 
     def _process_src_path(self):
         """Set the src path in the meta"""

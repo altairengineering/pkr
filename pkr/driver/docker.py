@@ -59,12 +59,6 @@ class DockerDriver(AbstractDriver):
             self.docker = docker.APIClient(**kwargs)
         self.platform = os.environ.get("DOCKER_DEFAULT_PLATFORM")
 
-    def get_meta(self, extras, kard):
-        values = super().get_meta(extras, kard)
-        if "tag" in extras:
-            extras["tag"] = str(values["tag"])
-        return values
-
     # pylint: disable= too-many-locals
     def get_templates(self, phase: str | None = None):
         """Use the environment information to return files and folder to template
@@ -417,7 +411,6 @@ class DockerDriver(AbstractDriver):
             if not buffer:
                 write(f"Pushing {image} to {rep_tag}:{dest_tag}")
                 sys.stdout.flush()
-
             try:
                 self.docker.tag(image=image, repository=rep_tag, tag=dest_tag, force=True)
 

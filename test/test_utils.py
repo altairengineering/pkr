@@ -26,28 +26,26 @@ class TestMerge(unittest.TestCase):
         result = merge(source, dest)
         self.assertEqual(result, dest)
 
-    def test_none_destination(self):
-        source = {"key": "value"}
-        dest = None
-        result = merge(source, dest)
-        self.assertEqual(result, source)
-        self.assertIsNone(dest)
+    def test_type_check(self):
+        base = {"key": "value"}
+        overload = None
+        with self.assertRaises(TypeError):
+            merge(base, overload, raise_on_type_mismatch=True)
 
-    def test_empty_destination(self):
-        source = {"key": "value"}
-        dest = {}
-        result = merge(source, dest)
-        self.assertEqual(result, source)
+    def test_empty_overload(self):
+        base = {"key": "value"}
+        overload = {}
+        result = merge(base, overload)
+        self.assertEqual(result, base)
 
-        # Mutate result, should also change dest
+        # Mutate result, should not change overload
         result["test"] = 12
-        self.assertIn("test", dest)
-        self.assertEqual(dest["test"], 12)
+        self.assertNotIn("test", overload)
 
     def test_simple_merge(self):
-        source = {"key1": "value", "key2": "new value"}
-        dest = {"key2": "old value", "key3": 9}
-        result = merge(source, dest)
+        base = {"key2": "old value", "key3": 9}
+        overload = {"key1": "value", "key2": "new value"}
+        result = merge(base, overload)
 
         # Result should include all unique keys and any duplicates should
         # have the value from source.

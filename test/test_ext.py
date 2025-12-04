@@ -10,14 +10,14 @@ class TestExt(pkrTestCase):
 
     def test_kard_features_order_is_deterministic(self):
         res = []
-        for i in range(3):
+        for _ in range(3):
             with open(str(self.env_test.path / "meta1.yml"), "r") as f:
                 kard = Kard.create(
                     name="test", env="test", driver="compose", features="a,b", extra={}, meta=f
                 )
             res.append((kard.meta["features"], kard.extensions.extensions))
             self.assertEqual(repr(res[-1]), repr(res[0]))
-        self.assertEqual(res[0][0], ["auto-volume", "a", "ext_mock", "b"])
+        self.assertEqual(res[0][0], ["a", "ext_mock", "b", "auto-volume"])
 
     def test_ext_loaded_from_pkr_path(self):
         with open(str(self.env_test.path / "meta1.yml"), "r") as f:

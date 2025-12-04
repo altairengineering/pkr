@@ -17,7 +17,11 @@ from enum import Enum
 from fnmatch import fnmatch
 from glob import glob
 from pathlib import Path, PosixPath
+from typing import Any
 
+from deepmerge import Merger
+from deepmerge.merger import _T
+from deepmerge.strategy.type_conflict import T1
 import docker
 import jinja2
 from Crypto import Random
@@ -103,40 +107,64 @@ class HashableDict(dict):
         return self.__key() == other.__key()  # pylint: disable=W0212
 
 
-def merge(source, destination, overwrite: bool = True):
+def strategy_override_with_warning(config: "PkrMerger", path: list, base: Any, nxt: T1) -> T1:
+    """overrides the new object over the old object"""
+    src_type = type(base).__name__
+    dst_type = type(nxt).__name__
+    config.warnings[".".join(map(str, path))] = (
+        f"type mismatch: overriding a {src_type} with a {dst_type}"
+    )
+    return nxt
+
+
+class PkrMerger(Merger):
+    def __init__(self, overwrite: bool = True):
+        super().__init__(
+            [(list, ["append"]), (dict, ["merge"]), (set, ["union"])],
+            ["override" if overwrite else "keep"],
+            [strategy_override_with_warning if overwrite else "keep"],
+        )
+        self.overwrite = overwrite
+        self.warnings = {}
+
+    # pylint: disable=attribute-defined-outside-init
+    def _set_strategy(self, overwrite: bool):
+        if overwrite:
+            self._fallback_strategies = "override"
+            self._type_conflict_strategies = strategy_override_with_warning
+        else:
+            self._fallback_strategies = "keep"
+            self._type_conflict_strategies = "keep"
+
+    def merge(self, base: _T, nxt: _T, overwrite: bool = True) -> _T:
+
+        if overwrite != self.overwrite:
+            self._set_strategy(overwrite)
+
+        try:
+            result = super().merge(base, nxt)
+        finally:
+            if overwrite != self.overwrite:
+                self._set_strategy(self.overwrite)
+
+        return result
+
+
+def merge(base, nxt, overwrite: bool = True, raise_on_type_mismatch: bool = False):
     """Deep merge 2 dicts
 
-    Warning: the source dict is merged INTO the destination one. Make a copy
-    before using it if you do not want to destroy the destination dict.
+    Warning: the nxt dict is merged INTO the base one.
     """
-    if not source:
-        return destination
-    if destination is None:
-        destination = {}
-    for key, value in list(source.items()):
-        if isinstance(value, dict):
-            # Handle type mismatch
-            if overwrite and not isinstance(destination.get(key), dict):
-                destination[key] = {}
-            # get node or create one
-            node = destination.setdefault(key, {})
-            merge(value, node, overwrite)
-        elif isinstance(value, list):
-            if key in destination:
-                # Handle type mismatch
-                if overwrite and not isinstance(destination[key], list):
-                    destination[key] = []
-                try:
-                    destination[key] = list(dict.fromkeys(destination[key] + value))
-                # Prevent errors when having unhashable dict types
-                except TypeError:
-                    destination[key].extend(value)
-            else:
-                destination[key] = value
-        elif overwrite or key not in destination:
-            destination[key] = value
 
-    return destination
+    merger = PkrMerger(overwrite)
+
+    result = merger.merge(base, nxt)
+
+    if raise_on_type_mismatch and merger.warnings:
+        messages = "\n".join([f"- {k}: {v}" for k, v in merger.warnings.items()])
+        raise TypeError(f"Type mismatches detected during merge:\n{messages}")
+
+    return result
 
 
 def diff(previous, current):
@@ -405,24 +433,24 @@ def create_pkr_folder(pkr_path=None):
     (pkr_path / "kard").mkdir(parents=True)
 
 
-def dedup_list(src):
-    """Dedup src list (in-place) and yield duplicates"""
-    for item in set(src):
-        if src.count(item) != 1:
-            yield item
-            src.remove(item)
+def dedup_list(src: list) -> (list, list):
+    """Dedup src list and return a 2-tuple lists.
+
+    The first one contains the deduped list, the second one the list of duplicates.
+    """
+    duplicates = [i for i in set(src) if src.count(i) > 1]
+    src = list(dict.fromkeys(src))
+    return src, duplicates
 
 
-def merge_lists(src, dest, insert=True):
+def merge_lists(src: list, dest: list, insert: bool = True) -> list:
     """Merge lists avoiding duplicates"""
     if insert:
-        for x in reversed(src):
-            if x in dest:
-                continue
-            dest.insert(0, x)
+        merged_list = dest + src
     else:
-        dest.extend([x for x in src if x not in dest])
-    return dest
+        merged_list = dest + src
+    merged_list, _ = dedup_list(merged_list)
+    return merged_list
 
 
 def encrypt_swap(file, file_enc, password):

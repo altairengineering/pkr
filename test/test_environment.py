@@ -20,7 +20,7 @@ class TestEnvironment(unittest.TestCase):
         pkr.utils.ENV_FOLDER = pkr.environment.ENV_FOLDER = "path2/env"
 
     def test_load_dev_environment(self):
-        env = Environment("dev", features=["first", "second", "auto-volume"])
+        env = Environment("dev", extra_features=["first", "second", "auto-volume"])
 
         expected_env = {
             "containers": {"backend": {"dockerfile": "backend.dockerfile"}},
@@ -92,35 +92,3 @@ class TestEnvironment(unittest.TestCase):
         }
 
         self.assertEqual(env.env, expected_env)
-
-        metas = {
-            "simple_meta": "simple_meta_value",
-            "dict_meta/dict_meta_value": "dict_meta_value",
-        }
-
-        with patch("pkr.utils.ask_input", side_effect=metas.get) as std_mock:
-            extra = {}
-            values = env.get_meta(extra)
-
-            for func_call in [call(m) for m in metas.keys()]:
-                self.assertIn(func_call, std_mock.call_args_list)
-
-        expected_values = {
-            "driver": {
-                "docker_compose": {
-                    "compose_file": "templates/docker-compose.yml.template",
-                    "compose_extension_files": [
-                        "templates/empty.yml.template",
-                    ],
-                }
-            },
-            "features": ["auto-volume"],
-            "from": "import",
-        }
-        self.assertEqual(values, expected_values)
-
-        expected_extra = {
-            "simple_meta": "simple_meta_value",
-            "dict_meta": {"dict_meta_value": "dict_meta_value"},
-        }
-        self.assertEqual(extra, expected_extra)
