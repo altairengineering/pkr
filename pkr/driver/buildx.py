@@ -44,6 +44,7 @@ class BuildxDriver(DockerDriver):
         self.registry_url = None
         self.registry_username = None
         self.registry_password = None
+        self.secrets = None
 
     def _load_conf(self):
 
@@ -51,6 +52,8 @@ class BuildxDriver(DockerDriver):
 
         if bk_env := buildx_meta.get("buildkit_env"):
             self.buildkit_env.update(bk_env)
+
+        self.secrets = buildx_meta.get("secrets", {})
 
         self.builder_name = buildx_meta.get("builder_name", BUILDX_BUILDER_NAME)
 
@@ -207,6 +210,7 @@ class BuildxDriver(DockerDriver):
         target = target or container_desc.get("target")
         dockerfile = container_desc.get("dockerfile")
         context = container_desc.get("subfolder", container.get("context", self.DOCKER_CONTEXT))
+        image_secrets = container_desc.get("secrets", [])
 
         if not dockerfile:
             return None
@@ -224,6 +228,21 @@ class BuildxDriver(DockerDriver):
                     "target": target,
                 }
             )
+
+            # Add secrets to the buildx command.
+            #
+            # self.secrets contains the buildx level secret configuration,
+            # including the source
+            #
+            # image_secrets contains the list of secret ids that are
+            # required to build the image.
+            if image_secrets and self.secrets:
+                buildx_options["secrets"] = [
+                    # Only environment secrets are supported.
+                    f"id={secret},env={env}"
+                    for secret in image_secrets
+                    if (env := self.secrets.get(secret, {}).get("environment"))
+                ]
 
             if self.platform is not None:
                 buildx_options.update({"platforms": [self.platform]})

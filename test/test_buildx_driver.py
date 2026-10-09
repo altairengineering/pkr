@@ -3,9 +3,8 @@ import sys
 from .utils import pkrTestCase
 
 
-class TestBuildxDriver(pkrTestCase):
+class _baseBuildxDriverTest(pkrTestCase):
     PKR = "pkr"
-    pkr_folder = "docker_driver"
     kard_env = "dev"
     kard_driver = "buildx_compose"
     kard_extra = {
@@ -14,6 +13,10 @@ class TestBuildxDriver(pkrTestCase):
         "buildx.cache_registry": "dummy",
         "buildx.builder_name": "testpkrbuilder",
     }
+
+
+class TestBuildxDriver(_baseBuildxDriverTest):
+    pkr_folder = "docker_driver"
 
     def test_docker_driver_values(self):
         self.kard_extra["src_path"] = self.src_path
@@ -68,4 +71,32 @@ class TestBuildxDriver(pkrTestCase):
             r"docker buildx build --progress plain --builder testpkrbuilder --load "
             rf"--file {self.env_test.kard_folder}/.*/file1.dockerfile --cache-from "
             rf"ref=dummy/container1,type=registry --tag container1:123 {self.env_test.kard_folder}/.*/context1",
+        )
+
+
+class TestBuildxDriverV2(_baseBuildxDriverTest):
+    pkr_folder = "container_format_v2"
+
+    def test_buildx_secrets(self):
+        self.kard_extra["buildx.secrets.test_secret.environment"] = "TEST_SECRET"
+        self.generate_kard()
+        self.make_kard()
+
+        cmd = f"{self.PKR} image build -s container1 -c"
+        prc = self._run_cmd(cmd)
+        stdout = prc.stdout.read()
+        stderr = prc.stderr.read()
+
+        expected = (
+            b"Start buildx builder testpkrbuilder\n"
+            b"Building docker images...\n\n"
+            b"Building container1:123 image...\n\n"
+        )
+        self.assertTrue("unknown instruction: flag_value" in stderr.decode("utf-8"), stderr)
+        self.assertEqual(stdout, expected, stdout)
+        d = stderr.decode("utf-8")
+        # Check that the secret is passed to the docker buildx command.
+        self.assertRegex(
+            d,
+            r"docker buildx build.*--secret id=test_secret,env=TEST_SECRET",
         )
