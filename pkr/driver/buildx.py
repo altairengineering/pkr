@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from python_on_whales import docker
+from python_on_whales.exceptions import DockerException
 
 from pkr.cli.log import write
 from pkr.driver.docker import DockerDriver
@@ -93,7 +94,21 @@ class BuildxDriver(DockerDriver):
                 else:
                     break
         else:
-            docker.buildx.create(name=self.builder_name, driver_options=self.buildkit_env)
+            try:
+                docker.buildx.create(name=self.builder_name, driver_options=self.buildkit_env)
+            except DockerException as exc:
+                # If many jobs are doing this in parallel, there may be a race
+                # that causes this exception.
+                if (
+                    not exc.stderr
+                    or f'existing instance for "{self.builder_name}"' not in exc.stderr
+                ):
+                    raise
+                write(
+                    f"WARNING: failed to create buildx builder {self.builder_name} as it already "
+                    "exists. This may be a race condition. Continuing.",
+                    error=True,
+                )
 
         write(f"Start buildx builder {self.builder_name}")
         docker.buildx.inspect(x=self.builder_name, bootstrap=True)
